@@ -35,4 +35,5 @@ async def test_admin_decision_is_idempotent_and_only_moves_to_handoff(review_dat
 
     assert first == second
     assert count == 1
+    assert claim is not None
     assert claim.status is ClaimStatus.PENDING_HANDOFF

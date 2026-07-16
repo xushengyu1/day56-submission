@@ -1,4 +1,5 @@
 import pytest
+from typing import Any
 
 from app.db.enums import ItemType, RecordKind
 from app.matching.scoring import (
@@ -10,8 +11,8 @@ from app.matching.scoring import (
 )
 
 
-def _features(candidate_id: str = "found-a", **overrides: object) -> CandidateFeatures:
-    values: dict[str, object] = {
+def _features(candidate_id: str = "found-a", **overrides: Any) -> CandidateFeatures:
+    values: dict[str, Any] = {
         "candidate_id": candidate_id,
         "left_kind": RecordKind.LOST,
         "right_kind": RecordKind.FOUND,
@@ -49,7 +50,7 @@ def test_score_uses_50_20_20_10_weights_and_high_level() -> None:
         {"right_category": "耳机"},
     ],
 )
-def test_direction_type_and_category_are_hard_gates(override: dict[str, object]) -> None:
+def test_direction_type_and_category_are_hard_gates(override: dict[str, Any]) -> None:
     result = score_candidate(_features(**override))
 
     assert result.eligible is False

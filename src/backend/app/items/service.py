@@ -9,8 +9,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.audit.schemas import AuditEventInput
 from app.audit.service import append_audit_event
 from app.auth.models import User  # noqa: F401 - registers FK target metadata
+from app.core.idempotency import get_idempotent_result, hash_request, store_idempotent_result
 from app.db.enums import (
     ActorType,
+    ClaimStatus,
     DataClass,
     DocumentType,
     ImagePurpose,
@@ -21,12 +23,15 @@ from app.db.enums import (
 )
 from app.images.models import ImageAsset
 from app.items.models import ItemRecord
+from app.items.schemas import HandoffResult
 from app.items.policies import validate_common_publish_fields
 from app.matching.embedding import embed_public_text
+from app.matching.models import CandidateMatch
 from app.multimodal.ports import MultimodalPort
 from app.multimodal.models import AIExtraction
 from app.multimodal.schemas import ExtractionDraft
 from app.settings import settings
+from app.reviews.models import Claim
 from app.verification.identity import compute_id_hmac, mask_cn_id, normalize_cn_id
 from app.verification.models import (
     IdentityDocumentSecret,
@@ -272,3 +277,84 @@ async def publish_found_record(
         ),
     )
     return record
+
+
+async def get_claim_contact(
+    session: AsyncSession, *, claim_id: UUID, requester_id: UUID
+) -> dict[str, str]:
+    claim = await session.get(Claim, claim_id)
+    if (
+        claim is None
+        or claim.requester_user_id != requester_id
+        or claim.status is not ClaimStatus.PENDING_HANDOFF
+    ):
+        raise DomainError("NOT_FOUND")
+    candidate = await session.get(CandidateMatch, claim.candidate_id)
+    if candidate is None:
+        raise DomainError("NOT_FOUND")
+    found = await session.get(ItemRecord, candidate.found_record_id)
+    if found is None:
+        raise DomainError("NOT_FOUND")
+    finder = await session.get(User, found.owner_user_id)
+    if finder is None:
+        raise DomainError("NOT_FOUND")
+    return {"email": finder.email}
+
+
+async def complete_handoff(
+    session: AsyncSession,
+    *,
+    claim_id: UUID,
+    finder_id: UUID,
+    confirmation: bool,
+    idempotency_key: str,
+) -> HandoffResult:
+    if not confirmation:
+        raise DomainError("CONFIRMATION_REQUIRED")
+    request_hash = hash_request(
+        {"claim_id": str(claim_id), "confirmation": confirmation}
+    )
+    replay = await get_idempotent_result(
+        session, finder_id, idempotency_key, request_hash
+    )
+    if replay is not None:
+        return HandoffResult.model_validate(replay.response_body)
+    claim = await session.scalar(select(Claim).where(Claim.id == claim_id).with_for_update())
+    if claim is None:
+        raise DomainError("NOT_FOUND")
+    candidate = await session.get(CandidateMatch, claim.candidate_id)
+    if candidate is None:
+        raise DomainError("NOT_FOUND")
+    found = await session.get(ItemRecord, candidate.found_record_id)
+    lost = await session.get(ItemRecord, candidate.lost_record_id)
+    if found is None or lost is None or found.owner_user_id != finder_id:
+        raise DomainError("NOT_FINDER")
+    if claim.status is not ClaimStatus.PENDING_HANDOFF:
+        raise DomainError("HANDOFF_NOT_READY")
+    claim.status = ClaimStatus.CLAIMED
+    claim.final_reason = "HANDOFF_COMPLETED"
+    claim.updated_at = datetime.now(timezone.utc)
+    found.status = RecordStatus.CLAIMED
+    lost.status = RecordStatus.CLAIMED
+    append_audit_event(
+        session,
+        AuditEventInput(
+            event_type="HANDOFF_COMPLETED",
+            aggregate_type="claim",
+            aggregate_id=claim.id,
+            actor_type=ActorType.FINDER,
+            actor_id=finder_id,
+            result_code="CLAIMED",
+            metadata={"confirmation": True},
+        ),
+    )
+    result = HandoffResult(claim_id=claim.id, status=claim.status)
+    store_idempotent_result(
+        session,
+        finder_id,
+        idempotency_key,
+        request_hash,
+        200,
+        result.model_dump(mode="json"),
+    )
+    return result

@@ -3,7 +3,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field
 
-from app.db.enums import ItemType
+from app.db.enums import ClaimStatus, ItemType
 from app.images.schemas import RedactionRegion
 
 
@@ -35,3 +35,12 @@ class PublishRequest(BaseModel):
 class RedactionRequest(BaseModel):
     original_asset_id: UUID
     region: RedactionRegion
+
+
+class HandoffCompleteRequest(BaseModel):
+    confirmation: bool
+
+
+class HandoffResult(BaseModel):
+    claim_id: UUID
+    status: ClaimStatus

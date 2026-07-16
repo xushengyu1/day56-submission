@@ -1,3 +1,5 @@
+from collections.abc import Iterable
+
 from sqlalchemy.types import UserDefinedType
 
 
@@ -15,6 +17,8 @@ class VectorType(UserDefinedType[list[float]]):
                 return None
             if isinstance(value, str):
                 return value
+            if not isinstance(value, Iterable):
+                raise TypeError("vector value must be iterable")
             return "[" + ",".join(str(float(part)) for part in value) + "]"
 
         return serialize

@@ -22,6 +22,7 @@ def redact_image_bytes(data: bytes, region: RedactionRegion) -> bytes:
     ):
         raise ValueError("REDACTION_REGION_INVALID")
     pixels = image.load()
+    assert pixels is not None
     for y in range(region.y, region.y + region.height):
         for x in range(region.x, region.x + region.width):
             pixels[x, y] = (0, 0, 0, 255)

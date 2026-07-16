@@ -8,7 +8,7 @@ def _hash_vector(text: str, dimension: int) -> list[float]:
     if dimension <= 0:
         raise ValueError("EMBEDDING_DIMENSION_INVALID")
     seed = hashlib.sha256(text.encode("utf-8")).digest()
-    values = []
+    values: list[float] = []
     counter = 0
     while len(values) < dimension:
         block = hashlib.sha256(seed + counter.to_bytes(4, "big")).digest()

@@ -54,6 +54,8 @@ class OpenAICompatibleAdapter:
                 raise ModelAdapterError("MODEL_HTTP_ERROR")
             break
 
+        if response is None:
+            raise ModelAdapterError("MODEL_UNAVAILABLE")
         try:
             body = response.json()
             content = body["choices"][0]["message"]["content"]
@@ -63,6 +65,12 @@ class OpenAICompatibleAdapter:
             return parsed
         except (ValueError, TypeError, KeyError, IndexError, AttributeError):
             raise ModelAdapterError("MODEL_RESPONSE_INVALID") from None
+
+    @staticmethod
+    def _float(value: object) -> float:
+        if not isinstance(value, (str, int, float)):
+            raise TypeError
+        return float(value)
 
     def extract_found_item(
         self, image_ref: str, context: Mapping[str, object]
@@ -75,7 +83,7 @@ class OpenAICompatibleAdapter:
                 item_type=ItemType(parsed["item_type"]),
                 name_public=str(parsed["name_public"]),
                 description_public=str(parsed["description_public"]),
-                confidence=float(parsed["confidence"]),
+                confidence=self._float(parsed["confidence"]),
                 provider="openai-compatible",
                 model=self.model,
                 version=self.version,
@@ -90,6 +98,9 @@ class OpenAICompatibleAdapter:
             "generate_questions", {"hidden_description": hidden_description}
         )
         try:
+            raw_questions = parsed["questions"]
+            if not isinstance(raw_questions, list):
+                raise TypeError
             questions = tuple(
                 QuestionDraft(
                     question_text=str(item["question_text"]),
@@ -97,8 +108,11 @@ class OpenAICompatibleAdapter:
                     dimension=str(item["dimension"]),
                     is_open_ended=bool(item.get("is_open_ended", True)),
                 )
-                for item in parsed["questions"]
+                for item in raw_questions
+                if isinstance(item, Mapping)
             )
+            if len(questions) != len(raw_questions):
+                raise TypeError
             draft = QuestionSetDraft(questions=questions)
         except (KeyError, TypeError, ValueError):
             raise ModelAdapterError("MODEL_RESPONSE_INVALID") from None
@@ -122,7 +136,7 @@ class OpenAICompatibleAdapter:
         try:
             result = VerificationResult(
                 result=QuestionResult(parsed["result"]),
-                confidence=float(parsed["confidence"]),
+                confidence=self._float(parsed["confidence"]),
                 reason_code=str(parsed["reason_code"]),
                 provider="openai-compatible",
                 model=self.model,

@@ -1,5 +1,7 @@
+from enum import Enum
 from pathlib import Path
 import re
+from typing import cast
 
 import pytest
 from sqlalchemy import inspect, select, text, update
@@ -80,7 +82,7 @@ def test_database_enum_values_are_stable() -> None:
     }
 
     for enum_type, values in expected.items():
-        assert [member.value for member in enum_type] == values
+        assert [member.value for member in cast(type[Enum], enum_type)] == values
 
 
 def test_model_metadata_contains_all_t01_tables() -> None:

@@ -22,6 +22,7 @@ from app.matching.scoring import (
     rank_top_candidates,
     score_candidate,
 )
+from app.reviews.models import Claim
 from app.settings import settings
 
 
@@ -132,7 +133,10 @@ async def generate_candidates(
 
     ranked = rank_top_candidates(scores)
     await session.execute(
-        delete(CandidateMatch).where(CandidateMatch.lost_record_id == lost_record.id)
+        delete(CandidateMatch).where(
+            CandidateMatch.lost_record_id == lost_record.id,
+            CandidateMatch.id.not_in(select(Claim.candidate_id)),
+        )
     )
     models = []
     for score in ranked:

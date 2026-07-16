@@ -1,3 +1,5 @@
+from typing import Any, cast
+
 from app.audit.projection import redact_metadata
 
 
@@ -13,7 +15,7 @@ def test_redaction_recurses_and_removes_sensitive_keys_and_patterns() -> None:
         "items": [{"phone": "13800138000"}],
     }
 
-    redacted = redact_metadata(value)
+    redacted = cast(dict[str, Any], redact_metadata(value))
 
     assert redacted["safe"] == "published"
     assert redacted["identity_number"] == "[REDACTED]"

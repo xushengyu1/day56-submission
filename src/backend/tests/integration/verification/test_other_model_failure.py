@@ -2,11 +2,12 @@ import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.enums import ClaimStatus
+from app.multimodal.mock import MockMultimodalAdapter
 from app.multimodal.ports import ModelAdapterError
 from app.verification.service import submit_other_claim
 
 
-class FailingAdapter:
+class FailingAdapter(MockMultimodalAdapter):
     def verify_answers(self, question_set, answers):
         raise ModelAdapterError("MODEL_UNAVAILABLE")
 

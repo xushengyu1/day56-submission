@@ -1,4 +1,4 @@
-from uuid import UUID, uuid4
+from uuid import UUID
 
 import pytest
 
@@ -11,9 +11,11 @@ from app.core.idempotency import hash_request
 def test_clock_is_utc_and_request_ids_are_uuid_strings() -> None:
     now = utc_now()
     request_id = new_request_id()
+    offset = now.utcoffset()
 
     assert now.tzinfo is not None
-    assert now.utcoffset().total_seconds() == 0
+    assert offset is not None
+    assert offset.total_seconds() == 0
     assert isinstance(UUID(request_id), UUID)
     assert validate_request_id(request_id)
 

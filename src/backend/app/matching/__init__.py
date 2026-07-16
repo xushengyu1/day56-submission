@@ -1,0 +1,1 @@
+"""Candidate matching persistence contracts."""

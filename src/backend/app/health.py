@@ -1,20 +1,9 @@
 from fastapi import APIRouter, FastAPI
 from fastapi.responses import JSONResponse
-from sqlalchemy import text
-from sqlalchemy.ext.asyncio import create_async_engine
 
-from app.settings import settings
+from app.database import check_database
 
 router = APIRouter()
-
-
-async def check_database() -> None:
-    engine = create_async_engine(settings.database_url, pool_pre_ping=True)
-    try:
-        async with engine.connect() as connection:
-            await connection.execute(text("SELECT 1"))
-    finally:
-        await engine.dispose()
 
 
 async def readiness_response() -> JSONResponse:

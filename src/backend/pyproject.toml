@@ -20,7 +20,13 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["httpx==0.28.1", "pytest==8.4.1", "pytest-asyncio==1.1.0"]
+dev = [
+  "httpx==0.28.1",
+  "mypy==2.3.0",
+  "pytest==8.4.1",
+  "pytest-asyncio==1.1.0",
+  "ruff==0.15.22",
+]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

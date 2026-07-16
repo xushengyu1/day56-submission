@@ -6,6 +6,7 @@ from app.api.routes.auth import router as auth_router
 from app.auth.rbac import AuthorizationError
 from app.auth.security import AuthenticationError
 from app.health import register_health_routes
+from app.api.routes.uploads import router as uploads_router
 
 
 def create_app() -> FastAPI:
@@ -26,6 +27,7 @@ def create_app() -> FastAPI:
     application.add_exception_handler(APIError, api_error_handler)
     register_health_routes(application)
     application.include_router(auth_router)
+    application.include_router(uploads_router)
     return application
 
 

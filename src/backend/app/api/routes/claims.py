@@ -8,11 +8,22 @@ from app.auth.models import User
 from app.database import get_database_session
 from app.items.service import DomainError
 from app.settings import settings
-from app.verification.schemas import ClaimOutcome, IdentityClaimRequest
-from app.verification.service import submit_identity_claim
+from app.multimodal.mock import MockMultimodalAdapter
+from app.verification.schemas import (
+    ClaimOutcome,
+    IdentityClaimRequest,
+    OtherClaimRequest,
+    QuestionPublic,
+)
+from app.verification.service import (
+    get_other_questions,
+    submit_identity_claim,
+    submit_other_claim,
+)
 
 
 router = APIRouter(prefix="/api/candidates", tags=["claims"])
+_adapter = MockMultimodalAdapter()
 
 
 @router.post("/{candidate_id}/claims/identity", response_model=ClaimOutcome)
@@ -36,3 +47,39 @@ async def identity_claim(
         await session.rollback()
         status_code = 404 if error.code == "NOT_FOUND" else 423 if error.code == "ATTEMPT_LOCKED" else 400
         raise HTTPException(status_code, error.code) from None
+
+
+@router.get("/{candidate_id}/questions", response_model=list[QuestionPublic])
+async def other_questions(
+    candidate_id: UUID,
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_database_session),
+) -> list[QuestionPublic]:
+    try:
+        return await get_other_questions(
+            session, candidate_id=candidate_id, requester_id=user.id
+        )
+    except DomainError as error:
+        raise HTTPException(404 if error.code == "NOT_FOUND" else 400, error.code) from None
+
+
+@router.post("/{candidate_id}/claims/answers", response_model=ClaimOutcome)
+async def other_claim(
+    candidate_id: UUID,
+    payload: OtherClaimRequest,
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_database_session),
+) -> ClaimOutcome:
+    try:
+        result = await submit_other_claim(
+            session,
+            candidate_id=candidate_id,
+            requester_id=user.id,
+            answers={answer.question_id: answer.answer for answer in payload.answers},
+            adapter=_adapter,
+        )
+        await session.commit()
+        return result
+    except DomainError as error:
+        await session.rollback()
+        raise HTTPException(404 if error.code == "NOT_FOUND" else 400, error.code) from None

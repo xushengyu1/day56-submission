@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=1440">
+  <title>管理员复核队列 - AI 失物招领系统</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    ::-webkit-scrollbar { display: none; }
+    body { width: 1440px; height: 900px; overflow: hidden; font-family: 'Inter', system-ui, -apple-system, sans-serif; }
+  </style>
+</head>
+<body class="bg-gray-50">
+  <!-- 顶部导航栏 -->
+  <nav class="bg-white border-b border-gray-100 h-16 flex items-center justify-between px-8">
+    <div class="flex items-center gap-3">
+      <div class="w-9 h-9 bg-purple-600 rounded-xl flex items-center justify-center">
+        <i class="fas fa-shield-halved text-white text-sm"></i>
+      </div>
+      <span class="text-lg font-bold text-gray-900">管理员工作台</span>
+    </div>
+    <div class="flex items-center gap-6">
+      <button class="relative text-gray-400 hover:text-gray-600">
+        <i class="fas fa-bell text-lg"></i>
+        <span class="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-[10px] rounded-full flex items-center justify-center">5</span>
+      </button>
+      <div class="flex items-center gap-3 pl-6 border-l border-gray-100">
+        <img src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=80&h=80&fit=crop&crop=face" alt="头像" class="w-9 h-9 rounded-full object-cover">
+        <div>
+          <p class="text-sm font-semibold text-gray-900">王管理员</p>
+          <p class="text-xs text-purple-500">系统管理员</p>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <div class="flex h-[calc(100vh-64px)]">
+    <!-- 左侧菜单 -->
+    <div class="w-[200px] bg-white border-r border-gray-100 p-4">
+      <div class="space-y-1">
+        <a href="admin-queue.html" class="flex items-center gap-3 px-3 py-2.5 bg-purple-50 text-purple-700 rounded-lg text-sm font-medium">
+          <i class="fas fa-inbox w-5"></i>复核队列
+          <span class="ml-auto bg-purple-100 text-purple-600 text-xs px-2 py-0.5 rounded-full">5</span>
+        </a>
+        <a href="timeline.html" class="flex items-center gap-3 px-3 py-2.5 text-gray-600 hover:bg-gray-50 rounded-lg text-sm">
+          <i class="fas fa-clock-rotate-left w-5"></i>审计日志
+        </a>
+        <a href="#" class="flex items-center gap-3 px-3 py-2.5 text-gray-600 hover:bg-gray-50 rounded-lg text-sm">
+          <i class="fas fa-chart-bar w-5"></i>数据统计
+        </a>
+        <a href="#" class="flex items-center gap-3 px-3 py-2.5 text-gray-600 hover:bg-gray-50 rounded-lg text-sm">
+          <i class="fas fa-gear w-5"></i>系统设置
+        </a>
+      </div>
+    </div>
+
+    <!-- 主体内容 -->
+    <div class="flex-1 p-6 overflow-y-auto" style="scrollbar-width: none;">
+      <!-- 统计卡片 -->
+      <div class="grid grid-cols-5 gap-4 mb-6">
+        <div class="bg-white rounded-xl border border-gray-100 p-4">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-xs text-gray-400">待处理</span>
+            <i class="fas fa-inbox text-purple-500"></i>
+          </div>
+          <p class="text-2xl font-bold text-gray-900">5</p>
+        </div>
+        <div class="bg-white rounded-xl border border-gray-100 p-4">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-xs text-gray-400">多人认领</span>
+            <i class="fas fa-users text-red-500"></i>
+          </div>
+          <p class="text-2xl font-bold text-red-600">2</p>
+        </div>
+        <div class="bg-white rounded-xl border border-gray-100 p-4">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-xs text-gray-400">核验未通过</span>
+            <i class="fas fa-xmark-circle text-amber-500"></i>
+          </div>
+          <p class="text-2xl font-bold text-amber-600">1</p>
+        </div>
+        <div class="bg-white rounded-xl border border-gray-100 p-4">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-xs text-gray-400">未匹配复核</span>
+            <i class="fas fa-flag text-blue-500"></i>
+          </div>
+          <p class="text-2xl font-bold text-blue-600">1</p>
+        </div>
+        <div class="bg-white rounded-xl border border-gray-100 p-4">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-xs text-gray-400">今日已处理</span>
+            <i class="fas fa-check-double text-emerald-500"></i>
+          </div>
+          <p class="text-2xl font-bold text-emerald-600">8</p>
+        </div>
+      </div>
+
+      <!-- 筛选标签 -->
+      <div class="flex items-center gap-2 mb-4">
+        <button class="px-4 py-2 bg-purple-600 text-white text-sm font-medium rounded-lg">全部 (5)</button>
+        <button class="px-4 py-2 bg-white text-gray-600 text-sm rounded-lg border border-gray-200 hover:bg-gray-50">多人认领 (2)</button>
+        <button class="px-4 py-2 bg-white text-gray-600 text-sm rounded-lg border border-gray-200 hover:bg-gray-50">核验未通过 (1)</button>
+        <button class="px-4 py-2 bg-white text-gray-600 text-sm rounded-lg border border-gray-200 hover:bg-gray-50">未匹配复核 (1)</button>
+        <button class="px-4 py-2 bg-white text-gray-600 text-sm rounded-lg border border-gray-200 hover:bg-gray-50">认领复核 (1)</button>
+      </div>
+
+      <!-- 复核列表 -->
+      <div class="bg-white rounded-2xl border border-gray-100">
+        <!-- 表头 -->
+        <div class="grid grid-cols-12 gap-4 px-6 py-3 border-b border-gray-100 text-xs font-semibold text-gray-500 uppercase">
+          <div class="col-span-3">物品信息</div>
+          <div class="col-span-2">类型</div>
+          <div class="col-span-2">申请人</div>
+          <div class="col-span-2">复核原因</div>
+          <div class="col-span-2">时间</div>
+          <div class="col-span-1">操作</div>
+        </div>
+
+        <!-- 行 1 - 多人认领 -->
+        <a href="admin-review.html" class="grid grid-cols-12 gap-4 px-6 py-4 border-b border-gray-50 hover:bg-gray-50 transition-colors cursor-pointer items-center">
+          <div class="col-span-3 flex items-center gap-3">
+            <div class="w-10 h-10 bg-gray-100 rounded-lg overflow-hidden">
+              <img src="https://images.unsplash.com/photo-1556306535-0f09a537f0a3?w=40&h=40&fit=crop" alt="" class="w-full h-full object-cover">
+            </div>
+            <div>
+              <p class="text-sm font-semibold text-gray-900">黑色折叠伞</p>
+              <p class="text-xs text-gray-400">ID: FR-20260716-003</p>
+            </div>
+          </div>
+          <div class="col-span-2">
+            <span class="px-2 py-1 bg-red-50 text-red-600 text-xs font-medium rounded-full">多人认领</span>
+          </div>
+          <div class="col-span-2">
+            <p class="text-sm text-gray-900">张同学</p>
+            <p class="text-xs text-gray-400">+ 另 1 人</p>
+          </div>
+          <div class="col-span-2">
+            <p class="text-sm text-gray-600">同一物品有 2 人认领</p>
+          </div>
+          <div class="col-span-2">
+            <p class="text-sm text-gray-600">7月16日 15:00</p>
+          </div>
+          <div class="col-span-1">
+            <i class="fas fa-chevron-right text-gray-300"></i>
+          </div>
+        </a>
+
+        <!-- 行 2 - 多人认领 -->
+        <a href="admin-review.html" class="grid grid-cols-12 gap-4 px-6 py-4 border-b border-gray-50 hover:bg-gray-50 transition-colors cursor-pointer items-center">
+          <div class="col-span-3 flex items-center gap-3">
+            <div class="w-10 h-10 bg-gray-100 rounded-lg overflow-hidden">
+              <img src="https://images.unsplash.com/photo-1585771724684-38269d6639fd?w=40&h=40&fit=crop" alt="" class="w-full h-full object-cover">
+            </div>
+            <div>
+              <p class="text-sm font-semibold text-gray-900">蓝牙耳机</p>
+              <p class="text-xs text-gray-400">ID: FR-20260715-008</p>
+            </div>
+          </div>
+          <div class="col-span-2">
+            <span class="px-2 py-1 bg-red-50 text-red-600 text-xs font-medium rounded-full">多人认领</span>
+          </div>
+          <div class="col-span-2">
+            <p class="text-sm text-gray-900">赵同学</p>
+            <p class="text-xs text-gray-400">+ 另 2 人</p>
+          </div>
+          <div class="col-span-2">
+            <p class="text-sm text-gray-600">同一物品有 3 人认领</p>
+          </div>
+          <div class="col-span-2">
+            <p class="text-sm text-gray-600">7月16日 14:20</p>
+          </div>
+          <div class="col-span-1">
+            <i class="fas fa-chevron-right text-gray-300"></i>
+          </div>
+        </a>
+
+        <!-- 行 3 - 核验未通过 -->
+        <a href="admin-review.html" class="grid grid-cols-12 gap-4 px-6 py-4 border-b border-gray-50 hover:bg-gray-50 transition-colors cursor-pointer items-center">
+          <div class="col-span-3 flex items-center gap-3">
+            <div class="w-10 h-10 bg-gray-100 rounded-lg overflow-hidden">
+              <img src="https://images.unsplash.com/photo-1606103920295-d07f3e43e5ad?w=40&h=40&fit=crop" alt="" class="w-full h-full object-cover">
+            </div>
+            <div>
+              <p class="text-sm font-semibold text-gray-900">黑色长柄伞</p>
+              <p class="text-xs text-gray-400">ID: FR-20260715-005</p>
+            </div>
+          </div>
+          <div class="col-span-2">
+            <span class="px-2 py-1 bg-amber-50 text-amber-600 text-xs font-medium rounded-full">核验未通过</span>
+          </div>
+          <div class="col-span-2">
+            <p class="text-sm text-gray-900">钱同学</p>
+          </div>
+          <div class="col-span-2">
+            <p class="text-sm text-gray-600">隐藏特征回答存在冲突</p>
+          </div>
+          <div class="col-span-2">
+            <p class="text-sm text-gray-600">7月16日 13:45</p>
+          </div>
+          <div class="col-span-1">
+            <i class="fas fa-chevron-right text-gray-300"></i>
+          </div>
+        </a>
+
+        <!-- 行 4 - 未匹配复核 -->
+        <a href="admin-review.html" class="grid grid-cols-12 gap-4 px-6 py-4 border-b border-gray-50 hover:bg-gray-50 transition-colors cursor-pointer items-center">
+          <div class="col-span-3 flex items-center gap-3">
+            <div class="w-10 h-10 bg-gray-100 rounded-lg overflow-hidden">
+              <img src="https://images.unsplash.com/photo-1553062407-98eeb64c6a62?w=40&h=40&fit=crop" alt="" class="w-full h-full object-cover">
+            </div>
+            <div>
+              <p class="text-sm font-semibold text-gray-900">蓝色双肩包</p>
+              <p class="text-xs text-gray-400">ID: LR-20260716-002</p>
+            </div>
+          </div>
+          <div class="col-span-2">
+            <span class="px-2 py-1 bg-blue-50 text-blue-600 text-xs font-medium rounded-full">未匹配复核</span>
+          </div>
+          <div class="col-span-2">
+            <p class="text-sm text-gray-900">周同学</p>
+          </div>
+          <div class="col-span-2">
+            <p class="text-sm text-gray-600">Top 5 无合适候选</p>
+          </div>
+          <div class="col-span-2">
+            <p class="text-sm text-gray-600">7月16日 12:30</p>
+          </div>
+          <div class="col-span-1">
+            <i class="fas fa-chevron-right text-gray-300"></i>
+          </div>
+        </a>
+
+        <!-- 行 5 - 认领复核 -->
+        <a href="admin-review.html" class="grid grid-cols-12 gap-4 px-6 py-4 hover:bg-gray-50 transition-colors cursor-pointer items-center">
+          <div class="col-span-3 flex items-center gap-3">
+            <div class="w-10 h-10 bg-gray-100 rounded-lg overflow-hidden">
+              <img src="https://images.unsplash.com/photo-1556306535-0f09a537f0a3?w=40&h=40&fit=crop" alt="" class="w-full h-full object-cover">
+            </div>
+            <div>
+              <p class="text-sm font-semibold text-gray-900">居民身份证</p>
+              <p class="text-xs text-gray-400">ID: FR-20260714-012</p>
+            </div>
+          </div>
+          <div class="col-span-2">
+            <span class="px-2 py-1 bg-purple-50 text-purple-600 text-xs font-medium rounded-full">认领复核</span>
+          </div>
+          <div class="col-span-2">
+            <p class="text-sm text-gray-900">吴同学</p>
+          </div>
+          <div class="col-span-2">
+            <p class="text-sm text-gray-600">证件核验异常</p>
+          </div>
+          <div class="col-span-2">
+            <p class="text-sm text-gray-600">7月16日 11:15</p>
+          </div>
+          <div class="col-span-1">
+            <i class="fas fa-chevron-right text-gray-300"></i>
+          </div>
+        </a>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

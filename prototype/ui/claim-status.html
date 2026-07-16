@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=1440">
+  <title>认领状态 - AI 失物招领系统</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    ::-webkit-scrollbar { display: none; }
+    body { width: 1440px; height: 900px; overflow: hidden; font-family: 'Inter', system-ui, -apple-system, sans-serif; }
+  </style>
+</head>
+<body class="bg-gray-50">
+  <!-- 顶部导航栏 -->
+  <nav class="bg-white border-b border-gray-100 h-16 flex items-center justify-between px-8">
+    <div class="flex items-center gap-3">
+      <a href="home.html" class="w-9 h-9 bg-gray-100 rounded-xl flex items-center justify-center hover:bg-gray-200 transition-colors">
+        <i class="fas fa-arrow-left text-gray-600 text-sm"></i>
+      </a>
+      <div class="w-9 h-9 bg-blue-600 rounded-xl flex items-center justify-center">
+        <i class="fas fa-search-location text-white text-sm"></i>
+      </div>
+      <span class="text-lg font-bold text-gray-900">认领状态</span>
+    </div>
+    <div class="flex items-center gap-6">
+      <button class="relative text-gray-400 hover:text-gray-600">
+        <i class="fas fa-bell text-lg"></i>
+      </button>
+      <div class="flex items-center gap-3 pl-6 border-l border-gray-100">
+        <img src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=80&h=80&fit=crop&crop=face" alt="头像" class="w-9 h-9 rounded-full object-cover">
+        <span class="text-sm font-semibold text-gray-900">张同学</span>
+      </div>
+    </div>
+  </nav>
+
+  <div class="flex h-[calc(100vh-64px)]">
+    <!-- 左侧：物品信息 -->
+    <div class="w-[400px] bg-white border-r border-gray-100 p-6">
+      <h3 class="text-sm font-semibold text-gray-500 mb-4">认领物品</h3>
+      <div class="w-full h-48 bg-gray-100 rounded-xl overflow-hidden mb-4">
+        <img src="https://images.unsplash.com/photo-1556306535-0f09a537f0a3?w=400&h=192&fit=crop" alt="物品图片" class="w-full h-full object-cover">
+      </div>
+      <div class="space-y-3">
+        <div>
+          <p class="text-lg font-bold text-gray-900">黑色折叠伞</p>
+          <div class="flex gap-2 mt-1">
+            <span class="px-2 py-0.5 bg-gray-100 text-gray-600 text-xs rounded-full">其他物品</span>
+            <span class="px-2 py-0.5 bg-emerald-50 text-emerald-600 text-xs rounded-full">高匹配</span>
+          </div>
+        </div>
+        <div class="flex items-center gap-2 text-sm text-gray-600">
+          <i class="fas fa-clock text-gray-400 w-4"></i>
+          <span>招领时间：7 月 16 日 上午 10:30</span>
+        </div>
+        <div class="flex items-center gap-2 text-sm text-gray-600">
+          <i class="fas fa-location-dot text-gray-400 w-4"></i>
+          <span>招领地点：教学楼 B 区 2 楼</span>
+        </div>
+      </div>
+
+      <!-- 申请信息 -->
+      <div class="mt-6 p-4 bg-gray-50 rounded-xl">
+        <p class="text-xs text-gray-400 mb-2">申请信息</p>
+        <div class="space-y-2">
+          <div class="flex justify-between text-sm">
+            <span class="text-gray-500">申请时间</span>
+            <span class="text-gray-900 font-medium">7月16日 14:30</span>
+          </div>
+          <div class="flex justify-between text-sm">
+            <span class="text-gray-500">核验方式</span>
+            <span class="text-gray-900 font-medium">隐藏特征核验</span>
+          </div>
+          <div class="flex justify-between text-sm">
+            <span class="text-gray-500">申请编号</span>
+            <span class="text-gray-900 font-mono text-xs">CLM-20260716-001</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 右侧：状态详情 -->
+    <div class="flex-1 p-8 overflow-y-auto" style="scrollbar-width: none;">
+      <div class="max-w-2xl mx-auto">
+        <!-- 状态标题 -->
+        <div class="flex items-center gap-4 mb-8">
+          <div class="w-16 h-16 bg-emerald-50 rounded-2xl flex items-center justify-center">
+            <i class="fas fa-handshake text-emerald-600 text-3xl"></i>
+          </div>
+          <div>
+            <h2 class="text-2xl font-bold text-gray-900">待交接</h2>
+            <p class="text-gray-500 mt-1">核验通过，请与拾得者线下交接</p>
+          </div>
+        </div>
+
+        <!-- 进度条 -->
+        <div class="bg-white rounded-2xl border border-gray-100 p-6 mb-6">
+          <div class="flex items-center justify-between mb-4">
+            <div class="flex flex-col items-center">
+              <div class="w-10 h-10 bg-emerald-500 text-white rounded-full flex items-center justify-center"><i class="fas fa-check"></i></div>
+              <span class="text-xs text-emerald-600 mt-2 font-medium">提交申请</span>
+            </div>
+            <div class="flex-1 h-1 bg-emerald-300 mx-2"></div>
+            <div class="flex flex-col items-center">
+              <div class="w-10 h-10 bg-emerald-500 text-white rounded-full flex items-center justify-center"><i class="fas fa-check"></i></div>
+              <span class="text-xs text-emerald-600 mt-2 font-medium">核验通过</span>
+            </div>
+            <div class="flex-1 h-1 bg-emerald-300 mx-2"></div>
+            <div class="flex flex-col items-center">
+              <div class="w-10 h-10 bg-blue-600 text-white rounded-full flex items-center justify-center"><i class="fas fa-handshake"></i></div>
+              <span class="text-xs text-blue-600 mt-2 font-bold">待交接</span>
+            </div>
+            <div class="flex-1 h-1 bg-gray-200 mx-2"></div>
+            <div class="flex flex-col items-center">
+              <div class="w-10 h-10 bg-gray-200 text-gray-400 rounded-full flex items-center justify-center"><i class="fas fa-flag-checkered"></i></div>
+              <span class="text-xs text-gray-400 mt-2">已认领</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 联系方式卡片 -->
+        <div class="bg-white rounded-2xl border-2 border-emerald-200 p-6 mb-6">
+          <div class="flex items-center gap-3 mb-4">
+            <div class="w-10 h-10 bg-emerald-50 rounded-xl flex items-center justify-center">
+              <i class="fas fa-address-card text-emerald-600"></i>
+            </div>
+            <div>
+              <h3 class="text-base font-bold text-gray-900">拾得者联系方式</h3>
+              <p class="text-xs text-gray-500">请联系拾得者约定交接时间和地点</p>
+            </div>
+          </div>
+          <div class="space-y-3 p-4 bg-emerald-50 rounded-xl">
+            <div class="flex items-center gap-3">
+              <i class="fas fa-user text-emerald-500 w-5"></i>
+              <span class="text-sm font-medium text-gray-900">李同学</span>
+            </div>
+            <div class="flex items-center gap-3">
+              <i class="fas fa-phone text-emerald-500 w-5"></i>
+              <span class="text-sm font-medium text-gray-900">138****6789</span>
+            </div>
+            <div class="flex items-center gap-3">
+              <i class="fas fa-envelope text-emerald-500 w-5"></i>
+              <span class="text-sm font-medium text-gray-900">li***@campus.edu.cn</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 核验摘要 -->
+        <div class="bg-white rounded-2xl border border-gray-100 p-6 mb-6">
+          <h3 class="text-base font-bold text-gray-900 mb-4">核验摘要</h3>
+          <div class="space-y-3">
+            <div class="flex items-center gap-3 p-3 bg-emerald-50 rounded-lg">
+              <div class="w-6 h-6 bg-emerald-100 rounded-full flex items-center justify-center">
+                <i class="fas fa-check text-emerald-600 text-xs"></i>
+              </div>
+              <p class="text-sm text-emerald-800">问题 1：匹配 — 准确描述了伞套内侧标记</p>
+            </div>
+            <div class="flex items-center gap-3 p-3 bg-emerald-50 rounded-lg">
+              <div class="w-6 h-6 bg-emerald-100 rounded-full flex items-center justify-center">
+                <i class="fas fa-check text-emerald-600 text-xs"></i>
+              </div>
+              <p class="text-sm text-emerald-800">问题 2：匹配 — 正确描述了把手修复痕迹</p>
+            </div>
+            <div class="flex items-center gap-3 p-3 bg-emerald-50 rounded-lg">
+              <div class="w-6 h-6 bg-emerald-100 rounded-full flex items-center justify-center">
+                <i class="fas fa-check text-emerald-600 text-xs"></i>
+              </div>
+              <p class="text-sm text-emerald-800">问题 3：匹配 — 准确描述了伞面细节</p>
+            </div>
+          </div>
+          <div class="mt-4 p-3 bg-blue-50 rounded-lg flex items-center gap-2">
+            <i class="fas fa-robot text-blue-500"></i>
+            <p class="text-xs text-blue-700">AI 判定：全部关键回答匹配，置信度 0.94，自动进入待交接</p>
+          </div>
+        </div>
+
+        <!-- 操作提示 -->
+        <div class="p-4 bg-amber-50 rounded-xl">
+          <div class="flex items-start gap-3">
+            <i class="fas fa-info-circle text-amber-500 mt-0.5"></i>
+            <div>
+              <p class="text-sm font-medium text-amber-800">交接说明</p>
+              <p class="text-xs text-amber-700 mt-1 leading-relaxed">请与拾得者约定安全的公共场所进行交接。交接完成后，由拾得者在系统中标记"已认领"。</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- 返回按钮 -->
+        <div class="mt-6">
+          <a href="home.html" class="inline-flex items-center gap-2 px-6 py-3 border-2 border-gray-200 text-gray-700 font-semibold rounded-xl hover:bg-gray-50 transition-colors">
+            <i class="fas fa-arrow-left"></i>返回首页
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

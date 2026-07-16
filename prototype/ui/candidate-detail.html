@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=1440">
+  <title>候选详情 - AI 失物招领系统</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    ::-webkit-scrollbar { display: none; }
+    body { width: 1440px; height: 900px; overflow: hidden; font-family: 'Inter', system-ui, -apple-system, sans-serif; }
+  </style>
+</head>
+<body class="bg-gray-50">
+  <!-- 顶部导航栏 -->
+  <nav class="bg-white border-b border-gray-100 h-16 flex items-center justify-between px-8">
+    <div class="flex items-center gap-3">
+      <a href="candidate-list.html" class="w-9 h-9 bg-gray-100 rounded-xl flex items-center justify-center hover:bg-gray-200 transition-colors">
+        <i class="fas fa-arrow-left text-gray-600 text-sm"></i>
+      </a>
+      <div class="w-9 h-9 bg-blue-600 rounded-xl flex items-center justify-center">
+        <i class="fas fa-search-location text-white text-sm"></i>
+      </div>
+      <span class="text-lg font-bold text-gray-900">候选详情</span>
+    </div>
+    <div class="flex items-center gap-6">
+      <button class="relative text-gray-400 hover:text-gray-600">
+        <i class="fas fa-bell text-lg"></i>
+      </button>
+      <div class="flex items-center gap-3 pl-6 border-l border-gray-100">
+        <img src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=80&h=80&fit=crop&crop=face" alt="头像" class="w-9 h-9 rounded-full object-cover">
+        <span class="text-sm font-semibold text-gray-900">张同学</span>
+      </div>
+    </div>
+  </nav>
+
+  <div class="flex h-[calc(100vh-64px)]">
+    <!-- 左侧：物品信息 -->
+    <div class="w-[480px] bg-white border-r border-gray-100 p-8 overflow-y-auto" style="scrollbar-width: none;">
+      <!-- 物品图片 -->
+      <div class="w-full h-64 bg-gray-100 rounded-2xl overflow-hidden mb-6">
+        <img src="https://images.unsplash.com/photo-1556306535-0f09a537f0a3?w=480&h=256&fit=crop" alt="物品图片" class="w-full h-full object-cover">
+      </div>
+
+      <!-- 基本信息 -->
+      <div class="space-y-4">
+        <div class="flex items-center justify-between">
+          <h2 class="text-2xl font-bold text-gray-900">黑色折叠伞</h2>
+          <div class="px-4 py-2 bg-emerald-50 rounded-xl">
+            <span class="text-2xl font-bold text-emerald-600">82</span>
+            <span class="text-sm text-emerald-500 ml-1">分</span>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-2">
+          <span class="px-3 py-1 bg-emerald-50 text-emerald-600 text-sm font-medium rounded-full">高匹配</span>
+          <span class="px-3 py-1 bg-gray-100 text-gray-600 text-sm rounded-full">其他物品</span>
+        </div>
+
+        <div class="space-y-3 pt-2">
+          <div class="flex items-center gap-3">
+            <div class="w-8 h-8 bg-blue-50 rounded-lg flex items-center justify-center">
+              <i class="fas fa-clock text-blue-500 text-sm"></i>
+            </div>
+            <div>
+              <p class="text-xs text-gray-400">发现时间</p>
+              <p class="text-sm font-medium text-gray-700">7 月 16 日 上午 10:30</p>
+            </div>
+          </div>
+          <div class="flex items-center gap-3">
+            <div class="w-8 h-8 bg-purple-50 rounded-lg flex items-center justify-center">
+              <i class="fas fa-location-dot text-purple-500 text-sm"></i>
+            </div>
+            <div>
+              <p class="text-xs text-gray-400">发现地点</p>
+              <p class="text-sm font-medium text-gray-700">教学楼 B 区 2 楼楼梯口</p>
+            </div>
+          </div>
+          <div class="flex items-center gap-3">
+            <div class="w-8 h-8 bg-amber-50 rounded-lg flex items-center justify-center">
+              <i class="fas fa-palette text-amber-500 text-sm"></i>
+            </div>
+            <div>
+              <p class="text-xs text-gray-400">颜色</p>
+              <p class="text-sm font-medium text-gray-700">黑色</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="p-4 bg-gray-50 rounded-xl mt-4">
+          <p class="text-xs text-gray-400 mb-1">公开描述</p>
+          <p class="text-sm text-gray-700">黑色短柄折叠伞，伞面完好，手柄无磨损</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- 右侧：匹配详情 -->
+    <div class="flex-1 p-8 overflow-y-auto" style="scrollbar-width: none;">
+      <div class="max-w-2xl mx-auto">
+        <!-- 声明 -->
+        <div class="p-4 bg-blue-50 rounded-xl mb-6 flex items-start gap-3">
+          <i class="fas fa-circle-info text-blue-500 mt-0.5"></i>
+          <div>
+            <p class="text-sm font-medium text-blue-800">匹配说明</p>
+            <p class="text-xs text-blue-600 mt-1">匹配分表示信息相似程度，不代表物品归属确认。认领需通过隐藏特征核验。</p>
+          </div>
+        </div>
+
+        <!-- 匹配点 -->
+        <div class="mb-6">
+          <h3 class="text-base font-bold text-gray-900 mb-3 flex items-center gap-2">
+            <i class="fas fa-circle-check text-emerald-500"></i> 匹配点
+          </h3>
+          <div class="space-y-2">
+            <div class="flex items-center gap-3 p-3 bg-emerald-50 rounded-xl">
+              <div class="w-6 h-6 bg-emerald-100 rounded-full flex items-center justify-center">
+                <i class="fas fa-check text-emerald-600 text-xs"></i>
+              </div>
+              <p class="text-sm text-emerald-800">物品类别一致 — 都是折叠伞</p>
+            </div>
+            <div class="flex items-center gap-3 p-3 bg-emerald-50 rounded-xl">
+              <div class="w-6 h-6 bg-emerald-100 rounded-full flex items-center justify-center">
+                <i class="fas fa-check text-emerald-600 text-xs"></i>
+              </div>
+              <p class="text-sm text-emerald-800">时间相差约 20 分钟 — 在合理偏差范围内</p>
+            </div>
+            <div class="flex items-center gap-3 p-3 bg-emerald-50 rounded-xl">
+              <div class="w-6 h-6 bg-emerald-100 rounded-full flex items-center justify-center">
+                <i class="fas fa-check text-emerald-600 text-xs"></i>
+              </div>
+              <p class="text-sm text-emerald-800">位于同一栋教学楼 — B 区</p>
+            </div>
+            <div class="flex items-center gap-3 p-3 bg-emerald-50 rounded-xl">
+              <div class="w-6 h-6 bg-emerald-100 rounded-full flex items-center justify-center">
+                <i class="fas fa-check text-emerald-600 text-xs"></i>
+              </div>
+              <p class="text-sm text-emerald-800">公开描述语义相似 — 都描述为黑色短柄折叠伞</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- 冲突点 -->
+        <div class="mb-6">
+          <h3 class="text-base font-bold text-gray-900 mb-3 flex items-center gap-2">
+            <i class="fas fa-triangle-exclamation text-amber-500"></i> 冲突点
+          </h3>
+          <div class="space-y-2">
+            <div class="flex items-center gap-3 p-3 bg-amber-50 rounded-xl">
+              <div class="w-6 h-6 bg-amber-100 rounded-full flex items-center justify-center">
+                <i class="fas fa-exclamation text-amber-600 text-xs"></i>
+              </div>
+              <p class="text-sm text-amber-800">楼层不一致 — 失主填写 3 楼，招领记录填写 2 楼楼梯口</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- 保留原因 -->
+        <div class="mb-8">
+          <h3 class="text-base font-bold text-gray-900 mb-3 flex items-center gap-2">
+            <i class="fas fa-lightbulb text-blue-500"></i> 保留原因
+          </h3>
+          <div class="p-4 bg-blue-50 rounded-xl">
+            <p class="text-sm text-blue-800 leading-relaxed">两个地点属于同一栋楼的相邻区域（2 楼和 3 楼），物品可能在遗失后被移动或拾得者在不同楼层发现。时间接近且物品描述高度一致，因此仍保留为候选。</p>
+          </div>
+        </div>
+
+        <!-- 评分细分 -->
+        <div class="mb-8">
+          <h3 class="text-base font-bold text-gray-900 mb-3">评分明细</h3>
+          <div class="space-y-3">
+            <div>
+              <div class="flex justify-between text-sm mb-1">
+                <span class="text-gray-600">公开描述语义相似度</span>
+                <span class="font-semibold text-gray-900">42 / 50</span>
+              </div>
+              <div class="w-full bg-gray-100 rounded-full h-2">
+                <div class="bg-blue-600 h-2 rounded-full" style="width: 84%"></div>
+              </div>
+            </div>
+            <div>
+              <div class="flex justify-between text-sm mb-1">
+                <span class="text-gray-600">时间接近度</span>
+                <span class="font-semibold text-gray-900">20 / 20</span>
+              </div>
+              <div class="w-full bg-gray-100 rounded-full h-2">
+                <div class="bg-emerald-500 h-2 rounded-full" style="width: 100%"></div>
+              </div>
+            </div>
+            <div>
+              <div class="flex justify-between text-sm mb-1">
+                <span class="text-gray-600">地点接近度</span>
+                <span class="font-semibold text-gray-900">14 / 20</span>
+              </div>
+              <div class="w-full bg-gray-100 rounded-full h-2">
+                <div class="bg-amber-500 h-2 rounded-full" style="width: 70%"></div>
+              </div>
+            </div>
+            <div>
+              <div class="flex justify-between text-sm mb-1">
+                <span class="text-gray-600">信息完整度</span>
+                <span class="font-semibold text-gray-900">6 / 10</span>
+              </div>
+              <div class="w-full bg-gray-100 rounded-full h-2">
+                <div class="bg-gray-400 h-2 rounded-full" style="width: 60%"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 操作按钮 -->
+        <div class="flex gap-4">
+          <button class="flex-1 py-3.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl transition-colors shadow-lg shadow-blue-600/25">
+            <i class="fas fa-hand-point-right mr-2"></i>发起认领
+          </button>
+          <a href="candidate-list.html" class="px-8 py-3.5 border-2 border-gray-200 text-gray-700 font-semibold rounded-xl hover:bg-gray-50 transition-colors text-center">
+            返回列表
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

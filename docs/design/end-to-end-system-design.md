@@ -1,9 +1,9 @@
 # AI 失物招领匹配与认领复核系统：端到端详细设计
 
-**文档版本：** V1.3  
+**文档版本：** V1.4
 **日期：** 2026-07-16  
-**状态：** Design Review 已确认  
-**需求基线：** `prd.md` V0.8（已确认）  
+**状态：** V1.3 已确认；V1.4 最小变更待增量 Design Review
+**需求基线：** `prd.md` V0.9（需求方向已确认，文档待复核）
 **方案基线：** `design_option.md` V4.1，方案 A 已接受  
 
 > 本文是实现前的详细技术设计，不代表代码、模型 spike 或测试已经完成。任何运行结果必须在实现后写入验证文档。
@@ -20,6 +20,7 @@
 4. 候选匹配只使用 `PUBLIC + MATCH_ONLY` 数据；核验答案、完整号码、原图和联系方式不得进入候选向量。
 5. 所有自动判断都可回溯到原始输入、模型版本、AI 原始输出、人工修改、规则结果和状态事件。
 6. 外部模型失败时允许保存草稿和手工继续，不让 AI 成为发布流程的单点故障。
+7. 失主在 Top 5 无合适候选时可提交未匹配复核，在具体候选核验失败或不同意结果时可提交认领复核；两类请求进入同一管理员队列但保留不同证据范围。
 
 ### 1.2 设计优先级
 
@@ -140,137 +141,24 @@ day6/
 
 | 角色 | 可访问接口模块 | 关键接口 | 明确不可访问 |
 |---|---|---|---|
-| 失主 | M1 认证、M2 失物与候选、M4 认领核验、M5 交接与记录 | 创建失物、读取本人候选、提交身份证/OTHER 核验、待交接后读取联系方式、查看本人时间线 | 招领草稿确认、交接完成确认、管理员复核与审计接口 |
+| 失主 | M1 认证、M2 失物与候选、M4 认领核验、M5 交接与记录 | 创建失物、读取本人 Top 5、提交未匹配复核、提交身份证/OTHER 核验、提交认领复核、待交接后读取联系方式、查看本人时间线 | 招领草稿确认、交接完成确认、管理员决定与审计查询接口 |
 | 拾得者 | M1 认证、M3 招领发布、M5 交接与记录 | 上传图片、AI 提取、确认公开信息、确认身份证/隐藏问题、发布、线下交接后确认完成、查看本人时间线 | 以失主身份读取其他人的候选/核验、管理员复核接口 |
-| 管理员 | M1 登录/刷新、M6 管理员复核与审计 | 查看脱敏异常队列、复核详情、申请临时原图访问、提交带理由决定、查询审计事件 | 普通用户注册、替代失主提交认领、替代拾得者正常确认交接、读取完整身份证号码 |
+| 管理员 | M1 登录/刷新、M6 管理员复核与审计 | 处理多人认领、隐藏核验未通过、证件异常、未匹配复核和认领复核；提交带理由的确认/驳回并查询审计事件 | 普通用户注册、替代失主提交认领、替代拾得者正常确认交接、读取完整身份证号码 |
 
 同一普通账号可以分别进入失主和拾得者任务，因此权限不能只检查账号的 `USER` 角色，还要检查记录归属和当前操作目的。管理员虽然拥有 `ADMIN` 角色，也必须通过 M6 专用接口和用途授权访问复核材料。
 
 ### 4.1 系统功能模块架构
 
-下面的功能架构参考“接入层—应用层—服务层—数据交互层”划分。它与前面的角色—接口图互补：角色—接口图回答“谁能调用什么”，本图回答“系统内部有哪些功能模块、模块之间如何分层”。
+为避免把功能架构图画成接口清单或服务实现细节，本节只保留四个层级，并在核心功能层按失主、拾得者和管理员三类角色组织业务模块。
 
-```mermaid
-flowchart TB
-    subgraph ACCESS["接入层"]
-        direction LR
-        USER_WEB["普通用户 Web<br/>我丢失了 / 我捡到了"]
-        ADMIN_WEB["管理员 Web<br/>/admin"]
-        REST_API["FastAPI REST / OpenAPI<br/>JWT + 专用 DTO"]
-    end
+![AI失物招领系统功能架构图](prototypes/system-function-architecture.svg)
 
-    subgraph APPLICATION["应用层：编排一次完整用例"]
-        direction LR
-        AUTH_APP["认证与权限应用<br/>注册 / 登录 / 刷新<br/>角色与资源归属校验"]
-        LOST_APP["失物应用<br/>创建失物 / 可选图片<br/>触发候选生成"]
-        FOUND_APP["招领应用<br/>上传 / AI 草稿 / 人工确认<br/>分类型发布门槛"]
-        CLAIM_APP["认领应用<br/>身份证核验 / OTHER 问答<br/>自动或人工路由"]
-        ADMIN_APP["管理员应用<br/>异常队列 / 证据投影<br/>授权查看 / 审核决定"]
-        HANDOFF_APP["交接与追溯应用<br/>联系方式授权 / 交接确认<br/>角色化时间线"]
-    end
+- **核心功能层**：用户管理，以及拾得者发布与交接、失主匹配与认领、管理员复核与审计。
+- **AI能力层**：图片识别、文本语义匹配和普通物品认领核验。
+- **安全与防冒领层**：四级数据保护、身份证 HMAC 精确核验、隐藏特征核验和敏感信息防泄露。
+- **系统支撑层**：PostgreSQL + pgvector、图片文件存储、状态流转和日志证据链。
 
-    subgraph SERVICE["服务层：可独立测试的核心功能模块"]
-        direction TB
-        subgraph STATE_GROUP["S1 记录与状态管理"]
-            RECORD_STATE["失物 / 招领记录状态"]
-            CLAIM_STATE["认领申请状态"]
-            STATE_RULE["状态转换规则与乐观锁"]
-        end
-        subgraph MATCH_GROUP["S2 候选匹配"]
-            NORMALIZE["公开文本与地点时间规范化"]
-            EMBEDDING["text-embedding-v4 向量生成"]
-            VECTOR_QUERY["pgvector 精确余弦检索"]
-            SCORE["50/20/20/10 评分与 Top 5"]
-        end
-        subgraph IMAGE_GROUP["S3 图片与多模态发布"]
-            UPLOAD_RULE["文件格式 / 大小 / 魔数校验"]
-            MM_EXTRACT["MiMo 图片理解与结构化草稿"]
-            HUMAN_CONFIRM["AI 原值 / 人工确认值快照"]
-            REDACTION["身份证敏感区域遮挡与确认"]
-        end
-        subgraph ID_GROUP["S4 居民身份证核验"]
-            ID_NORMALIZE["18 位规范化 / 日期 / 校验位"]
-            ID_HMAC["HMAC-SHA256 / 掩码"]
-            ID_ATTEMPT["同账号同候选最多 2 次"]
-            ID_DUPLICATE["重复 HMAC 检测与人工路由"]
-        end
-        subgraph OTHER_GROUP["S5 OTHER 隐藏核验"]
-            HIDDEN_DESC["隐藏描述有效性检查"]
-            QUESTION_GEN["生成并确认 2～3 个问题"]
-            ANSWER_VERIFY["回答语义核验与单题评分"]
-            SAFE_ROUTE["85/85 门槛、冲突与异常路由"]
-        end
-        subgraph GOVERN_GROUP["S6 管理员、交接与证据链"]
-            REVIEW_QUEUE["异常复核队列与最小证据投影"]
-            PRIVATE_ACCESS["原图临时授权与审计"]
-            REVIEW_DECISION["带理由通过 / 拒绝"]
-            HANDOFF_RULE["联系方式授权与拾得者交接确认"]
-            AUDIT_EVENT["只追加审计事件与角色化时间线"]
-        end
-    end
-
-    subgraph DATA_ACCESS["数据交互层"]
-        direction LR
-        POSTGRES["PostgreSQL<br/>用户、记录、申请、状态、HMAC、审计"]
-        PGVECTOR["pgvector<br/>PUBLIC + MATCH_ONLY 文本向量"]
-        PRIVATE_STORE["PRIVATE 文件存储<br/>拾得者原图 / 失主支持图"]
-        PUBLIC_STORE["PUBLIC 文件存储<br/>确认后的脱敏副本"]
-        AI_IMAGE["MiMo-V2.5<br/>图片理解"]
-        AI_TEXT["mimoV2.5-pro<br/>问题生成 / 回答核验"]
-        AI_EMBED["text-embedding-v4<br/>公开文本向量"]
-    end
-
-    USER_WEB --> REST_API
-    ADMIN_WEB --> REST_API
-    REST_API --> AUTH_APP
-    REST_API --> LOST_APP
-    REST_API --> FOUND_APP
-    REST_API --> CLAIM_APP
-    REST_API --> ADMIN_APP
-    REST_API --> HANDOFF_APP
-
-    AUTH_APP --> STATE_GROUP
-    LOST_APP --> STATE_GROUP
-    LOST_APP --> MATCH_GROUP
-    FOUND_APP --> STATE_GROUP
-    FOUND_APP --> IMAGE_GROUP
-    FOUND_APP --> ID_GROUP
-    FOUND_APP --> OTHER_GROUP
-    CLAIM_APP --> ID_GROUP
-    CLAIM_APP --> OTHER_GROUP
-    CLAIM_APP --> STATE_GROUP
-    ADMIN_APP --> GOVERN_GROUP
-    HANDOFF_APP --> GOVERN_GROUP
-    HANDOFF_APP --> STATE_GROUP
-
-    STATE_GROUP --> POSTGRES
-    MATCH_GROUP --> POSTGRES
-    MATCH_GROUP --> PGVECTOR
-    MATCH_GROUP --> AI_EMBED
-    IMAGE_GROUP --> PRIVATE_STORE
-    IMAGE_GROUP --> PUBLIC_STORE
-    IMAGE_GROUP --> AI_IMAGE
-    ID_GROUP --> POSTGRES
-    OTHER_GROUP --> POSTGRES
-    OTHER_GROUP --> AI_TEXT
-    GOVERN_GROUP --> POSTGRES
-
-    classDef access fill:#eaf2ff,stroke:#3b82f6,color:#1e3a8a;
-    classDef application fill:#fff7d6,stroke:#d4a017,color:#713f12;
-    classDef service fill:#f1edff,stroke:#7c3aed,color:#3b0764;
-    classDef data fill:#e9f8ef,stroke:#16a34a,color:#14532d;
-    class USER_WEB,ADMIN_WEB,REST_API access;
-    class AUTH_APP,LOST_APP,FOUND_APP,CLAIM_APP,ADMIN_APP,HANDOFF_APP application;
-    class RECORD_STATE,CLAIM_STATE,STATE_RULE,NORMALIZE,EMBEDDING,VECTOR_QUERY,SCORE,UPLOAD_RULE,MM_EXTRACT,HUMAN_CONFIRM,REDACTION,ID_NORMALIZE,ID_HMAC,ID_ATTEMPT,ID_DUPLICATE,HIDDEN_DESC,QUESTION_GEN,ANSWER_VERIFY,SAFE_ROUTE,REVIEW_QUEUE,PRIVATE_ACCESS,REVIEW_DECISION,HANDOFF_RULE,AUDIT_EVENT service;
-    class POSTGRES,PGVECTOR,PRIVATE_STORE,PUBLIC_STORE,AI_IMAGE,AI_TEXT,AI_EMBED data;
-```
-
-功能模块的边界原则：
-
-- 接入层只负责用户操作入口和 HTTP 协议，不实现业务判断。
-- 应用层按一次用例编排服务，例如“发布招领”同时调用图片、状态和类型专属服务。
-- 服务层保存可独立测试的规则；身份证核验与 OTHER 语义核验必须保持隔离。
-- 数据交互层统一封装 PostgreSQL、pgvector、文件和外部模型，应用层不得直接操作这些资源。
+该图用于说明“系统提供哪些能力以及分别服务哪个角色”，不表达单个 REST 接口、代码包或独立部署单元；具体接口、状态机和数据约束继续由后文章节定义。
 
 ### 4.2 前端方案选择
 
@@ -352,6 +240,8 @@ flowchart TD
 | `/app/found/:id/preview` | 发布预览 | 只按 PUBLIC 候选视角预览并发布 | 发布门槛满足 |
 | `/app/records` | 我的记录 | LOST/FOUND/认领申请筛选和状态入口 | USER |
 
+未匹配复核和认领复核使用候选页/认领进度页中的对话框提交，不新增复杂页面层级；提交成功后统一在认领进度或记录时间线中查看状态。
+
 #### 管理员独立页面
 
 | 路由 | 页面 | 主要职责 | 进入条件 |
@@ -391,7 +281,7 @@ flowchart TD
 - 候选分文案固定为“公开信息接近程度，不代表所有权概率”。
 - 理由只使用服务端 `reason_code` 映射，例如“描述高度接近”“时间接近”“地点相邻”“存在时间冲突”。
 - 身份证候选展示脱敏图和掩码号码；OTHER 只展示确认安全的整体图和 PUBLIC 描述。
-- 空列表显示“暂未发现合适候选”，允许刷新，不引导用户降低安全要求或填写隐藏信息到公开描述。
+- 空列表或 Top 5 均不合适时显示“申请管理员复核”；提交内容包括失物记录、失主补充说明和当前候选快照，不要求失主公开隐藏信息。
 
 #### 4.7.3 分类型认领
 
@@ -401,16 +291,18 @@ flowchart TD
 - 提交前只做格式提示；服务端返回失败后不标出错误位置、不显示部分命中数量。
 - 显示“本账号对此候选最多验证 2 次”；剩余次数只由服务端响应决定。
 - 第 2 次失败后页面进入锁定状态，不再展示可提交表单。
+- 失败、锁定或失主不同意结果时显示“申请认领复核”，请求关联具体 `claim_id`，不能修改原号码核验事件。
 
 OTHER 核验表单：
 
 - 只显示 2～3 个问题文本和回答框，不加载隐藏描述、答案要点或即时对错。
 - 所有问题一次提交；提交后不可用“逐题试错”方式反复修改。
 - AI 核验中显示非阻塞进度；超时后提示“已转人工复核”，不得显示伪造分数。
+- 部分匹配、冲突、无法判断或失主不同意结果时，可补充复核理由；标准答案仍不得返回失主。
 
 #### 4.7.4 进度与交接
 
-状态页使用时间线展示：`已提交 → 系统核验/人工复核 → 待交接 → 已认领`。只有进入待交接后显示拾得者授权联系方式；其它状态只显示通用进度。联系方式区域禁止出现在候选页 DOM 中后再用 CSS 隐藏，必须等授权接口成功后才渲染。
+状态页使用时间线展示：`已提交 → 系统核验/主动复核/人工复核 → 待交接 → 已认领`。只有进入待交接后显示拾得者授权联系方式；其它状态只显示通用进度。联系方式区域禁止出现在候选页 DOM 中后再用 CSS 隐藏，必须等授权接口成功后才渲染。
 
 ### 4.8 “我捡到了物品”前端流程
 
@@ -457,7 +349,7 @@ OTHER 核验表单：
 #### 4.9.1 异常队列
 
 - 列表字段：申请 ID、物品类型、掩码/公开名称、风险类型、进入队列时间、当前状态。
-- 筛选：重复身份证、尝试超限、OTHER 冲突、AI 异常、低可信；默认按等待时间排序。
+- 筛选：多人认领、普通物品核验未通过、证件异常、未匹配复核、认领复核；默认按等待时间排序。
 - 列表不请求原图、完整号码、联系方式或隐藏答案全文。
 - 风险标签必须配文字，例如“重复身份证”“关键冲突”，不能只显示红色图标。
 
@@ -466,14 +358,17 @@ OTHER 核验表单：
 - 顶部展示系统为什么没有自动放行，避免管理员被高候选分锚定。
 - 身份证重复记录使用左右对比：掩码、创建人、时间地点、图片指纹和审计事件；不显示完整号码。
 - OTHER 使用三列证据：问题/答案要点、失主原始回答、AI 结果/置信度；PUBLIC 与 VERIFICATION 区域有明确分级标签。
+- 未匹配复核展示失物输入、Top 5 快照和失主补充说明，管理员可从现有招领记录中推荐一个候选或驳回；认领复核展示具体候选和原核验事件，管理员可确认进入待交接或驳回。
 - “通过待交接”和“拒绝”都必须填写理由；理由为空时前端阻止提交，服务端仍二次校验。
 
-#### 4.9.3 临时查看原图
+#### 4.9.3 临时查看原图（P1，不阻塞 MVP 主流程）
 
 - 原图默认不加载，也不预取。
 - 管理员点击“申请查看原图”后填写理由，服务端返回短时单对象 `access_id`；前端在倒计时结束或抽屉关闭时清除图片和 Query cache。
 - 页面显示“查看行为已记录”；禁止下载按钮和复制公开 URL。MVP 无法阻止操作系统截图，应在限制中如实说明。
 - 完整身份证号码没有前端组件和 API，不因原图授权而额外显示号码文本。
+
+两天 MVP 可不实现本节交互。未实现时管理员只使用 `PUBLIC + MATCH_ONLY + VERIFICATION` 的用途专属 DTO，`PRIVATE` 始终保持脱敏；不得用“直接显示原图”替代授权流程。
 
 ### 4.10 页面与组件边界
 
@@ -489,6 +384,7 @@ OTHER 核验表单：
 | `HiddenQuestionEditor` | 隐藏描述、问题/答案要点确认 | `QuestionSetDraftDTO` | 向失主侧复用答案 DTO |
 | `CandidateCard` | PUBLIC 候选摘要和安全理由 | `CandidatePublicDTO` | 读取数据库实体 |
 | `ClaimVerificationForm` | ID/OTHER 两种失主核验 | `ClaimChallengeDTO` | 显示标准答案或错误位置 |
+| `ReviewRequestDialog` | 提交未匹配复核或认领复核 | `lost_record_id` 或 `claim_id`、理由 | 修改原始候选/核验结果 |
 | `ClaimTimeline` | 角色投影后的状态和事件 | `TimelinePublicDTO` | 显示管理员内部备注 |
 | `ReviewEvidencePanel` | 管理员最小复核证据 | `AdminReviewDTO` | 默认加载 PRIVATE 原图 |
 | `TemporaryImageDrawer` | 临时授权原图与倒计时 | `access_id` | 缓存或生成持久 URL |
@@ -562,6 +458,7 @@ Query key 至少包含资源类型、资源 ID 和当前用户；不得使用持
 #### Playwright E2E
 
 - “我丢失了物品”：创建失物 → 候选 → OTHER/身份证核验 → 进度 → 待交接。
+- 失主主动复核：Top 5 无合适候选 → 未匹配复核；核验失败 → 认领复核 → 管理员确认/驳回。
 - “我捡到了物品”：上传 → AI 草稿 → 人工修改 → ID/OTHER 分支 → PUBLIC 预览 → 发布。
 - 管理员：异常队列 → 复核详情 → 无理由查看原图被拒绝 → 填理由临时查看 → 填理由决定。
 - 失败：AI 超时转手填、第二次号码失败锁定、重复身份证转管理员、隐藏描述不足保留草稿。
@@ -678,6 +575,12 @@ sequenceDiagram
     O->>W: 选择候选
     W->>A: GET /api/candidates/{id}
     A-->>W: PUBLIC 候选详情与核验类型
+    opt Top 5 均不合适
+        O->>W: 填写未匹配复核理由
+        W->>A: POST /api/lost-records/{id}/review-requests
+        A->>D: 保存 UNMATCHED 复核请求、候选快照和审计事件
+        A-->>W: PENDING_ADMIN_REVIEW
+    end
 ```
 
 时序图中的失主图片只通过 Image Service 保存为 PRIVATE 材料，不经过 MiMo，也不生成图片向量。候选列表由服务端生成 PUBLIC DTO，前端不能从完整数据库对象中自行删除敏感字段。
@@ -699,6 +602,9 @@ flowchart TD
     H -- "是" --> R2["禁止自动待交接；管理员检查重复记录"]
     H -- "否" --> I["申请进入 PENDING_HANDOFF"]
     I --> J["向该失主授权展示拾得者联系方式"]
+    X --> Y["失主可提交认领复核；不修改原失败事件"]
+    R --> Y
+    R2 --> Y
 ```
 
 号码匹配成功不代表已认领；只有实物线下交接后，拾得者才能把记录改为 `CLAIMED/CLOSED`。
@@ -717,13 +623,10 @@ flowchart TD
     G -- "通过" --> H["mimoV2.5-pro 比较答案要点与失主回答"]
     H --> I{"模型输出是否有效且置信度 >= 0.8？"}
     I -- "否：超时 / 非法 JSON / 低置信" --> R
-    I -- "是" --> J["单题映射：匹配100 / 部分60 / 无法判断30 / 冲突0"]
-    J --> K{"存在关键冲突或无法判断？"}
-    K -- "是" --> R
-    K -- "否" --> L["计算隐藏核验分和综合可信度"]
-    L --> M{"候选 >= 80 且隐藏 >= 85<br/>且综合 >= 85 且全部安全门槛满足？"}
-    M -- "否" --> R
-    M -- "是" --> N["进入 PENDING_HANDOFF"]
+    I -- "是" --> J["逐题输出：匹配 / 部分匹配 / 无法判断 / 冲突"]
+    J --> K{"所有关键题均匹配<br/>且不存在其他活动认领？"}
+    K -- "否" --> R
+    K -- "是" --> N["进入 PENDING_HANDOFF"]
     N --> O["授权该失主读取拾得者联系方式"]
     R --> P["管理员通过或拒绝并填写理由"]
     P -- "通过" --> N
@@ -733,13 +636,33 @@ flowchart TD
 1. 失主选择候选后，服务端只返回问题文本和问题 ID，不返回标准答案或隐藏描述。
 2. 失主一次提交 2～3 个开放式回答；服务端保存原始回答快照。
 3. 规则先检查空回答、复制问题、明显冲突、异常重复提交。
-4. mimoV2.5-pro 文本核验仅接收问题、答案要点和失主回答，返回每题 `0..1`、冲突和理由代码；不得生成面向失主的隐藏答案解释。
-5. 候选分、隐藏核验分、综合可信度同时达阈值且无硬冲突时进入 `PENDING_HANDOFF`；否则进入 `PENDING_ADMIN_REVIEW`。
+4. mimoV2.5-pro 文本核验仅接收问题、答案要点和失主回答，返回每题结果、置信度和理由代码；不得生成面向失主的隐藏答案解释。
+5. 所有关键题均为匹配、每题置信度 `>= 0.8`、模型输出合法且不存在其他活动认领时进入 `PENDING_HANDOFF`；否则进入 `PENDING_ADMIN_REVIEW`。
 6. AI 超时、非法输出或低置信一律转管理员，不自动通过或拒绝。
 
-OTHER 的 Demo 初始门槛与 PRD 保持一致：候选分 `>= 80`、隐藏核验分 `>= 85`、综合可信度 `>= 85`；综合可信度为 `候选分 × 40% + 隐藏核验分 × 60%`。单题映射为匹配 100、部分匹配 60、无法判断 30、冲突 0，问题等权；任一关键冲突、无法判断或模型置信度 `< 0.8` 都强制转管理员。阈值必须通过边界样例校准，不能包装成真实所有权概率。
+候选 50/20/20/10 分数只用于 Top 5 排序和理由展示，不参与隐藏问答的二次加权。单题结果仍可映射为匹配 100、部分匹配 60、无法判断 30、冲突 0 供管理员解释，但不再计算综合认领可信度。
 
-### 5.5 管理员复核与交接
+### 5.5 失主主动复核
+
+```mermaid
+flowchart TD
+    A{"失主所在阶段"}
+    A -- "Top 5 无合适候选" --> B["提交 UNMATCHED<br/>关联 lost_record_id + 候选快照 + 理由"]
+    A -- "具体候选核验失败/不同意结果" --> C["提交 CLAIM_REVIEW<br/>关联 claim_id + 核验事件 + 理由"]
+    B --> D["管理员查看已有招领记录"]
+    C --> E["管理员查看 PUBLIC + MATCH_ONLY + VERIFICATION"]
+    D --> F{"推荐候选或驳回"}
+    E --> G{"确认待交接或驳回"}
+    F --> H["结果写入失物记录时间线"]
+    G --> H
+```
+
+- 同一用户对同一 `lost_record_id` 或 `claim_id` 只允许存在一条活动复核请求，防止重复提交。
+- 未匹配复核不创建虚假认领申请；管理员推荐候选后，失主仍需选择并完成对应类型核验。
+- 认领复核不会覆盖原 AI/HMAC 结果；管理员决定作为新的事件追加。
+- 两类请求都要求失主填写理由，但不得在理由中提交完整身份证号码或隐藏答案。
+
+### 5.6 管理员复核与交接
 
 ```mermaid
 sequenceDiagram
@@ -752,7 +675,7 @@ sequenceDiagram
     participant U as Audit Service
     participant D as PostgreSQL / PRIVATE Storage
 
-    ADM->>W: 打开异常复核队列
+    ADM->>W: 打开复核队列（多人 / 核验异常 / 主动复核）
     W->>A: GET /api/admin/reviews
     A->>P: 校验 ADMIN 角色和查询用途
     P-->>A: 允许最小化列表访问
@@ -799,10 +722,10 @@ sequenceDiagram
     A-->>W: PENDING_HANDOFF 或 REJECTED
 ```
 
-- 管理员工作台默认显示掩码、公开候选依据、内部得分、事件时间线和风险代码。
+- 管理员工作台默认显示掩码、公开候选依据、内部得分、事件时间线、复核类型和风险代码。
 - 其他物品复核可查看隐藏描述、答案要点和失主原始回答。
 - 身份证重复记录复核默认仍只显示掩码、记录创建人、时间、原图指纹和审计事件。
-- 如确需查看原图，管理员发起“异常原图访问”，必须填写理由；服务端生成短时、单对象授权并记录开始/结束事件。
+- 如确需查看原图，可在 P1 实现“异常原图访问”；P0 主流程不依赖该能力，未实现时 PRIVATE 始终脱敏。
 - 完整身份证号码没有管理员读取接口。
 - 管理员可以 `APPROVE_TO_HANDOFF` 或 `REJECT`，必须填写理由；不能直接标记实物已交接。
 - 待交接时，只有对应失主可以查看该招领的联系方式；拾得者完成线下交接后确认 `CLAIMED`。
@@ -920,6 +843,8 @@ sequenceDiagram
 | `DocumentType` | `CN_RESIDENT_ID` | MVP 唯一支持的证件类型：中华人民共和国居民身份证。 |
 | `AdminDecision` | `APPROVE_TO_HANDOFF` | 管理员通过复核，使申请进入待交接；不表示实物已交付。 |
 | `AdminDecision` | `REJECT` | 管理员填写理由后拒绝申请。 |
+| `ReviewRequestType` | `UNMATCHED` | Top 5 没有合适候选时，由失主针对失物记录提交；管理员可以推荐已有招领候选或驳回。 |
+| `ReviewRequestType` | `CLAIM_REVIEW` | 具体候选核验失败、无法判断或失主不同意结果时，由失主针对认领申请提交；管理员可以确认待交接或驳回。 |
 
 ### 6.2 核心表
 
@@ -1012,6 +937,12 @@ sequenceDiagram
 - `claim_attempts`：每次身份证或问答提交的时间、结果代码和风险标记；身份证仅存输入 HMAC/是否相等，不存明文。
 - `admin_reviews`：管理员、决定、理由、读取过的证据级别和时间。
 
+#### `review_requests`
+
+- `id`、`requester_user_id`、`request_type`、`lost_record_id nullable`、`claim_id nullable`、`reason`、`status`、`candidate_snapshot_id nullable`、`created_at`、`resolved_at`。
+- `UNMATCHED` 必须且只能关联 `lost_record_id`；`CLAIM_REVIEW` 必须且只能关联 `claim_id`。
+- 同一用户与同一目标最多存在一条活动复核请求；管理员结果写入 `admin_reviews`，不覆盖原候选或核验事件。
+
 #### `audit_events`
 
 只追加，不允许业务接口更新或删除。字段包括：`event_id`、`aggregate_type/id`、`event_type`、`actor_type/id`、`request_id`、`rule_version`、`model_version`、`input_snapshot_hash`、`result_code`、`metadata_redacted`、`created_at`。
@@ -1026,6 +957,8 @@ sequenceDiagram
 6. 同一 HMAC 对应多个活动招领时，相关申请不能自动进入待交接。
 7. `PENDING_HANDOFF` 才能授权查看拾得者联系方式。
 8. `CLAIMED` 只能由对应拾得者或管理员在有线下证明的异常流程触发；MVP 正常路径仅拾得者触发。
+9. 未匹配复核不能直接把记录改为待交接；管理员推荐候选后仍需失主发起对应类型认领核验。
+10. 认领复核确认只能把申请改为 `PENDING_HANDOFF`，不能直接改为 `CLAIMED`。
 
 ## 7. 数据库、索引与事务
 
@@ -1052,6 +985,7 @@ CREATE EXTENSION IF NOT EXISTS vector;
 | 创建候选快照 | 分数、理由、模型/规则版本和审计事件 |
 | 身份证尝试 | 行锁/原子计数、HMAC 比较结果、状态变化、审计事件 |
 | 管理员决定 | 申请状态、理由、授权撤销和审计事件 |
+| 失主提交复核 | 防重复检查、复核请求、候选/核验快照引用和审计事件 |
 | 拾得者确认交接 | claim、found/lost record 状态和联系方式授权关闭 |
 
 外部模型调用不持有数据库事务。先保存草稿任务，再调用模型，再用记录版本做条件更新，防止超时期间用户修改导致旧结果覆盖新值。
@@ -1071,7 +1005,7 @@ CREATE EXTENSION IF NOT EXISTS vector;
 - PRIVATE 与 PUBLIC 物理目录分离；PUBLIC 文件只能由脱敏流程产生。
 - 身份证脱敏：模型/OCR 返回号码区域候选 → 服务端绘制不可逆遮挡 → 拾得者预览确认。
 - 自动定位失败：允许手工框选；仍失败时只发布掩码文本，不公开图片。
-- 管理员临时原图访问使用一次性授权 ID，不返回文件系统路径；授权过期或完成即失效。
+- 管理员临时原图访问为 P1；实现时使用一次性授权 ID，不返回文件系统路径，授权过期或完成即失效。P0 未实现时 PRIVATE 始终脱敏。
 - 记录关闭后调度删除 PRIVATE 原图并产生 `PRIVATE_IMAGE_DELETED` 审计事件。
 
 ### 8.3 Multimodal Adapter
@@ -1099,6 +1033,7 @@ verify_answers(question_set, answers) -> VerificationResult
 - 只处理活动、已发布、方向相反的记录。
 - 对每个失物记录返回 Top 5；低于最低展示阈值不展示。
 - 候选理由使用固定代码映射为安全文案，不把 MATCH_ONLY 原值拼进前端解释。
+- Top 5 无合适候选时允许记录创建者提交 `UNMATCHED` 复核；该操作不改变评分、不自动扩大候选范围。
 
 ### 8.6 ID Verification
 
@@ -1107,19 +1042,22 @@ verify_answers(question_set, answers) -> VerificationResult
 - 使用候选关联记录的 HMAC 做常量时间比较。
 - 失败统一返回 `IDENTITY_NOT_VERIFIED`；前端不得区分格式正确但不匹配、某位错误或记录不存在。
 - 成功后再检查相同 HMAC 的活动招领数量；数量不为 1 则转管理员。
+- 失败或锁定后可由失主提交 `CLAIM_REVIEW`，但完整号码不进入复核理由、管理员 DTO 或 LLM。
 
 ### 8.7 Other Verification
 
 - 问题生成与回答核验分开保存模型版本。
 - 生成阶段必须验证问题数 2～3、开放式、维度不重复、无答案泄露。
-- 核验阶段输出固定 JSON：每题分、硬冲突、缺失、总体分、置信度、理由代码。
+- 核验阶段输出固定 JSON：每题结果、硬冲突、缺失、置信度、理由代码；不再计算与候选分混合的综合认领可信度。
 - 任何解析失败、模型低置信或安全规则冲突都不能自动通过。
+- 仅所有关键问题均匹配、每题置信度 `>= 0.8` 且不存在其他活动认领时自动进入待交接。
 
 ### 8.8 Admin Review
 
-- 队列来源：重复身份证、尝试超限、OTHER 低/中可信、模型失败、规则冲突、用户举报。
+- 队列来源固定为五类：多人认领、普通物品核验未通过、证件核验异常、`UNMATCHED` 主动复核、`CLAIM_REVIEW` 主动复核。
 - 复核读取采用专用 DTO；每次查看 VERIFICATION 或临时查看原图都写事件。
 - 决定必须带非空理由和证据引用；重复提交使用幂等键。
+- 未匹配复核只允许推荐候选或驳回；认领复核和异常认领只允许确认进入待交接或驳回。
 
 ### 8.9 Audit Service
 
@@ -1168,20 +1106,16 @@ verify_answers(question_set, answers) -> VerificationResult
 ### 9.4 OTHER 自动路由规则
 
 ```text
-hidden_score = average(question_score)
-claim_confidence = candidate_score * 0.40 + hidden_score * 0.60
-
 auto_handoff =
-    candidate_score >= 80
-    and hidden_score >= 85
-    and claim_confidence >= 85
-    and every_critical_question_matched
-    and model_confidence >= 0.80
-    and not hard_conflict
-    and not risk_flags
+    all_questions_answered_once
+    and every_critical_question_result == MATCH
+    and every_question_confidence >= 0.80
+    and model_output_is_valid
+    and active_claim_count_for_found_record == 1
+    and not answer_leakage_or_retry_risk
 ```
 
-不满足时统一进入管理员复核，不由系统自动拒绝。
+候选分只用于 Top 5 排序，不参与上述核验结论。不满足时统一进入管理员复核，不由系统自动拒绝；失主也可以对结果提交 `CLAIM_REVIEW`。
 
 ## 10. Prompt 与模型输出设计
 
@@ -1262,13 +1196,15 @@ overall_score、confidence、hard_conflict、needs_admin_review。
 | `POST /api/lost-records` | USER | type/time/location/name/description/optional image | LOST record | FIELD_INVALID |
 | `GET /api/lost-records/{id}/candidates` | 创建者 | page | PUBLIC Top 5 | NOT_OWNER |
 | `GET /api/candidates/{id}` | 相关失主 | candidate | PUBLIC detail | NOT_FOUND |
+| `POST /api/lost-records/{id}/review-requests` | 创建者 | reason | UNMATCHED review | ACTIVE_REVIEW_EXISTS |
 | `POST /api/candidates/{id}/claims/identity` | 相关失主 | full_number | failed/review/handoff | IDENTITY_NOT_VERIFIED / ATTEMPT_LOCKED |
 | `GET /api/candidates/{id}/questions` | 相关失主 | none | question text only | WRONG_ITEM_TYPE |
 | `POST /api/candidates/{id}/claims/answers` | 相关失主 | question_id/answer[] | review/handoff | ANSWER_INVALID |
+| `POST /api/claims/{id}/review-requests` | 申请人 | reason | CLAIM_REVIEW | ACTIVE_REVIEW_EXISTS |
 | `GET /api/admin/reviews` | ADMIN | filters | masked queue | FORBIDDEN |
 | `GET /api/admin/reviews/{id}` | ADMIN | none | minimized evidence | FORBIDDEN |
-| `POST /api/admin/reviews/{id}/original-access` | ADMIN | reason | short-lived access_id | REASON_REQUIRED |
-| `GET /api/admin/original-access/{access_id}` | ADMIN + 临时授权 | access_id | controlled PRIVATE image stream | ACCESS_EXPIRED / FORBIDDEN |
+| `POST /api/admin/reviews/{id}/original-access` | ADMIN，P1 | reason | short-lived access_id | REASON_REQUIRED |
+| `GET /api/admin/original-access/{access_id}` | ADMIN + 临时授权，P1 | access_id | controlled PRIVATE image stream | ACCESS_EXPIRED / FORBIDDEN |
 | `POST /api/admin/reviews/{id}/decision` | ADMIN | APPROVE/REJECT + reason | new claim state | VERSION_CONFLICT |
 | `GET /api/admin/audit-events` | ADMIN | record_id/claim_id/request_id/time filters | redacted audit events | FORBIDDEN |
 | `GET /api/claims/{id}/contact` | 相关失主 | none | finder contact | HANDOFF_NOT_READY |
@@ -1298,8 +1234,8 @@ stateDiagram-v2
 stateDiagram-v2
     [*] --> SUBMITTED
     SUBMITTED --> VERIFYING
-    VERIFYING --> PENDING_HANDOFF: 唯一身份证精确匹配/OTHER 高可信
-    VERIFYING --> PENDING_ADMIN_REVIEW: 重复、冲突、低置信、AI 失败
+    VERIFYING --> PENDING_HANDOFF: 唯一身份证精确匹配/普通物品全关键题匹配
+    VERIFYING --> PENDING_ADMIN_REVIEW: 多人认领、部分匹配、冲突、无法判断、AI 失败
     VERIFYING --> REJECTED: 确定性失败且未超限
     VERIFYING --> LOCKED: 尝试次数耗尽
     PENDING_ADMIN_REVIEW --> PENDING_HANDOFF: 管理员通过
@@ -1308,6 +1244,21 @@ stateDiagram-v2
 ```
 
 所有转换使用服务端状态机；前端传目标状态不具有决定权。
+
+### 13.3 主动复核请求
+
+```mermaid
+stateDiagram-v2
+    [*] --> PENDING_ADMIN_REVIEW: 失主提交 UNMATCHED / CLAIM_REVIEW
+    PENDING_ADMIN_REVIEW --> CANDIDATE_RECOMMENDED: 未匹配复核推荐候选
+    PENDING_ADMIN_REVIEW --> APPROVED_TO_HANDOFF: 认领复核确认
+    PENDING_ADMIN_REVIEW --> REJECTED: 管理员驳回
+    CANDIDATE_RECOMMENDED --> CLOSED: 失主查看推荐结果
+    APPROVED_TO_HANDOFF --> CLOSED: claim 已进入待交接
+    REJECTED --> CLOSED: 结果已通知
+```
+
+未匹配复核的 `CANDIDATE_RECOMMENDED` 不等于认领通过；失主仍需选择候选并完成身份证或普通物品核验。
 
 ## 14. 身份证规范化、HMAC 与脱敏
 
@@ -1394,6 +1345,9 @@ digest = HMAC-SHA256(secret[key_version], normalized UTF-8)
 - 只有 PENDING_HANDOFF 的相关失主能读联系方式。
 - 管理员无理由不能看原图；授权过期后不可访问。
 - 记录关闭后原图清理任务和审计事件。
+- Top 5 无合适候选时只能由失物记录创建者提交一条活动 `UNMATCHED` 复核。
+- 核验失败后只有申请人可提交 `CLAIM_REVIEW`；复核不能覆盖原 HMAC/AI 结果。
+- 同一招领记录存在两个活动认领时，任一核验成功都不能直接展示联系方式。
 
 ### 17.3 模型契约测试
 
@@ -1405,7 +1359,8 @@ digest = HMAC-SHA256(secret[key_version], normalized UTF-8)
 ### 17.4 E2E 主路径
 
 1. **居民身份证：** 拾得者上传合成图 → AI 草稿 → 逐位确认 → 脱敏发布 → 失主候选 → 输入正确号码 → 唯一记录进入待交接 → 查看联系方式 → 拾得者确认交接 → 时间线完整。
-2. **其他物品：** 拾得者上传图片 → 修改名称/公开描述 → 填隐藏描述 → AI 生成 2～3 问并确认 → 失主发布并查看候选 → 回答 → 高可信待交接或冲突转管理员 → 交接闭环。
+2. **普通物品：** 拾得者上传图片 → 修改名称/公开描述 → 填隐藏描述 → AI 生成 2～3 问并确认 → 失主发布并查看候选 → 回答 → 全部关键题匹配且无多人认领时待交接，否则转管理员 → 交接闭环。
+3. **失主主动复核：** Top 5 无合适候选 → 提交未匹配复核 → 管理员推荐候选；或核验失败 → 提交认领复核 → 管理员确认/驳回。
 
 ### 17.5 至少三个边界/失败样例
 
@@ -1432,7 +1387,8 @@ digest = HMAC-SHA256(secret[key_version], normalized UTF-8)
 | MiMo-V2.5 图片能力优先、mimoV2.5-pro 文本核验、手工降级 | 8.3、15 | spike/故障注入 |
 | 原图保存到关闭、候选只看脱敏副本 | 2.3、8.2、14.3 | 权限/清理测试 |
 | 管理员最小权限、授权临时看原图 | 5.5、8.8 | RBAC/审计测试 |
-| 高可信才自动待交接，最终由拾得者确认 | 5.4、13 | 状态机/E2E |
+| 分类型核验通过且无多人认领才待交接，最终由拾得者确认 | 5.3、5.4、13 | 状态机/E2E |
+| 失主在候选和核验阶段主动复核 | 4.7、5.5、8.8、12、13.3 | API 集成/管理员 E2E |
 | 普通用户按任务进入“我丢失了/我捡到了” | 4.2、4.4～4.8 | 路由/Playwright E2E |
 | 管理员使用独立页面 | 4.5、4.9 | Route Guard/权限 E2E |
 | 前端不缓存完整号码、隐藏答案和临时原图 | 4.11、4.14 | 组件卸载/缓存扫描测试 |
@@ -1468,7 +1424,7 @@ MODEL_TIMEOUT_SECONDS
 - 单机 Docker Compose：`frontend`、`backend`、`postgres`；文件目录挂载持久卷。
 - 外部 AI 使用 HTTPS；如果无 API Key，明确启动 mock 模式并在 README 标注哪些结果为模拟。
 - 演示只使用合成身份证号码、合成/脱敏图片和虚构联系方式。
-- 数据库 seed 包含唯一身份证成功、重复身份证转人工、OTHER 高可信和隐藏信息不足四组样例。
+- 数据库 seed 包含唯一身份证成功、普通物品全部匹配、多人认领转人工、无合适候选主动复核和隐藏信息不足五组样例。
 
 ## 20. 回滚与输出有效性
 
@@ -1484,6 +1440,8 @@ MODEL_TIMEOUT_SECONDS
 一次业务输出有效必须同时满足：DTO schema 合法、actor 有权限、源记录版本一致、输入快照哈希存在、规则/模型版本存在、状态转换合法、审计事件写入成功。任何一项失败，不得对外声称候选、核验或交接已完成。
 
 ## 21. Design Review 检查表
+
+以下 14 项是 V1.3 已完成的 Review 记录；V1.4 只做增量复核，不重新否定未变化的四级权限、数据模型和安全设计。
 
 - [x] 数据模型能够同时表达身份证与其他物品，且不存在互斥字段同时有效。
 - [x] 候选 API 只暴露 PUBLIC，完整号码、隐藏答案、原图和联系方式无泄露路径。
@@ -1502,8 +1460,17 @@ MODEL_TIMEOUT_SECONDS
 
 Review 结论：2026-07-16 由 SZY 全部确认。该结论表示设计约束和接口契约获准进入开发，不表示代码、外部模型效果或运行测试已经通过。
 
+### V1.4 增量 Review
+
+- [ ] 确认候选分只用于 Top 5，不再与隐藏问题结果组合为综合认领可信度。
+- [ ] 确认普通物品只有全部关键题匹配、模型有效且无多人认领时进入待交接。
+- [ ] 确认未匹配复核与认领复核的关联对象、管理员动作和状态边界。
+- [ ] 确认管理员 P0 只处理五类复核并确认/驳回，原图临时授权为不阻塞主流程的 P1。
+- [ ] 确认四级权限矩阵保持 V1.3 规则不变。
+- [ ] 确认功能架构图只保留核心功能、AI能力、安全防冒领、系统支撑四层，并按失主/拾得者/管理员归纳核心业务，不再展开接口级节点。
+
 ## 22. 当前完成条件与下一阶段
 
-本文已通过 Design Review，开发阶段以 `prd.md` V0.8、`design_option.md` V4.1 和本文 V1.3 为冻结基线。数据库迁移顺序、接口 DTO、模型 JSON schema、状态机、敏感日志过滤规则和 E2E seed 数据在 `dev.md` 与 `task.md` 中落实；实现仍须按 Red → Green → Refactor 推进。
+V1.3 的详细安全设计已经通过 Review；V1.4 在其上增加两类主动复核并简化普通物品自动路由。开发应以 `prd.md` V0.9、`design_option.md` V4.1 和本文 V1.4 为候选基线，待上方增量 Review 确认后再执行受影响任务。
 
-当前真实状态：PRD、方案和详细设计已确认；已获准编写开发规范并拆分任务；代码、模型 spike、单元测试、集成测试和 E2E 均尚未执行。
+当前真实状态：详细基线已恢复并完成 V1.4 最小重构；四级权限矩阵未改变；代码、模型 spike、单元测试、集成测试和 E2E 均尚未执行。

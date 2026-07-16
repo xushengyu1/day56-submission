@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=1440">
+  <title>发布招领信息 - AI 失物招领系统</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    ::-webkit-scrollbar { display: none; }
+    body { width: 1440px; height: 900px; overflow: hidden; font-family: 'Inter', system-ui, -apple-system, sans-serif; }
+  </style>
+</head>
+<body class="bg-gray-50">
+  <!-- 顶部导航栏 -->
+  <nav class="bg-white border-b border-gray-100 h-16 flex items-center justify-between px-8">
+    <div class="flex items-center gap-3">
+      <a href="home.html" class="w-9 h-9 bg-gray-100 rounded-xl flex items-center justify-center hover:bg-gray-200 transition-colors">
+        <i class="fas fa-arrow-left text-gray-600 text-sm"></i>
+      </a>
+      <div class="w-9 h-9 bg-emerald-600 rounded-xl flex items-center justify-center">
+        <i class="fas fa-hand-holding-heart text-white text-sm"></i>
+      </div>
+      <span class="text-lg font-bold text-gray-900">发布招领信息</span>
+    </div>
+    <div class="flex items-center gap-4">
+      <button class="text-sm text-gray-500 hover:text-gray-700">保存草稿</button>
+      <button class="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold rounded-xl transition-colors">
+        确认发布
+      </button>
+    </div>
+  </nav>
+
+  <!-- 步骤指示器 -->
+  <div class="bg-white border-b border-gray-100 px-8 py-4">
+    <div class="flex items-center gap-3 max-w-3xl mx-auto">
+      <div class="flex items-center gap-2">
+        <div class="w-8 h-8 bg-emerald-500 text-white rounded-full flex items-center justify-center text-sm"><i class="fas fa-check"></i></div>
+        <span class="text-sm text-emerald-600">上传图片</span>
+      </div>
+      <div class="flex-1 h-px bg-emerald-300"></div>
+      <div class="flex items-center gap-2">
+        <div class="w-8 h-8 bg-emerald-500 text-white rounded-full flex items-center justify-center text-sm"><i class="fas fa-check"></i></div>
+        <span class="text-sm text-emerald-600">AI 识别</span>
+      </div>
+      <div class="flex-1 h-px bg-emerald-300"></div>
+      <div class="flex items-center gap-2">
+        <div class="w-8 h-8 bg-emerald-600 text-white rounded-full flex items-center justify-center text-sm font-bold">3</div>
+        <span class="text-sm font-semibold text-emerald-600">确认信息</span>
+      </div>
+      <div class="flex-1 h-px bg-gray-200"></div>
+      <div class="flex items-center gap-2">
+        <div class="w-8 h-8 bg-gray-200 text-gray-400 rounded-full flex items-center justify-center text-sm font-bold">4</div>
+        <span class="text-sm text-gray-400">补充详情</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 主体内容 -->
+  <div class="flex h-[calc(100vh-128px)]">
+    <!-- 左侧：图片预览 -->
+    <div class="w-[400px] bg-white border-r border-gray-100 p-6 flex flex-col">
+      <h3 class="text-sm font-semibold text-gray-500 mb-4">上传的物品照片</h3>
+      <div class="flex-1 bg-gray-100 rounded-2xl overflow-hidden">
+        <img src="https://images.unsplash.com/photo-1556306535-0f09a537f0a3?w=400&h=400&fit=crop" alt="物品照片" class="w-full h-full object-cover">
+      </div>
+      <div class="mt-4 flex items-center gap-2">
+        <span class="px-3 py-1 bg-emerald-50 text-emerald-600 text-xs font-medium rounded-full"><i class="fas fa-check-circle mr-1"></i>图片已上传</span>
+        <button class="px-3 py-1 text-xs text-gray-500 hover:text-gray-700">重新上传</button>
+      </div>
+
+      <!-- AI 状态 -->
+      <div class="mt-4 p-4 bg-emerald-50 rounded-xl">
+        <div class="flex items-center gap-3">
+          <div class="w-8 h-8 bg-emerald-100 rounded-full flex items-center justify-center">
+            <i class="fas fa-robot text-emerald-600"></i>
+          </div>
+          <div>
+            <p class="text-sm font-medium text-emerald-800">AI 识别完成</p>
+            <p class="text-xs text-emerald-600">置信度：93%</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 右侧：AI 提取结果确认 -->
+    <div class="flex-1 p-8 overflow-y-auto" style="scrollbar-width: none;">
+      <div class="max-w-2xl mx-auto">
+        <div class="flex items-center justify-between mb-6">
+          <div>
+            <h2 class="text-xl font-bold text-gray-900">确认 AI 识别结果</h2>
+            <p class="text-sm text-gray-500 mt-1">请检查并修改 AI 提取的信息，确认无误后进入下一步</p>
+          </div>
+          <span class="px-3 py-1 bg-blue-50 text-blue-600 text-xs font-medium rounded-full"><i class="fas fa-pen mr-1"></i>可编辑</span>
+        </div>
+
+        <!-- 物品类型 -->
+        <div class="mb-5">
+          <label class="block text-sm font-semibold text-gray-900 mb-2">物品类型</label>
+          <div class="flex items-center gap-3">
+            <select class="flex-1 px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white">
+              <option selected>其他物品</option>
+              <option>身份证件</option>
+            </select>
+            <span class="text-xs text-gray-400">AI 建议：<span class="text-emerald-600">其他物品</span></span>
+          </div>
+        </div>
+
+        <!-- 物品名称 -->
+        <div class="mb-5">
+          <label class="block text-sm font-semibold text-gray-900 mb-2">物品名称</label>
+          <div class="relative">
+            <input type="text" value="黑色折叠伞"
+                   class="w-full px-4 py-3 border-2 border-emerald-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-emerald-50/30">
+            <span class="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded">AI 提取</span>
+          </div>
+        </div>
+
+        <!-- 公开描述 -->
+        <div class="mb-5">
+          <label class="block text-sm font-semibold text-gray-900 mb-2">公开描述</label>
+          <textarea rows="3"
+                    class="w-full px-4 py-3 border-2 border-emerald-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 resize-none bg-emerald-50/30">黑色短柄折叠伞，伞面完好，手柄无磨损</textarea>
+          <p class="text-xs text-gray-400 mt-1"><i class="fas fa-info-circle mr-1"></i>此描述将公开显示，请确保不包含私密验证信息</p>
+        </div>
+
+        <!-- 颜色 -->
+        <div class="mb-5">
+          <label class="block text-sm font-semibold text-gray-900 mb-2">颜色</label>
+          <div class="flex gap-2">
+            <button class="px-4 py-2 bg-gray-900 text-white text-sm rounded-lg">黑色</button>
+            <button class="px-4 py-2 bg-white border border-gray-200 text-gray-600 text-sm rounded-lg">白色</button>
+            <button class="px-4 py-2 bg-white border border-gray-200 text-gray-600 text-sm rounded-lg">红色</button>
+            <button class="px-4 py-2 bg-white border border-gray-200 text-gray-600 text-sm rounded-lg">蓝色</button>
+          </div>
+        </div>
+
+        <!-- 时间和地点 -->
+        <div class="grid grid-cols-2 gap-4 mb-5">
+          <div>
+            <label class="block text-sm font-semibold text-gray-900 mb-2">发现时间</label>
+            <input type="text" value="2026-07-16 上午 10:30"
+                   class="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500">
+          </div>
+          <div>
+            <label class="block text-sm font-semibold text-gray-900 mb-2">发现地点</label>
+            <input type="text" value="教学楼 B 区 2 楼楼梯口"
+                   class="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500">
+          </div>
+        </div>
+
+        <!-- 身份证件专属区域（默认隐藏） -->
+        <div class="hidden p-5 bg-amber-50 rounded-xl mb-5">
+          <h4 class="text-sm font-semibold text-amber-800 mb-2"><i class="fas fa-id-card mr-2"></i>身份证件信息</h4>
+          <p class="text-xs text-amber-700 mb-3">请逐位核对 AI 提取的证件号码</p>
+          <div class="flex gap-1">
+            <input type="text" value="1" maxlength="1" class="w-10 h-12 text-center border border-gray-200 rounded-lg font-mono text-lg">
+            <input type="text" value="1" maxlength="1" class="w-10 h-12 text-center border border-gray-200 rounded-lg font-mono text-lg">
+            <input type="text" value="0" maxlength="1" class="w-10 h-12 text-center border border-gray-200 rounded-lg font-mono text-lg">
+            <span class="flex items-center text-gray-300">-</span>
+            <input type="text" value="1" maxlength="1" class="w-10 h-12 text-center border border-gray-200 rounded-lg font-mono text-lg">
+            <input type="text" value="9" maxlength="1" class="w-10 h-12 text-center border border-gray-200 rounded-lg font-mono text-lg">
+            <input type="text" value="9" maxlength="1" class="w-10 h-12 text-center border border-gray-200 rounded-lg font-mono text-lg">
+            <input type="text" value="8" maxlength="1" class="w-10 h-12 text-center border border-gray-200 rounded-lg font-mono text-lg">
+            <input type="text" value="0" maxlength="1" class="w-10 h-12 text-center border border-gray-200 rounded-lg font-mono text-lg">
+            <input type="text" value="3" maxlength="1" class="w-10 h-12 text-center border border-gray-200 rounded-lg font-mono text-lg">
+            <input type="text" value="1" maxlength="1" class="w-10 h-12 text-center border border-gray-200 rounded-lg font-mono text-lg">
+            <input type="text" value="5" maxlength="1" class="w-10 h-12 text-center border border-gray-200 rounded-lg font-mono text-lg">
+            <span class="flex items-center text-gray-300">-</span>
+            <input type="text" value="1" maxlength="1" class="w-10 h-12 text-center border border-gray-200 rounded-lg font-mono text-lg">
+            <input type="text" value="2" maxlength="1" class="w-10 h-12 text-center border border-gray-200 rounded-lg font-mono text-lg">
+            <input type="text" value="3" maxlength="1" class="w-10 h-12 text-center border border-gray-200 rounded-lg font-mono text-lg">
+            <input type="text" value="4" maxlength="1" class="w-10 h-12 text-center border border-gray-200 rounded-lg font-mono text-lg">
+          </div>
+        </div>
+
+        <!-- 操作按钮 -->
+        <div class="flex gap-4 pt-2">
+          <button class="flex-1 py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-xl transition-colors shadow-lg shadow-emerald-600/25">
+            <i class="fas fa-arrow-right mr-2"></i>确认并继续
+          </button>
+          <button class="px-6 py-3.5 border-2 border-gray-200 text-gray-700 font-semibold rounded-xl hover:bg-gray-50 transition-colors">
+            手动修改
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

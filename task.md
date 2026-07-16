@@ -1,9 +1,9 @@
 # TDD 实施任务计划：AI 失物招领匹配与认领复核系统
 
-> **文档版本：** V1.0  
+> **文档版本：** V1.1
 > **日期：** 2026-07-16  
-> **状态：** 可执行，尚未开始编码  
-> **执行基线：** `prd.md` V0.8、`design_option.md` V4.1、`docs/design/end-to-end-system-design.md` V1.3、`dev.md` V1.0
+> **状态：** 详细任务基线已恢复；V1.1 最小变更待增量 Review
+> **执行基线：** `prd.md` V0.9、`design_option.md` V4.1、`docs/design/end-to-end-system-design.md` V1.4、`dev.md` V1.1
 
 实施时逐项执行，不批量预填结果。每个任务严格执行 Red → Green → Refactor，并把实际命令和结果写入 `evidence/development-records/TXX.md`。若在单独会话执行本计划，先使用计划执行方法逐任务推进；实现功能先使用 TDD，遇到失败先按系统化调试定位，声称完成前执行全量验证。
 
@@ -11,7 +11,7 @@
 
 ## 1. 目标、架构和全局规则
 
-**目标：** 两天内交付 React Web + FastAPI + PostgreSQL/pgvector MVP，真实跑通发布、候选、分类型核验、自动/人工路由、交接和审计。
+**目标：** 两天内交付 React Web + FastAPI + PostgreSQL/pgvector MVP，真实跑通发布、Top 5、分类型核验、多人/主动复核、交接和审计。
 
 **架构：** 单体仓库、模块化 FastAPI 后端；React 按 feature 拆分；PostgreSQL 同时存结构化数据和公开文本向量；PRIVATE/PUBLIC 文件物理隔离；外部 AI 通过端口适配器，支持 real/mock 明确切换。
 
@@ -19,7 +19,7 @@
 
 1. 完整身份证号码、隐藏答案、原图路径、token 和 HMAC key/value 不进入 API 输出、普通日志、URL 或浏览器持久缓存。
 2. 身份证使用确定性代码核验，不调用 LLM；失主图片不调用多模态。
-3. 模型失败、低置信、重复号码、关键冲突都不能自动进入待交接。
+3. 模型失败、低置信、多人认领、关键冲突都不能自动进入待交接。
 4. `CLAIMED` 不能由 AI 或候选分直接产生，正常路径只由对应拾得者确认线下交接。
 5. 只使用合成/脱敏数据；任何真实个人资料不得进入仓库、截图和演示数据库。
 
@@ -113,7 +113,7 @@ docker compose run --rm frontend npm run test -- --run tests/app-smoke.test.tsx
 **文件：**
 
 - 新建：`backend/app/db/base.py`、`session.py`、`enums.py`
-- 新建：`backend/app/{auth,items,images,multimodal,matching,verification,reviews,audit}/models.py`
+- 新建：`backend/app/{auth,items,images,multimodal,matching,verification,reviews,audit}/models.py`，其中 reviews 包含两类 `review_requests`
 - 新建：`backend/alembic/versions/0001_enable_vector_and_enums.py` 至 `0006_audit_and_idempotency.py`
 - 新建：`backend/tests/integration/db/test_migrations.py`、`test_model_constraints.py`
 
@@ -123,6 +123,7 @@ docker compose run --rm frontend npm run test -- --run tests/app-smoke.test.tsx
 2. 断言空库 upgrade 后存在核心表、vector 扩展与 embedding 列。
 3. 断言 IDENTITY_DOCUMENT 不能同时保存有效 verification set；OTHER 不能保存 identity secret。
 4. 断言 PUBLIC asset 只能是 `PUBLIC_REDACTED + CONFIRMED`。
+5. 断言 `UNMATCHED` 只能关联 lost record，`CLAIM_REVIEW` 只能关联 claim；同一用户同一目标只有一条活动复核。
 
 **Green：**
 
@@ -453,9 +454,9 @@ docker compose run --rm backend pytest tests/integration/verification/test_ident
 
 ---
 
-### Task T10：实现 OTHER 开放式问题认领与安全路由
+### Task T10：实现普通物品开放式问题认领与安全路由
 
-**目标：** 失主只能看问题文本并一次提交答案；高可信才自动待交接，其余转管理员。
+**目标：** 失主只能看问题文本并一次提交答案；全部关键题匹配、模型有效且无其他活动认领时进入待交接，其余转管理员。
 
 **文件：**
 
@@ -466,7 +467,7 @@ docker compose run --rm backend pytest tests/integration/verification/test_ident
 **Red：**
 
 - `GET questions` 只返回 id/text，不返回 answer key、隐藏描述和模型内部依据。
-- 全部关键题匹配、candidate ≥80、hidden ≥85、overall ≥85、confidence ≥0.8、无风险时进入 `PENDING_HANDOFF`。
+- 全部关键题匹配、每题 confidence ≥0.8、模型输出有效且同一招领记录只有当前一条活动认领时进入 `PENDING_HANDOFF`。
 - 关键冲突、缺失、低置信、非法 JSON、超时、规则冲突全部进入 `PENDING_REVIEW`，不自动拒绝真实失主，也不自动放行。
 - 同一 claim 的答案只允许提交一次；重复提交不覆盖原证据。
 
@@ -477,7 +478,7 @@ GET  /api/candidates/{id}/questions
 POST /api/candidates/{id}/claims/answers
 ```
 
-保存输入快照哈希、题目/模型版本、每题结果代码、总体规则结果和安全解释。
+保存输入快照哈希、题目/模型版本、每题结果代码、多人认领检查和安全解释；候选分不再参与综合认领可信度计算。
 
 **验证命令：**
 
@@ -490,34 +491,39 @@ docker compose run --rm backend pytest tests/integration/verification/test_other
 
 ---
 
-### Task T11：实现管理员异常队列、临时原图与复核决定
+### Task T11：实现失主主动复核、异常队列与管理员决定
 
-**目标：** 管理员只处理异常，默认最小可见；原图访问有理由、时效、单对象和审计。
+**目标：** 支持失主提交未匹配复核和认领复核；管理员统一处理五类复核并确认/驳回，默认最小可见。
 
 **文件：**
 
 - 新建：`backend/app/reviews/{schemas.py,service.py}`
 - 新建：`backend/app/api/routes/admin.py`
-- 新建：`backend/tests/integration/reviews/test_review_queue.py`、`test_original_access.py`、`test_admin_decision.py`
+- 新建：`backend/tests/integration/reviews/test_review_requests.py`、`test_review_queue.py`、`test_admin_decision.py`
+- P1 可选：`backend/tests/integration/reviews/test_original_access.py`
 
 **Red：**
 
-- 队列只含待复核申请，默认展示掩码、事件和结果代码。
-- 无理由不能申请原图；access id 只能访问一个 asset、一次、在 TTL 内；过期/二次访问拒绝。
-- 原图响应不含文件系统路径，完整号码始终不可读。
+- `UNMATCHED` 只能由失物记录创建者提交并关联 lost record；`CLAIM_REVIEW` 只能由申请人提交并关联 claim。
+- 同一用户同一目标重复提交返回 `ACTIVE_REVIEW_EXISTS`，不产生第二条活动请求。
+- 队列固定覆盖多人认领、普通物品核验未通过、证件异常、未匹配复核和认领复核，默认展示掩码、事件和结果代码。
+- 未匹配复核只能推荐候选或驳回；认领/异常复核只能确认进入待交接或驳回，理由必填。
+- PRIVATE 默认脱敏；完整号码始终不可读。原图临时授权为 P1，不阻塞本 Task 的 P0 完成。
 - `APPROVE/REJECT` 必须有理由和 `Idempotency-Key`；重复请求不重复写事件。
 - USER 调用任何 admin 接口返回 403。
 
-**Green：** 实现 6 个接口：
+**Green：** 实现 6 个 P0 接口：
 
 ```text
 GET  /api/admin/reviews
 GET  /api/admin/reviews/{id}
-POST /api/admin/reviews/{id}/original-access
-GET  /api/admin/original-access/{access_id}
 POST /api/admin/reviews/{id}/decision
 GET  /api/admin/audit-events
+POST /api/lost-records/{id}/review-requests
+POST /api/claims/{id}/review-requests
 ```
+
+P1 可选接口保持详细设计定义：`POST /api/admin/reviews/{id}/original-access`、`GET /api/admin/original-access/{access_id}`。
 
 **验证命令：**
 
@@ -526,7 +532,7 @@ docker compose run --rm backend pytest tests/integration/reviews -q
 ```
 
 **依赖：** T03、T04、T05、T09、T10。  
-**建议提交：** `feat(admin): add least privilege reviews and ephemeral original access`
+**建议提交：** `feat(reviews): add owner requests and focused admin decisions`
 
 ---
 
@@ -631,7 +637,7 @@ docker compose run --rm frontend npm run test -- --run tests/found-wizard.test.t
 
 ---
 
-### Task T15：实现“我丢失了物品”候选、双认领与进度页
+### Task T15：实现“我丢失了物品”Top 5、双认领、主动复核与进度页
 
 **目标：** 实现失物表单、PUBLIC 候选、身份证/OTHER 认领和交接进度。
 
@@ -639,8 +645,8 @@ docker compose run --rm frontend npm run test -- --run tests/found-wizard.test.t
 
 - 新建：`frontend/src/features/lost-items/{api.ts,LostCreatePage.tsx,LostDetailPage.tsx}`
 - 新建：`frontend/src/features/candidates/{CandidateList.tsx,CandidateDetailPage.tsx}`
-- 新建：`frontend/src/features/claims/{IdentityClaimForm.tsx,OtherClaimForm.tsx,ClaimProgressPage.tsx}`
-- 新建：`frontend/tests/owner-flow.test.tsx`、`candidate-privacy.test.tsx`、`claim-errors.test.tsx`
+- 新建：`frontend/src/features/claims/{IdentityClaimForm.tsx,OtherClaimForm.tsx,ClaimProgressPage.tsx,ReviewRequestDialog.tsx}`
+- 新建：`frontend/tests/owner-flow.test.tsx`、`candidate-privacy.test.tsx`、`claim-errors.test.tsx`、`owner-review-requests.test.tsx`
 
 **Red：**
 
@@ -648,6 +654,7 @@ docker compose run --rm frontend npm run test -- --run tests/found-wizard.test.t
 - 候选只渲染 PUBLIC 字段和安全理由。
 - ID 错误不显示错误位或内部原因；第 2 次失败显示锁定。
 - OTHER 只显示开放问题；答案提交后从表单内存清除。
+- Top 5 无合适候选时可提交 `UNMATCHED`；核验失败、锁定或不同意结果时可提交 `CLAIM_REVIEW`，两者都要求理由且不能包含完整号码/隐藏答案。
 - 只有 `PENDING_HANDOFF` 才请求/显示联系方式；`CLAIMED` 显示时间线结果。
 
 **Green：** 实现页面、hooks、错误/空/加载态和敏感清理。
@@ -655,7 +662,7 @@ docker compose run --rm frontend npm run test -- --run tests/found-wizard.test.t
 **验证命令：**
 
 ```powershell
-docker compose run --rm frontend npm run test -- --run tests/owner-flow.test.tsx tests/candidate-privacy.test.tsx tests/claim-errors.test.tsx
+docker compose run --rm frontend npm run test -- --run tests/owner-flow.test.tsx tests/candidate-privacy.test.tsx tests/claim-errors.test.tsx tests/owner-review-requests.test.tsx
 ```
 
 **依赖：** T08～T10、T12、T13。  
@@ -663,20 +670,20 @@ docker compose run --rm frontend npm run test -- --run tests/owner-flow.test.tsx
 
 ---
 
-### Task T16：实现管理员异常工作台
+### Task T16：实现管理员五类复核工作台
 
-**目标：** 实现独立异常队列、最小证据详情、临时原图和复核决定。
+**目标：** 实现多人认领、普通核验未通过、证件异常、未匹配复核、认领复核的独立队列、最小证据详情和复核决定。
 
 **文件：**
 
 - 新建：`frontend/src/features/admin/{api.ts,AdminQueuePage.tsx,AdminReviewPage.tsx,AdminAuditPage.tsx}`
-- 新建：`frontend/src/features/admin/components/{MaskedEvidencePanel.tsx,OriginalAccessDialog.tsx,DecisionForm.tsx}`
-- 新建：`frontend/tests/admin-console.test.tsx`、`admin-original-access.test.tsx`
+- 新建：`frontend/src/features/admin/components/{MaskedEvidencePanel.tsx,DecisionForm.tsx,CandidateRecommendationPanel.tsx}`
+- 新建：`frontend/tests/admin-console.test.tsx`、`admin-review-types.test.tsx`
 
 **Red：**
 
-- 默认只显示掩码和事件；原图按钮必须先填理由。
-- access 过期/已用后立即清理 object URL，不缓存。
+- 默认只显示掩码和事件；PRIVATE 始终脱敏。
+- 未匹配复核显示候选推荐动作；其它认领复核显示确认待交接/驳回动作，不能混用。
 - 决定理由为空不能提交；重复点击只发送同一幂等键。
 - UI 中不存在完整号码字段或“显示完整号码”入口。
 
@@ -685,7 +692,7 @@ docker compose run --rm frontend npm run test -- --run tests/owner-flow.test.tsx
 **验证命令：**
 
 ```powershell
-docker compose run --rm frontend npm run test -- --run tests/admin-console.test.tsx tests/admin-original-access.test.tsx
+docker compose run --rm frontend npm run test -- --run tests/admin-console.test.tsx tests/admin-review-types.test.tsx
 ```
 
 **依赖：** T11、T13。  
@@ -695,32 +702,34 @@ docker compose run --rm frontend npm run test -- --run tests/admin-console.test.
 
 ## 5. Day 2 下午：E2E、失败验证与交付
 
-### Task T17：建立 E2E seed 并跑通三条端到端路径
+### Task T17：建立 E2E seed 并跑通主流程与主动复核
 
-**目标：** 用真实前端、API 和 PostgreSQL 证明核心状态变化，不把组件 mock 当 E2E。
+**目标：** 用真实前端、API 和 PostgreSQL 证明身份证、普通物品、多人认领和失主主动复核的状态变化，不把组件 mock 当 E2E。
 
 **文件：**
 
 - 新建：`backend/app/db/seed_demo.py`
 - 新建：`e2e/playwright.config.ts`
 - 新建：`e2e/fixtures/{users.ts,assets.ts,db.ts}`
-- 新建：`e2e/specs/identity-happy-path.spec.ts`、`other-high-confidence.spec.ts`、`duplicate-id-admin-review.spec.ts`
+- 新建：`e2e/specs/identity-happy-path.spec.ts`、`ordinary-item-match.spec.ts`、`multiple-claims-admin-review.spec.ts`、`owner-review-requests.spec.ts`
 - 新建：`e2e/assets/` 下合成/脱敏图片
 
 **seed：**
 
 1. 唯一合成身份证：正确号码可进入待交接。
-2. 重复合成身份证：两条活动 FOUND 使用同 HMAC，必须转管理员。
-3. OTHER 高可信：公开描述与时间地点相近，隐藏回答全部匹配。
-4. OTHER 信息不足：只含已公开描述，保持 DRAFT。
+2. 普通物品全部匹配：2～3 个关键问题均匹配且无其他活动认领。
+3. 多人认领：同一招领记录有两条活动申请，禁止提前显示联系方式并转管理员。
+4. 无合适候选：失主提交 `UNMATCHED`，管理员推荐候选。
+5. 核验失败：失主提交 `CLAIM_REVIEW`，管理员确认或驳回。
 
 **Red：** 先写三条 Playwright 用例并确认因页面/接口尚未完整联调失败。
 
 **Green：** 修复最小联调问题，使：
 
 - ID：拾得者发布 → 失主认领 → 联系方式 → 拾得者交接 → 时间线 `CLAIMED/CLOSED`。
-- OTHER：隐藏问题高可信 → `PENDING_HANDOFF` → 完成交接。
-- 重复 ID：失主正确输入 → 管理员队列 → 管理员批准 → 待交接；全过程无完整号码展示。
+- 普通物品：隐藏问题全部匹配 → `PENDING_HANDOFF` → 完成交接。
+- 多人认领：两个申请都不能提前读取联系方式 → 管理员确认其中一条 → 待交接。
+- 主动复核：Top 5 无合适候选提交未匹配复核；核验失败提交认领复核；两类管理员动作不同。
 
 **验证命令：**
 
@@ -731,7 +740,7 @@ docker compose exec backend python -m app.db.seed_demo --reset
 npx playwright test --config e2e/playwright.config.ts
 ```
 
-**预期：** 3 条 E2E 通过；保存 HTML report、关键截图、状态查询结果和使用的 `AI_MODE`。
+**预期：** 4 个 spec 覆盖上述路径并通过；保存 HTML report、关键截图、状态查询结果和使用的 `AI_MODE`。
 
 **依赖：** T12、T14～T16。  
 **建议提交：** `test(e2e): prove identity other and admin review workflows`
@@ -759,6 +768,8 @@ npx playwright test --config e2e/playwright.config.ts
 6. 脱敏未确认：不生成 PUBLIC 图片。
 7. 未授权联系方式、跨用户记录、USER 访问 admin、过期原图 access 全部拒绝。
 8. 同一管理员决定/交接请求重复提交不产生双事件。
+9. 同一失物或认领目标重复提交主动复核只保留一条活动请求。
+10. 未匹配复核推荐候选后仍必须走分类型核验，不能直接进入待交接。
 
 **验证命令：**
 
@@ -835,13 +846,13 @@ npx playwright test --config e2e/playwright.config.ts
 | T08 | 失物与候选 | 2.0h | T03、T04、T06、T07 | 后端/AI 集成 | 未开始 |
 | T09 | 身份证认领 | 1.5h | T02、T04、T08 | 后端/安全 | 未开始 |
 | T10 | OTHER 认领 | 1.5h | T04、T06、T08 | 后端/AI 集成 | 未开始 |
-| T11 | 管理员复核 | 1.5h | T05、T09、T10 | 后端 | 未开始 |
+| T11 | 主动/异常复核与管理员决定 | 2.0h | T05、T09、T10 | 后端 | 未开始 |
 | T12 | 交接与时间线 | 1.0h | T09～T11 | 后端 | 未开始 |
 | T13 | 前端壳与认证 | 1.5h | T03 | 前端 | 未开始 |
 | T14 | 拾得者前端 | 2.0h | T07、T13 | 前端 | 未开始 |
-| T15 | 失主前端 | 2.0h | T08～T10、T12、T13 | 前端 | 未开始 |
-| T16 | 管理员前端 | 1.5h | T11、T13 | 前端 | 未开始 |
-| T17 | E2E seed 与三路径 | 2.0h | T12、T14～T16 | QA/全栈 | 未开始 |
+| T15 | 失主 Top 5、认领与主动复核前端 | 2.0h | T08～T12、T13 | 前端 | 未开始 |
+| T16 | 管理员五类复核前端 | 1.5h | T11、T13 | 前端 | 未开始 |
+| T17 | E2E seed、主流程与主动复核 | 2.5h | T12、T14～T16 | QA/全栈 | 未开始 |
 | T18 | 边界、安全与回归 | 2.0h | T17 | QA/安全 | 未开始 |
 | T19 | 证据与答辩交付 | 1.5h | T18 | SZY/文档与证据 | 未开始 |
 
@@ -859,14 +870,15 @@ npx playwright test --config e2e/playwright.config.ts
 
 ## 8. 开发前最终检查
 
-- [x] PRD V0.8 已确认。
+- [x] PRD V0.8 详细基线已恢复；V0.9 只做物品分类、普通核验简化和主动复核的最小变更。
 - [x] 方案 A 已确认，B/C 已拒绝。
-- [x] 端到端详细设计 V1.3 已通过 Design Review。
-- [x] `dev.md` 已定义工程、安全、TDD 和证据规则。
-- [x] `task.md` 已按依赖拆分到文件、接口、测试、命令和验收标准。
+- [x] 端到端详细设计 V1.3 已通过历史 Review；V1.4 保留四级权限矩阵。
+- [ ] PRD V0.9 与详细设计 V1.4 的增量 Review 已确认。
+- [x] `dev.md` V1.1 已定义工程、安全、TDD 和证据规则。
+- [x] `task.md` V1.1 已按依赖拆分到文件、接口、测试、命令和验收标准。
 - [ ] 真实成员负责人已填写。
 - [ ] Task T00 的 Red 测试已开始执行。
 - [ ] 外部模型 Key/配额已验证；不可用时按 `AI_MODE=mock` 明确降级。
 - [ ] Docker、Python、Node 和 PostgreSQL 实际环境已验证。
 
-当前允许的下一动作：分配真实负责人，从 T00 开始写失败测试。当前不允许把任何计划用例标记为已通过。
+当前允许的下一动作：先完成 V0.9/V1.4 增量 Review；确认后分配真实负责人，从 T00 开始写失败测试。当前不允许把任何计划用例标记为已通过。

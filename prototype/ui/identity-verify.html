@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=1440">
+  <title>身份证件核验 - AI 失物招领系统</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    ::-webkit-scrollbar { display: none; }
+    body { width: 1440px; height: 900px; overflow: hidden; font-family: 'Inter', system-ui, -apple-system, sans-serif; }
+  </style>
+</head>
+<body class="bg-gray-50">
+  <!-- 顶部导航栏 -->
+  <nav class="bg-white border-b border-gray-100 h-16 flex items-center justify-between px-8">
+    <div class="flex items-center gap-3">
+      <a href="candidate-detail.html" class="w-9 h-9 bg-gray-100 rounded-xl flex items-center justify-center hover:bg-gray-200 transition-colors">
+        <i class="fas fa-arrow-left text-gray-600 text-sm"></i>
+      </a>
+      <div class="w-9 h-9 bg-blue-600 rounded-xl flex items-center justify-center">
+        <i class="fas fa-search-location text-white text-sm"></i>
+      </div>
+      <span class="text-lg font-bold text-gray-900">身份证件核验</span>
+    </div>
+    <div class="flex items-center gap-6">
+      <button class="relative text-gray-400 hover:text-gray-600">
+        <i class="fas fa-bell text-lg"></i>
+      </button>
+      <div class="flex items-center gap-3 pl-6 border-l border-gray-100">
+        <img src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=80&h=80&fit=crop&crop=face" alt="头像" class="w-9 h-9 rounded-full object-cover">
+        <span class="text-sm font-semibold text-gray-900">张同学</span>
+      </div>
+    </div>
+  </nav>
+
+  <!-- 步骤指示器 -->
+  <div class="bg-white border-b border-gray-100 px-8 py-4">
+    <div class="flex items-center gap-3 max-w-3xl mx-auto">
+      <div class="flex items-center gap-2">
+        <div class="w-8 h-8 bg-emerald-500 text-white rounded-full flex items-center justify-center text-sm"><i class="fas fa-check"></i></div>
+        <span class="text-sm text-emerald-600">选择候选</span>
+      </div>
+      <div class="flex-1 h-px bg-emerald-300"></div>
+      <div class="flex items-center gap-2">
+        <div class="w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center text-sm font-bold">2</div>
+        <span class="text-sm font-semibold text-blue-600">身份核验</span>
+      </div>
+      <div class="flex-1 h-px bg-gray-200"></div>
+      <div class="flex items-center gap-2">
+        <div class="w-8 h-8 bg-gray-200 text-gray-400 rounded-full flex items-center justify-center text-sm font-bold">3</div>
+        <span class="text-sm text-gray-400">等待交接</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 主体内容 -->
+  <div class="flex items-center justify-center h-[calc(100vh-128px)]">
+    <div class="w-[560px]">
+      <!-- 安全提示 -->
+      <div class="text-center mb-8">
+        <div class="w-20 h-20 bg-blue-50 rounded-full flex items-center justify-center mx-auto mb-4">
+          <i class="fas fa-shield-halved text-blue-600 text-3xl"></i>
+        </div>
+        <h2 class="text-2xl font-bold text-gray-900 mb-2">身份证件号码核验</h2>
+        <p class="text-gray-500">请输入您的完整身份证号码以验证身份</p>
+      </div>
+
+      <!-- 候选信息卡片 -->
+      <div class="bg-white rounded-2xl border border-gray-100 p-5 mb-6">
+        <div class="flex items-center gap-4">
+          <div class="w-16 h-16 rounded-xl overflow-hidden">
+            <img src="https://images.unsplash.com/photo-1618005198919-d3d4b5a92ead?w=64&h=64&fit=crop" alt="证件" class="w-full h-full object-cover">
+          </div>
+          <div class="flex-1">
+            <h3 class="font-bold text-gray-900">居民身份证</h3>
+            <p class="text-sm text-gray-500">拾得于 食堂一楼 · 7月15日</p>
+          </div>
+          <div class="text-right">
+            <p class="text-xs text-gray-400">证件号码（掩码）</p>
+            <p class="text-lg font-mono font-bold text-gray-700">110***********1234</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- 核验表单 -->
+      <div class="bg-white rounded-2xl border border-gray-100 p-6 mb-6">
+        <label class="block text-sm font-semibold text-gray-900 mb-3">请输入完整证件号码</label>
+        <div class="relative">
+          <i class="fas fa-id-card absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"></i>
+          <input type="text" placeholder="请输入 18 位身份证号码" maxlength="18"
+                 class="w-full pl-11 pr-4 py-4 border-2 border-gray-200 rounded-xl text-lg font-mono tracking-wider focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+        </div>
+        <div class="flex items-center justify-between mt-3">
+          <p class="text-xs text-gray-400"><i class="fas fa-lock mr-1"></i>号码将通过加密方式比对，不会明文存储</p>
+          <p class="text-xs text-gray-400">剩余尝试：<span class="font-semibold text-amber-600">2</span> 次</p>
+        </div>
+      </div>
+
+      <!-- 安全说明 -->
+      <div class="p-4 bg-amber-50 rounded-xl mb-6">
+        <div class="flex items-start gap-3">
+          <i class="fas fa-exclamation-triangle text-amber-500 mt-0.5"></i>
+          <div>
+            <p class="text-sm font-medium text-amber-800">安全说明</p>
+            <ul class="text-xs text-amber-700 mt-1 space-y-1 list-disc list-inside">
+              <li>同一账号最多尝试 2 次，超限后需申请管理员复核</li>
+              <li>验证失败不会提示具体错误位置</li>
+              <li>号码仅用于一次精确比对，不会被记录到日志中</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <!-- 操作按钮 -->
+      <div class="flex gap-4">
+        <button class="flex-1 py-4 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl transition-colors shadow-lg shadow-blue-600/25 text-base">
+          <i class="fas fa-check-circle mr-2"></i>提交验证
+        </button>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

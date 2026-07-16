@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=1440">
+  <title>发布失物信息 - AI 失物招领系统</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    ::-webkit-scrollbar { display: none; }
+    body { width: 1440px; height: 900px; overflow: hidden; font-family: 'Inter', system-ui, -apple-system, sans-serif; }
+  </style>
+</head>
+<body class="bg-gray-50">
+  <!-- 顶部导航栏 -->
+  <nav class="bg-white border-b border-gray-100 h-16 flex items-center justify-between px-8">
+    <div class="flex items-center gap-3">
+      <a href="home.html" class="w-9 h-9 bg-gray-100 rounded-xl flex items-center justify-center hover:bg-gray-200 transition-colors">
+        <i class="fas fa-arrow-left text-gray-600 text-sm"></i>
+      </a>
+      <div class="w-9 h-9 bg-blue-600 rounded-xl flex items-center justify-center">
+        <i class="fas fa-search-location text-white text-sm"></i>
+      </div>
+      <span class="text-lg font-bold text-gray-900">发布失物信息</span>
+    </div>
+    <div class="flex items-center gap-4">
+      <button class="text-sm text-gray-500 hover:text-gray-700">保存草稿</button>
+      <button class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl transition-colors">
+        提交发布
+      </button>
+    </div>
+  </nav>
+
+  <!-- 步骤指示器 -->
+  <div class="bg-white border-b border-gray-100 px-8 py-4">
+    <div class="flex items-center gap-3 max-w-3xl mx-auto">
+      <div class="flex items-center gap-2">
+        <div class="w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center text-sm font-bold">1</div>
+        <span class="text-sm font-semibold text-blue-600">填写信息</span>
+      </div>
+      <div class="flex-1 h-px bg-gray-200"></div>
+      <div class="flex items-center gap-2">
+        <div class="w-8 h-8 bg-gray-200 text-gray-400 rounded-full flex items-center justify-center text-sm font-bold">2</div>
+        <span class="text-sm text-gray-400">生成候选</span>
+      </div>
+      <div class="flex-1 h-px bg-gray-200"></div>
+      <div class="flex items-center gap-2">
+        <div class="w-8 h-8 bg-gray-200 text-gray-400 rounded-full flex items-center justify-center text-sm font-bold">3</div>
+        <span class="text-sm text-gray-400">认领核验</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 主体内容 -->
+  <div class="flex h-[calc(100vh-128px)]">
+    <!-- 左侧表单 -->
+    <div class="flex-1 overflow-y-auto p-8" style="scrollbar-width: none;">
+      <div class="max-w-2xl mx-auto space-y-6">
+        <!-- 物品类型 -->
+        <div>
+          <label class="block text-sm font-semibold text-gray-900 mb-3">物品类型 <span class="text-red-500">*</span></label>
+          <div class="grid grid-cols-2 gap-3">
+            <label class="relative cursor-pointer">
+              <input type="radio" name="item_type" value="other" class="peer sr-only" checked>
+              <div class="p-4 border-2 border-gray-200 rounded-xl peer-checked:border-blue-600 peer-checked:bg-blue-50 transition-all">
+                <div class="flex items-center gap-3">
+                  <div class="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center peer-checked:bg-blue-100">
+                    <i class="fas fa-cube text-gray-500"></i>
+                  </div>
+                  <div>
+                    <p class="text-sm font-semibold text-gray-900">其他物品</p>
+                    <p class="text-xs text-gray-400">雨伞、耳机、水杯等</p>
+                  </div>
+                </div>
+              </div>
+            </label>
+            <label class="relative cursor-pointer">
+              <input type="radio" name="item_type" value="identity" class="peer sr-only">
+              <div class="p-4 border-2 border-gray-200 rounded-xl peer-checked:border-blue-600 peer-checked:bg-blue-50 transition-all">
+                <div class="flex items-center gap-3">
+                  <div class="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center">
+                    <i class="fas fa-id-card text-gray-500"></i>
+                  </div>
+                  <div>
+                    <p class="text-sm font-semibold text-gray-900">身份证件</p>
+                    <p class="text-xs text-gray-400">居民身份证等</p>
+                  </div>
+                </div>
+              </div>
+            </label>
+          </div>
+        </div>
+
+        <!-- 物品名称 -->
+        <div>
+          <label class="block text-sm font-semibold text-gray-900 mb-2">物品名称 <span class="text-red-500">*</span></label>
+          <input type="text" placeholder="例如：黑色折叠伞" value="黑色折叠伞"
+                 class="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+        </div>
+
+        <!-- 时间和地点 -->
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm font-semibold text-gray-900 mb-2">丢失时间 <span class="text-red-500">*</span></label>
+            <div class="relative">
+              <i class="fas fa-calendar absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"></i>
+              <input type="text" placeholder="选择日期" value="2026-07-16"
+                     class="w-full pl-11 pr-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+            </div>
+          </div>
+          <div>
+            <label class="block text-sm font-semibold text-gray-900 mb-2">时间段</label>
+            <select class="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white">
+              <option>上午 (8:00-12:00)</option>
+              <option>下午 (12:00-18:00)</option>
+              <option>晚上 (18:00-22:00)</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- 地点 -->
+        <div>
+          <label class="block text-sm font-semibold text-gray-900 mb-2">丢失地点 <span class="text-red-500">*</span></label>
+          <div class="grid grid-cols-3 gap-3">
+            <select class="px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white">
+              <option>教学楼</option>
+              <option>食堂</option>
+              <option>图书馆</option>
+              <option>宿舍</option>
+              <option>操场</option>
+            </select>
+            <select class="px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white">
+              <option>B 区</option>
+              <option>A 区</option>
+              <option>C 区</option>
+            </select>
+            <select class="px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white">
+              <option>3 楼</option>
+              <option>1 楼</option>
+              <option>2 楼</option>
+              <option>4 楼</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- 颜色 -->
+        <div>
+          <label class="block text-sm font-semibold text-gray-900 mb-2">物品颜色</label>
+          <div class="flex gap-2 flex-wrap">
+            <button class="px-4 py-2 bg-gray-900 text-white text-sm rounded-lg">黑色</button>
+            <button class="px-4 py-2 bg-white border border-gray-200 text-gray-600 text-sm rounded-lg hover:border-gray-400">白色</button>
+            <button class="px-4 py-2 bg-white border border-gray-200 text-gray-600 text-sm rounded-lg hover:border-gray-400">红色</button>
+            <button class="px-4 py-2 bg-white border border-gray-200 text-gray-600 text-sm rounded-lg hover:border-gray-400">蓝色</button>
+            <button class="px-4 py-2 bg-white border border-gray-200 text-gray-600 text-sm rounded-lg hover:border-gray-400">绿色</button>
+            <button class="px-4 py-2 bg-white border border-gray-200 text-gray-600 text-sm rounded-lg hover:border-gray-400">灰色</button>
+            <button class="px-4 py-2 bg-white border border-gray-200 text-gray-600 text-sm rounded-lg hover:border-gray-400">其他</button>
+          </div>
+        </div>
+
+        <!-- 公开描述 -->
+        <div>
+          <label class="block text-sm font-semibold text-gray-900 mb-2">物品描述 <span class="text-red-500">*</span></label>
+          <textarea rows="3" placeholder="请描述物品的外观特征，如品牌、型号、大小等（不要包含隐藏验证信息）"
+                    class="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none">黑色短柄折叠伞，普通款，无明显品牌标识</textarea>
+          <p class="text-xs text-gray-400 mt-1"><i class="fas fa-info-circle mr-1"></i>此处描述将公开显示，请勿包含私密验证信息</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- 右侧图片上传 -->
+    <div class="w-[400px] bg-white border-l border-gray-100 p-8 flex flex-col">
+      <h3 class="text-sm font-semibold text-gray-900 mb-2">物品照片 <span class="text-gray-400 font-normal">(可选)</span></h3>
+      <p class="text-xs text-gray-400 mb-4">上传旧照片有助于更准确匹配，照片仅作为 PRIVATE 支持材料</p>
+
+      <div class="flex-1 border-2 border-dashed border-gray-200 rounded-2xl flex flex-col items-center justify-center hover:border-blue-400 hover:bg-blue-50/30 transition-all cursor-pointer">
+        <div class="w-16 h-16 bg-gray-100 rounded-2xl flex items-center justify-center mb-4">
+          <i class="fas fa-cloud-arrow-up text-gray-400 text-2xl"></i>
+        </div>
+        <p class="text-sm font-medium text-gray-600 mb-1">点击或拖拽上传图片</p>
+        <p class="text-xs text-gray-400">支持 JPG、PNG、WebP，最大 10MB</p>
+      </div>
+
+      <div class="mt-6 p-4 bg-amber-50 rounded-xl">
+        <div class="flex items-start gap-3">
+          <i class="fas fa-lightbulb text-amber-500 mt-0.5"></i>
+          <div>
+            <p class="text-sm font-medium text-amber-800">提示</p>
+            <p class="text-xs text-amber-600 mt-1 leading-relaxed">失主上传的照片不会进行 AI 提取，仅作为辅助材料帮助核验。系统不会从照片中自动识别物品特征。</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

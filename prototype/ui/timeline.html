@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=1440">
+  <title>操作时间线 - AI 失物招领系统</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    ::-webkit-scrollbar { display: none; }
+    body { width: 1440px; height: 900px; overflow: hidden; font-family: 'Inter', system-ui, -apple-system, sans-serif; }
+  </style>
+</head>
+<body class="bg-gray-50">
+  <!-- 顶部导航栏 -->
+  <nav class="bg-white border-b border-gray-100 h-16 flex items-center justify-between px-8">
+    <div class="flex items-center gap-3">
+      <a href="home.html" class="w-9 h-9 bg-gray-100 rounded-xl flex items-center justify-center hover:bg-gray-200 transition-colors">
+        <i class="fas fa-arrow-left text-gray-600 text-sm"></i>
+      </a>
+      <div class="w-9 h-9 bg-blue-600 rounded-xl flex items-center justify-center">
+        <i class="fas fa-search-location text-white text-sm"></i>
+      </div>
+      <span class="text-lg font-bold text-gray-900">操作时间线</span>
+    </div>
+    <div class="flex items-center gap-6">
+      <button class="relative text-gray-400 hover:text-gray-600">
+        <i class="fas fa-bell text-lg"></i>
+      </button>
+      <div class="flex items-center gap-3 pl-6 border-l border-gray-100">
+        <img src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=80&h=80&fit=crop&crop=face" alt="头像" class="w-9 h-9 rounded-full object-cover">
+        <span class="text-sm font-semibold text-gray-900">张同学</span>
+      </div>
+    </div>
+  </nav>
+
+  <div class="flex h-[calc(100vh-64px)]">
+    <!-- 左侧：物品信息 -->
+    <div class="w-[360px] bg-white border-r border-gray-100 p-6">
+      <h3 class="text-sm font-semibold text-gray-500 mb-4">物品信息</h3>
+      <div class="w-full h-44 bg-gray-100 rounded-xl overflow-hidden mb-4">
+        <img src="https://images.unsplash.com/photo-1556306535-0f09a537f0a3?w=360&h=176&fit=crop" alt="物品图片" class="w-full h-full object-cover">
+      </div>
+      <div class="space-y-3">
+        <div>
+          <p class="text-lg font-bold text-gray-900">黑色折叠伞</p>
+          <div class="flex gap-2 mt-1">
+            <span class="px-2 py-0.5 bg-gray-100 text-gray-600 text-xs rounded-full">其他物品</span>
+            <span class="px-2 py-0.5 bg-emerald-50 text-emerald-600 text-xs rounded-full">已认领</span>
+          </div>
+        </div>
+        <div class="flex items-center gap-2 text-sm text-gray-600">
+          <i class="fas fa-clock text-gray-400 w-4"></i>
+          <span>招领时间：7 月 16 日 上午 10:30</span>
+        </div>
+        <div class="flex items-center gap-2 text-sm text-gray-600">
+          <i class="fas fa-location-dot text-gray-400 w-4"></i>
+          <span>招领地点：教学楼 B 区 2 楼</span>
+        </div>
+      </div>
+
+      <div class="mt-6 p-4 bg-emerald-50 rounded-xl">
+        <div class="flex items-center gap-2 mb-2">
+          <i class="fas fa-flag-checkered text-emerald-500"></i>
+          <p class="text-sm font-medium text-emerald-800">流程已完成</p>
+        </div>
+        <p class="text-xs text-emerald-600">物品已于 7月16日 16:30 完成交接</p>
+      </div>
+
+      <div class="mt-4 p-4 bg-gray-50 rounded-xl">
+        <p class="text-xs text-gray-400 mb-2">参与者</p>
+        <div class="space-y-3">
+          <div class="flex items-center gap-3">
+            <img src="https://images.unsplash.com/photo-1599566150163-29194dcabd9c?w=32&h=32&fit=crop&crop=face" alt="" class="w-7 h-7 rounded-full object-cover">
+            <div>
+              <p class="text-xs font-medium text-gray-900">李同学</p>
+              <p class="text-[10px] text-gray-400">拾得者</p>
+            </div>
+          </div>
+          <div class="flex items-center gap-3">
+            <img src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=32&h=32&fit=crop&crop=face" alt="" class="w-7 h-7 rounded-full object-cover">
+            <div>
+              <p class="text-xs font-medium text-gray-900">张同学</p>
+              <p class="text-[10px] text-gray-400">失主</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 右侧：时间线 -->
+    <div class="flex-1 p-8 overflow-y-auto" style="scrollbar-width: none;">
+      <div class="max-w-2xl mx-auto">
+        <h2 class="text-xl font-bold text-gray-900 mb-2">操作时间线</h2>
+        <p class="text-sm text-gray-500 mb-8">记录从发布到认领的完整流程</p>
+
+        <!-- 时间线 -->
+        <div class="relative">
+          <!-- 竖线 -->
+          <div class="absolute left-[18px] top-6 bottom-0 w-0.5 bg-gray-200"></div>
+
+          <!-- 节点 1：发布招领 -->
+          <div class="relative flex gap-4 mb-8">
+            <div class="w-9 h-9 bg-emerald-500 rounded-full flex items-center justify-center flex-shrink-0 z-10">
+              <i class="fas fa-plus text-white text-xs"></i>
+            </div>
+            <div class="flex-1">
+              <div class="bg-white rounded-xl border border-gray-100 p-4">
+                <div class="flex items-center justify-between mb-2">
+                  <p class="text-sm font-semibold text-gray-900">发布招领信息</p>
+                  <span class="text-xs text-gray-400">7月16日 11:00</span>
+                </div>
+                <p class="text-sm text-gray-600">李同学发布了黑色折叠伞的招领信息</p>
+                <div class="flex items-center gap-2 mt-2 text-xs text-gray-400">
+                  <img src="https://images.unsplash.com/photo-1599566150163-29194dcabd9c?w=20&h=20&fit=crop&crop=face" alt="" class="w-4 h-4 rounded-full">
+                  <span>李同学（拾得者）</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 节点 2：AI 提取确认 -->
+          <div class="relative flex gap-4 mb-8">
+            <div class="w-9 h-9 bg-blue-500 rounded-full flex items-center justify-center flex-shrink-0 z-10">
+              <i class="fas fa-robot text-white text-xs"></i>
+            </div>
+            <div class="flex-1">
+              <div class="bg-white rounded-xl border border-gray-100 p-4">
+                <div class="flex items-center justify-between mb-2">
+                  <p class="text-sm font-semibold text-gray-900">AI 提取并确认</p>
+                  <span class="text-xs text-gray-400">7月16日 11:02</span>
+                </div>
+                <p class="text-sm text-gray-600">多模态模型提取物品名称和特征，拾得者确认无误</p>
+                <div class="flex items-center gap-2 mt-2">
+                  <span class="px-2 py-0.5 bg-blue-50 text-blue-600 text-xs rounded-full">置信度 93%</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 节点 3：发布失物 -->
+          <div class="relative flex gap-4 mb-8">
+            <div class="w-9 h-9 bg-blue-500 rounded-full flex items-center justify-center flex-shrink-0 z-10">
+              <i class="fas fa-box-open text-white text-xs"></i>
+            </div>
+            <div class="flex-1">
+              <div class="bg-white rounded-xl border border-gray-100 p-4">
+                <div class="flex items-center justify-between mb-2">
+                  <p class="text-sm font-semibold text-gray-900">发布失物信息</p>
+                  <span class="text-xs text-gray-400">7月16日 14:00</span>
+                </div>
+                <p class="text-sm text-gray-600">张同学发布了丢失黑色折叠伞的信息</p>
+                <div class="flex items-center gap-2 mt-2 text-xs text-gray-400">
+                  <img src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=20&h=20&fit=crop&crop=face" alt="" class="w-4 h-4 rounded-full">
+                  <span>张同学（失主）</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 节点 4：候选匹配 -->
+          <div class="relative flex gap-4 mb-8">
+            <div class="w-9 h-9 bg-purple-500 rounded-full flex items-center justify-center flex-shrink-0 z-10">
+              <i class="fas fa-link text-white text-xs"></i>
+            </div>
+            <div class="flex-1">
+              <div class="bg-white rounded-xl border border-gray-100 p-4">
+                <div class="flex items-center justify-between mb-2">
+                  <p class="text-sm font-semibold text-gray-900">候选匹配完成</p>
+                  <span class="text-xs text-gray-400">7月16日 14:05</span>
+                </div>
+                <p class="text-sm text-gray-600">系统生成 Top 5 候选，该物品匹配分 82 分（高匹配）</p>
+                <div class="flex items-center gap-2 mt-2">
+                  <span class="px-2 py-0.5 bg-emerald-50 text-emerald-600 text-xs rounded-full">82 分</span>
+                  <span class="px-2 py-0.5 bg-gray-100 text-gray-600 text-xs rounded-full">AI 向量匹配</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 节点 5：发起认领 -->
+          <div class="relative flex gap-4 mb-8">
+            <div class="w-9 h-9 bg-amber-500 rounded-full flex items-center justify-center flex-shrink-0 z-10">
+              <i class="fas fa-hand-point-right text-white text-xs"></i>
+            </div>
+            <div class="flex-1">
+              <div class="bg-white rounded-xl border border-gray-100 p-4">
+                <div class="flex items-center justify-between mb-2">
+                  <p class="text-sm font-semibold text-gray-900">发起认领</p>
+                  <span class="text-xs text-gray-400">7月16日 14:30</span>
+                </div>
+                <p class="text-sm text-gray-600">张同学选择该候选并发起认领，进入隐藏特征核验</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- 节点 6：核验通过 -->
+          <div class="relative flex gap-4 mb-8">
+            <div class="w-9 h-9 bg-emerald-500 rounded-full flex items-center justify-center flex-shrink-0 z-10">
+              <i class="fas fa-check-circle text-white text-xs"></i>
+            </div>
+            <div class="flex-1">
+              <div class="bg-white rounded-xl border border-gray-100 p-4">
+                <div class="flex items-center justify-between mb-2">
+                  <p class="text-sm font-semibold text-gray-900">核验通过</p>
+                  <span class="text-xs text-gray-400">7月16日 14:35</span>
+                </div>
+                <p class="text-sm text-gray-600">全部关键回答匹配，AI 置信度 0.94，自动进入待交接</p>
+                <div class="flex items-center gap-2 mt-2">
+                  <span class="px-2 py-0.5 bg-emerald-50 text-emerald-600 text-xs rounded-full"><i class="fas fa-robot mr-1"></i>AI 自动通过</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 节点 7：待交接 -->
+          <div class="relative flex gap-4 mb-8">
+            <div class="w-9 h-9 bg-blue-500 rounded-full flex items-center justify-center flex-shrink-0 z-10">
+              <i class="fas fa-handshake text-white text-xs"></i>
+            </div>
+            <div class="flex-1">
+              <div class="bg-white rounded-xl border border-gray-100 p-4">
+                <div class="flex items-center justify-between mb-2">
+                  <p class="text-sm font-semibold text-gray-900">进入待交接</p>
+                  <span class="text-xs text-gray-400">7月16日 14:35</span>
+                </div>
+                <p class="text-sm text-gray-600">向张同学展示拾得者联系方式，约定线下交接</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- 节点 8：已认领 -->
+          <div class="relative flex gap-4">
+            <div class="w-9 h-9 bg-emerald-600 rounded-full flex items-center justify-center flex-shrink-0 z-10">
+              <i class="fas fa-flag-checkered text-white text-xs"></i>
+            </div>
+            <div class="flex-1">
+              <div class="bg-white rounded-xl border-2 border-emerald-200 p-4">
+                <div class="flex items-center justify-between mb-2">
+                  <p class="text-sm font-semibold text-emerald-800">已认领</p>
+                  <span class="text-xs text-gray-400">7月16日 16:30</span>
+                </div>
+                <p class="text-sm text-gray-600">李同学确认已完成线下交接，物品状态更新为已认领</p>
+                <div class="flex items-center gap-2 mt-2 text-xs text-gray-400">
+                  <img src="https://images.unsplash.com/photo-1599566150163-29194dcabd9c?w=20&h=20&fit=crop&crop=face" alt="" class="w-4 h-4 rounded-full">
+                  <span>李同学（拾得者）确认</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

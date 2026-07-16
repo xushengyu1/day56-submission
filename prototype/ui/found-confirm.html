@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=1440">
+  <title>填写隐藏特征 - AI 失物招领系统</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    ::-webkit-scrollbar { display: none; }
+    body { width: 1440px; height: 900px; overflow: hidden; font-family: 'Inter', system-ui, -apple-system, sans-serif; }
+  </style>
+</head>
+<body class="bg-gray-50">
+  <!-- 顶部导航栏 -->
+  <nav class="bg-white border-b border-gray-100 h-16 flex items-center justify-between px-8">
+    <div class="flex items-center gap-3">
+      <a href="found-publish.html" class="w-9 h-9 bg-gray-100 rounded-xl flex items-center justify-center hover:bg-gray-200 transition-colors">
+        <i class="fas fa-arrow-left text-gray-600 text-sm"></i>
+      </a>
+      <div class="w-9 h-9 bg-emerald-600 rounded-xl flex items-center justify-center">
+        <i class="fas fa-hand-holding-heart text-white text-sm"></i>
+      </div>
+      <span class="text-lg font-bold text-gray-900">补充详情</span>
+    </div>
+    <div class="flex items-center gap-4">
+      <button class="text-sm text-gray-500 hover:text-gray-700">保存草稿</button>
+      <button class="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold rounded-xl transition-colors">
+        <i class="fas fa-check mr-2"></i>确认发布
+      </button>
+    </div>
+  </nav>
+
+  <!-- 步骤指示器 -->
+  <div class="bg-white border-b border-gray-100 px-8 py-4">
+    <div class="flex items-center gap-3 max-w-3xl mx-auto">
+      <div class="flex items-center gap-2">
+        <div class="w-8 h-8 bg-emerald-500 text-white rounded-full flex items-center justify-center text-sm"><i class="fas fa-check"></i></div>
+        <span class="text-sm text-emerald-600">上传图片</span>
+      </div>
+      <div class="flex-1 h-px bg-emerald-300"></div>
+      <div class="flex items-center gap-2">
+        <div class="w-8 h-8 bg-emerald-500 text-white rounded-full flex items-center justify-center text-sm"><i class="fas fa-check"></i></div>
+        <span class="text-sm text-emerald-600">AI 识别</span>
+      </div>
+      <div class="flex-1 h-px bg-emerald-300"></div>
+      <div class="flex items-center gap-2">
+        <div class="w-8 h-8 bg-emerald-500 text-white rounded-full flex items-center justify-center text-sm"><i class="fas fa-check"></i></div>
+        <span class="text-sm text-emerald-600">确认信息</span>
+      </div>
+      <div class="flex-1 h-px bg-emerald-300"></div>
+      <div class="flex items-center gap-2">
+        <div class="w-8 h-8 bg-emerald-600 text-white rounded-full flex items-center justify-center text-sm font-bold">4</div>
+        <span class="text-sm font-semibold text-emerald-600">补充详情</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 主体内容 -->
+  <div class="flex h-[calc(100vh-128px)]">
+    <!-- 左侧：已确认信息 -->
+    <div class="w-[360px] bg-white border-r border-gray-100 p-6">
+      <h3 class="text-sm font-semibold text-gray-500 mb-4">已确认的招领信息</h3>
+      <div class="w-full h-44 bg-gray-100 rounded-xl overflow-hidden mb-4">
+        <img src="https://images.unsplash.com/photo-1556306535-0f09a537f0a3?w=360&h=176&fit=crop" alt="物品照片" class="w-full h-full object-cover">
+      </div>
+      <div class="space-y-3">
+        <div>
+          <p class="text-lg font-bold text-gray-900">黑色折叠伞</p>
+          <span class="px-2 py-0.5 bg-gray-100 text-gray-600 text-xs rounded-full">其他物品</span>
+        </div>
+        <p class="text-sm text-gray-600">黑色短柄折叠伞，伞面完好，手柄无磨损</p>
+        <div class="flex items-center gap-2 text-sm text-gray-600">
+          <i class="fas fa-clock text-gray-400 w-4"></i>
+          <span>7 月 16 日 上午 10:30</span>
+        </div>
+        <div class="flex items-center gap-2 text-sm text-gray-600">
+          <i class="fas fa-location-dot text-gray-400 w-4"></i>
+          <span>教学楼 B 区 2 楼楼梯口</span>
+        </div>
+      </div>
+
+      <div class="mt-6 p-4 bg-emerald-50 rounded-xl">
+        <div class="flex items-center gap-2 mb-2">
+          <i class="fas fa-check-circle text-emerald-500"></i>
+          <p class="text-sm font-medium text-emerald-800">信息已确认</p>
+        </div>
+        <p class="text-xs text-emerald-600">公开信息已确认无误，现在需要填写隐藏特征用于认领核验。</p>
+      </div>
+    </div>
+
+    <!-- 右侧：隐藏特征填写 -->
+    <div class="flex-1 p-8 overflow-y-auto" style="scrollbar-width: none;">
+      <div class="max-w-2xl mx-auto">
+        <div class="mb-6">
+          <h2 class="text-xl font-bold text-gray-900 mb-2">填写隐藏特征</h2>
+          <p class="text-sm text-gray-500">隐藏特征用于验证认领人是否为真正失主，不会公开展示</p>
+        </div>
+
+        <!-- 隐藏特征说明 -->
+        <div class="p-4 bg-blue-50 rounded-xl mb-6">
+          <div class="flex items-start gap-3">
+            <i class="fas fa-circle-info text-blue-500 mt-0.5"></i>
+            <div>
+              <p class="text-sm font-medium text-blue-800">什么是隐藏特征？</p>
+              <p class="text-xs text-blue-600 mt-1 leading-relaxed">隐藏特征是只有真正失主才知道的物品细节，如内部标记、特殊痕迹、附带物品等。系统将根据此信息自动生成验证问题。</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- 隐藏特征输入 -->
+        <div class="bg-white rounded-2xl border border-gray-100 p-6 mb-6">
+          <label class="block text-sm font-semibold text-gray-900 mb-2">隐藏特征描述 <span class="text-red-500">*</span></label>
+          <p class="text-xs text-gray-400 mb-3">请描述只有您知道的物品细节特征，至少包含一个具体特征</p>
+          <textarea rows="5" placeholder="例如：伞套内侧用黑色笔写着 SZY 三个字母；伞的第三根骨架有一小段用胶带缠绕修复过..."
+                    class="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent resize-none"></textarea>
+          <div class="flex items-center justify-between mt-2">
+            <p class="text-xs text-gray-400"><i class="fas fa-shield-halved mr-1"></i>此信息仅用于核验，不会公开展示</p>
+            <p class="text-xs text-gray-400">已输入 0 字</p>
+          </div>
+        </div>
+
+        <!-- 预览生成的问题 -->
+        <div class="bg-white rounded-2xl border border-gray-100 p-6 mb-6">
+          <h3 class="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
+            <i class="fas fa-robot text-emerald-500"></i> AI 将生成以下类型的问题
+          </h3>
+          <div class="space-y-3">
+            <div class="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">
+              <span class="w-6 h-6 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center text-xs font-bold">1</span>
+              <p class="text-sm text-gray-600">针对隐藏标记的开放式描述问题</p>
+            </div>
+            <div class="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">
+              <span class="w-6 h-6 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center text-xs font-bold">2</span>
+              <p class="text-sm text-gray-600">针对物品特殊状态的细节询问</p>
+            </div>
+            <div class="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">
+              <span class="w-6 h-6 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center text-xs font-bold">3</span>
+              <p class="text-sm text-gray-600">针对附带物品或额外信息的验证</p>
+            </div>
+          </div>
+          <p class="text-xs text-gray-400 mt-3">问题将在认领时生成，不会包含隐藏特征原文</p>
+        </div>
+
+        <!-- 联系方式授权 -->
+        <div class="bg-white rounded-2xl border border-gray-100 p-6 mb-6">
+          <label class="flex items-start gap-3 cursor-pointer">
+            <input type="checkbox" class="w-5 h-5 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500 mt-0.5" checked>
+            <div>
+              <p class="text-sm font-semibold text-gray-900">授权展示联系方式</p>
+              <p class="text-xs text-gray-500 mt-1">认领核验通过后，系统将向失主展示您的联系方式以便线下交接</p>
+            </div>
+          </label>
+        </div>
+
+        <!-- 操作按钮 -->
+        <div class="flex gap-4">
+          <button class="flex-1 py-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl transition-colors shadow-lg shadow-emerald-600/25 text-base">
+            <i class="fas fa-check-circle mr-2"></i>确认发布
+          </button>
+          <button class="px-6 py-4 border-2 border-gray-200 text-gray-700 font-semibold rounded-xl hover:bg-gray-50 transition-colors">
+            返回修改
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

@@ -1,6 +1,7 @@
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
+from app.api.errors import APIError, api_error_handler
 from app.api.routes.auth import router as auth_router
 from app.auth.rbac import AuthorizationError
 from app.auth.security import AuthenticationError
@@ -22,6 +23,7 @@ def create_app() -> FastAPI:
     ) -> JSONResponse:
         return JSONResponse(status_code=403, content={"detail": error.code})
 
+    application.add_exception_handler(APIError, api_error_handler)
     register_health_routes(application)
     application.include_router(auth_router)
     return application

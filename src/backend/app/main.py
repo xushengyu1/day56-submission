@@ -6,7 +6,8 @@ from app.api.routes.auth import router as auth_router
 from app.api.routes.found_records import router as found_records_router
 from app.api.routes.lost_records import router as lost_records_router
 from app.api.routes.candidates import router as candidates_router
-from app.api.routes.claims import router as claims_router
+from app.api.routes.claims import claim_review_router, router as claims_router
+from app.api.routes.admin import router as admin_router
 from app.auth.rbac import AuthorizationError
 from app.auth.security import AuthenticationError
 from app.health import register_health_routes
@@ -35,6 +36,8 @@ def create_app() -> FastAPI:
     application.include_router(lost_records_router)
     application.include_router(candidates_router)
     application.include_router(claims_router)
+    application.include_router(claim_review_router)
+    application.include_router(admin_router)
     application.include_router(uploads_router)
     return application
 

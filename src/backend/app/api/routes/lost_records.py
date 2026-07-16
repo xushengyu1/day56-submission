@@ -9,6 +9,8 @@ from app.database import get_database_session
 from app.items.service import DomainError
 from app.matching.schemas import CandidatePublic, LostRecordCreate
 from app.matching.service import create_lost_record, generate_candidates, list_candidates
+from app.reviews.schemas import ReviewRequestCreate
+from app.reviews.service import create_unmatched_review_request
 
 
 router = APIRouter(prefix="/api/lost-records", tags=["lost-records"])
@@ -54,3 +56,24 @@ async def candidate_list(
         return await list_candidates(session, record_id, user.id)
     except DomainError as error:
         raise _error(error) from None
+
+
+@router.post("/{record_id}/review-requests", status_code=status.HTTP_201_CREATED)
+async def unmatched_review_request(
+    record_id: UUID,
+    payload: ReviewRequestCreate,
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_database_session),
+) -> dict[str, str]:
+    try:
+        request = await create_unmatched_review_request(
+            session,
+            lost_record_id=record_id,
+            requester_id=user.id,
+            reason=payload.reason,
+        )
+        await session.commit()
+    except DomainError as error:
+        await session.rollback()
+        raise _error(error) from None
+    return {"id": str(request.id), "status": request.status}

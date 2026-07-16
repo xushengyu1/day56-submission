@@ -8,6 +8,8 @@ from app.auth.models import User
 from app.database import get_database_session
 from app.items.service import DomainError
 from app.settings import settings
+from app.reviews.schemas import ReviewRequestCreate
+from app.reviews.service import create_claim_review_request
 from app.multimodal.mock import MockMultimodalAdapter
 from app.verification.schemas import (
     ClaimOutcome,
@@ -23,6 +25,7 @@ from app.verification.service import (
 
 
 router = APIRouter(prefix="/api/candidates", tags=["claims"])
+claim_review_router = APIRouter(prefix="/api/claims", tags=["claims"])
 _adapter = MockMultimodalAdapter()
 
 
@@ -83,3 +86,24 @@ async def other_claim(
     except DomainError as error:
         await session.rollback()
         raise HTTPException(404 if error.code == "NOT_FOUND" else 400, error.code) from None
+
+
+@claim_review_router.post("/{claim_id}/review-requests")
+async def claim_review_request(
+    claim_id: UUID,
+    payload: ReviewRequestCreate,
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_database_session),
+) -> dict[str, str]:
+    try:
+        request = await create_claim_review_request(
+            session,
+            claim_id=claim_id,
+            requester_id=user.id,
+            reason=payload.reason,
+        )
+        await session.commit()
+    except DomainError as error:
+        await session.rollback()
+        raise HTTPException(404 if error.code == "NOT_FOUND" else 400, error.code) from None
+    return {"id": str(request.id), "status": request.status}

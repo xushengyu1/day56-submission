@@ -1,6 +1,17 @@
 name: day56-development
 
 services:
+  ai-mock:
+    build:
+      context: ./ai-mock
+    ports:
+      - "127.0.0.1:18080:8080"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/health')"]
+      interval: 2s
+      timeout: 3s
+      retries: 20
+
   postgres:
     image: pgvector/pgvector:0.8.1-pg17
     environment:

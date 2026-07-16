@@ -1,0 +1,6 @@
+{
+  "questions": [
+    {"dimension": "handle_detail", "question_text": "请描述伞柄底部可识别的细节。", "answer_key": "一道细小裂纹"},
+    {"dimension": "inner_mark", "question_text": "请描述伞套内侧的标记。", "answer_key": "字母A"}
+  ]
+}

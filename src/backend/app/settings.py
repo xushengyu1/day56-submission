@@ -9,6 +9,7 @@ class Settings(BaseSettings):
     jwt_secret: str = "dev-only-change-me"
     jwt_access_ttl_minutes: int = 15
     jwt_refresh_ttl_days: int = 30
+    id_hmac_key_v1: str = "synthetic-development-key"
     ai_mode: Literal["mock", "real"] = "mock"
     mimo_base_url: str = "http://127.0.0.1:18080"
     mimo_api_key: str = ""

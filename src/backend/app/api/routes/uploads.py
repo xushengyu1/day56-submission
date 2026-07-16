@@ -12,6 +12,7 @@ from app.database import get_database_session
 from app.db.enums import ImagePurpose
 from app.images.service import store_private_asset
 from app.images.storage import LocalStorage
+from app.items.models import ItemRecord
 
 
 router = APIRouter(prefix="/api", tags=["uploads"])
@@ -26,6 +27,9 @@ async def upload_image(
     user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_database_session),
 ) -> dict[str, object]:
+    record = await session.get(ItemRecord, record_id)
+    if record is None or record.owner_user_id != user.id:
+        raise HTTPException(status_code=404, detail="NOT_FOUND")
     try:
         asset = await store_private_asset(
             session,

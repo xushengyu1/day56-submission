@@ -1,11 +1,29 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
 
+from app.api.routes.auth import router as auth_router
+from app.auth.rbac import AuthorizationError
+from app.auth.security import AuthenticationError
 from app.health import register_health_routes
 
 
 def create_app() -> FastAPI:
     application = FastAPI(title="AI Lost and Found API")
+
+    @application.exception_handler(AuthenticationError)
+    async def authentication_error_handler(
+        _request: Request, error: AuthenticationError
+    ) -> JSONResponse:
+        return JSONResponse(status_code=401, content={"detail": error.code})
+
+    @application.exception_handler(AuthorizationError)
+    async def authorization_error_handler(
+        _request: Request, error: AuthorizationError
+    ) -> JSONResponse:
+        return JSONResponse(status_code=403, content={"detail": error.code})
+
     register_health_routes(application)
+    application.include_router(auth_router)
     return application
 
 

@@ -7,12 +7,16 @@ from sqlalchemy.ext.asyncio import (
     async_sessionmaker,
     create_async_engine,
 )
+from sqlalchemy.pool import NullPool
 
 from app.settings import settings
 
 
 def create_database_engine(database_url: str) -> AsyncEngine:
-    return create_async_engine(database_url, pool_pre_ping=True)
+    options: dict[str, object] = {"pool_pre_ping": True}
+    if settings.app_env == "test":
+        options["poolclass"] = NullPool
+    return create_async_engine(database_url, **options)
 
 
 engine = create_database_engine(settings.database_url)

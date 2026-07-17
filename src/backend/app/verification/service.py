@@ -153,6 +153,10 @@ async def submit_identity_claim(
     claim.route_source = "IDENTITY_RULE"
     claim.final_reason = result_code
     claim.updated_at = datetime.now(timezone.utc)
+    # Get user names for audit
+    owner = await session.get(User, requester_id)
+    finder = await session.get(User, found.owner_user_id) if found else None
+
     append_audit_event(
         session,
         AuditEventInput(
@@ -162,7 +166,15 @@ async def submit_identity_claim(
             actor_type=ActorType.OWNER,
             actor_id=requester_id,
             result_code=result_code,
-            metadata={"attempt_no": attempt_no, "route_source": claim.route_source},
+            metadata={
+                "attempt_no": attempt_no,
+                "route_source": claim.route_source,
+                "owner_name": owner.username if owner else str(requester_id),
+                "owner_email": owner.email if owner else None,
+                "finder_name": finder.username if finder else None,
+                "finder_email": finder.email if finder else None,
+                "item_type": "身份证明文件",
+            },
         ),
     )
     return ClaimOutcome(
@@ -268,7 +280,7 @@ async def submit_other_claim(
     }
     try:
         verification = await adapter.verify_answers(draft, answer_by_dimension)
-        result_code = verification.reason_code
+        result_code = verification.reason_code or "UNKNOWN"
         summary = {
             "result": verification.result.value,
             "confidence": verification.confidence,
@@ -316,6 +328,10 @@ async def submit_other_claim(
             risk_flag=risk_flag,
         )
     )
+    # Get user names for audit
+    owner = await session.get(User, requester_id)
+    finder = await session.get(User, found.owner_user_id) if found else None
+
     append_audit_event(
         session,
         AuditEventInput(
@@ -325,7 +341,15 @@ async def submit_other_claim(
             actor_type=ActorType.OWNER,
             actor_id=requester_id,
             result_code=result_code,
-            metadata={"route_source": claim.route_source},
+            metadata={
+                "route_source": claim.route_source,
+                "owner_name": owner.username if owner else str(requester_id),
+                "owner_email": owner.email if owner else None,
+                "finder_name": finder.username if finder else None,
+                "finder_email": finder.email if finder else None,
+                "item_type": "其他物品",
+                "verification_result": verification.result.value if verification else "UNDETERMINED",
+            },
         ),
     )
     return ClaimOutcome(

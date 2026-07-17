@@ -24,6 +24,8 @@ from app.db.enums import (
     RedactionStatus,
 )
 from app.images.models import ImageAsset
+from app.images.service import create_public_copy
+from app.images.storage import LocalStorage
 from app.items.catalog import (
     build_public_embedding_text,
     item_type_for,
@@ -242,6 +244,7 @@ async def publish_found_record(
     actor_id: UUID,
     expected_version: int,
     embedding_adapter: EmbeddingPort | None = None,
+    storage: LocalStorage | None = None,
 ) -> ItemRecord:
     record = await _owned_record(session, record_id, actor_id)
     if record.status is not RecordStatus.DRAFT:
@@ -281,6 +284,26 @@ async def publish_found_record(
         if verification_set is None or verification_set.confirmed_at is None:
             raise DomainError("PUBLISH_GUARD_FAILED")
 
+        # For non-identity items, create a public copy of the original image if available
+        if storage is not None:
+            original_image = await session.scalar(
+                select(ImageAsset).where(
+                    ImageAsset.record_id == record_id,
+                    ImageAsset.purpose == ImagePurpose.FINDER_ORIGINAL,
+                    ImageAsset.data_class == DataClass.PRIVATE,
+                )
+            )
+            if original_image is not None:
+                existing_public = await session.scalar(
+                    select(ImageAsset).where(
+                        ImageAsset.record_id == record_id,
+                        ImageAsset.purpose == ImagePurpose.PUBLIC_REDACTED,
+                        ImageAsset.redaction_status == RedactionStatus.CONFIRMED,
+                    )
+                )
+                if existing_public is None:
+                    await create_public_copy(session, storage, original=original_image)
+
     text = build_public_embedding_text(
         name_public=record.name_public or "",
         description_public=record.description_public or "",
@@ -297,6 +320,10 @@ async def publish_found_record(
     record.status = RecordStatus.PUBLISHED
     record.published_at = datetime.now(timezone.utc)
     record.version += 1
+
+    # Get user name for audit
+    finder = await session.get(User, actor_id)
+
     append_audit_event(
         session,
         AuditEventInput(
@@ -306,7 +333,14 @@ async def publish_found_record(
             actor_type=ActorType.FINDER,
             actor_id=actor_id,
             result_code="PUBLISHED",
-            metadata={"item_type": record.item_type.value},
+            metadata={
+                "item_type": record.item_type.value,
+                "public_category": record.public_category.value if record.public_category else None,
+                "finder_name": finder.username if finder else str(actor_id),
+                "finder_email": finder.email if finder else None,
+                "item_name": record.name_public,
+                "location": record.location_public,
+            },
         ),
     )
     return record
@@ -369,6 +403,11 @@ async def complete_handoff(
     claim.updated_at = datetime.now(timezone.utc)
     found.status = RecordStatus.CLAIMED
     lost.status = RecordStatus.CLAIMED
+
+    # Get user names for audit
+    finder = await session.get(User, finder_id)
+    owner = await session.get(User, lost.owner_user_id) if lost else None
+
     append_audit_event(
         session,
         AuditEventInput(
@@ -378,7 +417,15 @@ async def complete_handoff(
             actor_type=ActorType.FINDER,
             actor_id=finder_id,
             result_code="CLAIMED",
-            metadata={"confirmation": True},
+            metadata={
+                "confirmation": True,
+                "finder_name": finder.username if finder else str(finder_id),
+                "finder_email": finder.email if finder else None,
+                "owner_name": owner.username if owner else str(lost.owner_user_id) if lost else None,
+                "owner_email": owner.email if owner else None,
+                "item_name": found.name_public if found else None,
+                "item_type": found.item_type.value if found else None,
+            },
         ),
     )
     result = HandoffResult(claim_id=claim.id, status=claim.status)

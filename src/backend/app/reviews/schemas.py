@@ -25,6 +25,8 @@ class ReviewQueueItem(BaseModel):
     route_source: str | None = None
     result_code: str | None = None
     created_at: datetime
+    item_name: str | None = None
+    requester_user_name: str | None = None
 
 
 class ReviewDecisionResult(BaseModel):
@@ -83,6 +85,7 @@ class ReviewDetail(BaseModel):
     route_source: str | None
     result_code: str | None
     requester_user_id: UUID
+    requester_user_name: str
     reason: str | None
     created_at: datetime
     lost_record: ItemRecordPublic | None

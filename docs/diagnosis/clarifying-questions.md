@@ -111,9 +111,9 @@
 | Q1 前端技术栈 | **React 18 + Vite** | 2026-07-16 |
 | Q2 ORM 方案 | **SQLAlchemy ORM + raw SQL for pgvector** | 2026-07-16 |
 | Q3 认证方式 | **JWT (access + refresh)** | 2026-07-16 |
-| Q4 Embedding 模型 ⭐ PO | **text-embedding-v4** | 2026-07-16 |
-| Q5 AI 核验模型 ⭐ PO | **mimoV2.5-pro** | 2026-07-16 |
-| Q7 隐藏问题生成方式 | **拾得者上传隐藏特征 → mimoV2.5-pro 自动生成问题**（替代原 PRD 的拾得者手动设置） | 2026-07-16 |
+| Q4 Embedding 模型 ⭐ PO | **Qwen3.7plus** | 2026-07-16 |
+| Q5 AI 核验模型 ⭐ PO | **Qwen3.7plus** | 2026-07-16 |
+| Q7 隐藏问题生成方式 | **拾得者上传隐藏特征 → Qwen3.7plus 自动生成问题**（替代原 PRD 的拾得者手动设置） | 2026-07-16 |
 
 ---
 
@@ -197,8 +197,8 @@
 | Q1 前端技术栈 | P0 | 否 | ✅ 已确认：React 18 + Vite |
 | Q2 ORM 方案 | P0 | 否 | ✅ 已确认：SQLAlchemy + raw SQL |
 | Q3 认证方式 | P0 | 否 | ✅ 已确认：JWT |
-| Q4 Embedding 模型 | P0 | **是** | ✅ 已确认：text-embedding-v4 |
-| Q5 AI 核验模型 | P0 | **是** | ✅ 已确认：mimoV2.5-pro |
+| Q4 Embedding 模型 | P0 | **是** | ✅ 已确认：Qwen3.7plus |
+| Q5 AI 核验模型 | P0 | **是** | ✅ 已确认：Qwen3.7plus |
 | Q6 阈值验证 | P0 | 否 | 待实现阶段验证 |
 | Q7 隐藏问题生成 | P0 | 否 | ✅ 已确认：LLM 自动生成（替代手动设置） |
 | Q8 多人认领 | P1 | 否 | 待实现阶段确认 |

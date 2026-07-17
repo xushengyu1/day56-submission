@@ -69,6 +69,28 @@ def _create_and_upload(client: TestClient, headers: dict[str, str]) -> tuple[str
 
 
 @pytest.mark.usefixtures("auth_database_engine")
+def test_preview_extraction_runs_before_a_draft_exists() -> None:
+    app.dependency_overrides[get_multimodal_adapter] = MockMultimodalAdapter
+    try:
+        with TestClient(app) as client:
+            headers = _register(client, "preview")
+            extracted = client.post(
+                "/api/found-records/extract-preview",
+                headers=headers,
+                files={"file": ("item.png", _png(), "image/png")},
+            )
+            records = client.get("/api/records/mine", headers=headers)
+    finally:
+        app.dependency_overrides.pop(get_multimodal_adapter, None)
+
+    assert extracted.status_code == 200
+    assert extracted.json()["suggested_description"]
+    assert extracted.json()["status"] == "SUCCEEDED"
+    assert records.status_code == 200
+    assert records.json()["total"] == 0
+
+
+@pytest.mark.usefixtures("auth_database_engine")
 def test_other_found_flow_keeps_ai_suggestion_separate_and_publishes(
     tmp_path, monkeypatch
 ) -> None:

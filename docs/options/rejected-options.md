@@ -40,8 +40,8 @@
 
 1. **前端交互体验一般**：表单提交 + 整页刷新，无实时反馈
 2. **隐藏问题由拾得者手动编写**：学习成本高，问题质量参差不齐
-3. **Embedding 模型与用户选择不符**：宋姿毅、徐胜宇确认使用 text-embedding-v4（方案 B 使用 OpenAI text-embedding-3-small）
-4. **核验模型与用户选择不符**：宋姿毅、徐胜宇确认使用 mimoV2.5-pro（方案 B 使用 GPT-4o-mini）
+3. **Embedding 模型与用户选择不符**：宋姿毅、徐胜宇确认使用 Qwen3.7plus（方案 B 使用 OpenAI text-embedding-3-small）
+4. **核验模型与用户选择不符**：宋姿毅、徐胜宇确认使用 Qwen3.7plus（方案 B 使用 GPT-4o-mini）
 
 **潜在代价**：
 

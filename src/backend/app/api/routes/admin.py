@@ -75,22 +75,43 @@ async def review_decision(
 
 @router.get("/audit-events")
 async def audit_events(
+    page: int = 1,
+    page_size: int = 5,
     user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_database_session),
-) -> list[dict[str, object]]:
+) -> dict[str, object]:
     await list_admin_review_queue(session, actor_role=user.role)
+
+    # Get total count
+    from sqlalchemy import func
+    total = await session.scalar(select(func.count(AuditEvent.event_id)))
+
+    # Get paginated events
+    offset = (page - 1) * page_size
     events = (
-        await session.scalars(select(AuditEvent).order_by(AuditEvent.created_at.desc()).limit(100))
+        await session.scalars(
+            select(AuditEvent)
+            .order_by(AuditEvent.created_at.desc())
+            .offset(offset)
+            .limit(page_size)
+        )
     ).all()
-    return [
-        {
-            "event_id": str(event.event_id),
-            "event_type": event.event_type,
-            "aggregate_type": event.aggregate_type,
-            "aggregate_id": str(event.aggregate_id),
-            "result_code": event.result_code,
-            "metadata_redacted": event.metadata_redacted,
-            "created_at": event.created_at.isoformat(),
-        }
-        for event in events
-    ]
+
+    return {
+        "items": [
+            {
+                "event_id": str(event.event_id),
+                "event_type": event.event_type,
+                "aggregate_type": event.aggregate_type,
+                "aggregate_id": str(event.aggregate_id),
+                "result_code": event.result_code,
+                "metadata_redacted": event.metadata_redacted,
+                "created_at": event.created_at.isoformat(),
+            }
+            for event in events
+        ],
+        "total": total or 0,
+        "page": page,
+        "page_size": page_size,
+        "total_pages": ((total or 0) + page_size - 1) // page_size,
+    }

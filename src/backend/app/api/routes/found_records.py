@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, File, UploadFile, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.errors import APIError
@@ -12,6 +12,7 @@ from app.auth.models import User
 from app.database import get_database_session
 from app.db.enums import RecordKind
 from app.images.models import ImageAsset
+from app.images.schemas import validate_image_bytes
 from app.images.service import create_confirmed_redaction
 from app.images.storage import LocalStorage
 from app.items.query_service import get_record_detail
@@ -38,11 +39,43 @@ from app.items.service import (
 from app.multimodal.factory import get_multimodal_adapter
 from app.multimodal.image_data import encode_image_data_url
 from app.multimodal.ports import MultimodalPort
+from app.multimodal.schemas import ExtractionDraft
 from app.settings import settings
 
 
 router = APIRouter(prefix="/api/found-records", tags=["found-records"])
 _storage = LocalStorage(Path("storage"))
+
+
+def _extraction_response(draft: ExtractionDraft) -> FoundExtractionResponse:
+    return FoundExtractionResponse(
+        suggested_name=draft.name_public,
+        suggested_description=draft.description_public,
+        suggested_item_type=draft.item_type,
+        confidence=draft.confidence,
+        status=draft.status,
+    )
+
+
+@router.post("/extract-preview", response_model=FoundExtractionResponse)
+async def extract_preview(
+    file: UploadFile = File(...),
+    _user: User = Depends(get_current_user),
+    adapter: MultimodalPort = Depends(get_multimodal_adapter),
+) -> FoundExtractionResponse:
+    """Recognize an image before a found-record draft exists."""
+    try:
+        data = await file.read()
+        validation = validate_image_bytes(data, file.content_type or "")
+        image_data_url = encode_image_data_url(data, validation.format_name)
+        draft = await adapter.extract_found_item(
+            image_data_url, {"flow": "found_draft_preview"}
+        )
+    except ValueError as error:
+        raise APIError(getattr(error, "code", "MODEL_UNAVAILABLE")) from None
+    except RuntimeError:
+        raise APIError("MODEL_UNAVAILABLE") from None
+    return _extraction_response(draft)
 
 
 @router.get("/{record_id}", response_model=ItemRecordPublic)
@@ -108,13 +141,7 @@ async def extract_record(
     except DomainError:
         await session.rollback()
         raise
-    return FoundExtractionResponse(
-        suggested_name=draft.name_public,
-        suggested_description=draft.description_public,
-        suggested_item_type=draft.item_type,
-        confidence=draft.confidence,
-        status=draft.status,
-    )
+    return _extraction_response(draft)
 
 
 @router.put("/{record_id}/confirmation")
@@ -218,6 +245,7 @@ async def publish_record(
             record_id=record_id,
             actor_id=user.id,
             expected_version=payload.expected_version,
+            storage=_storage,
         )
         await session.commit()
     except DomainError:

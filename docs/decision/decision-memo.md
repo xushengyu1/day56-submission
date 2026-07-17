@@ -53,8 +53,8 @@
 | 组件 | 用户确认选择 |
 |---|---|
 | 前端框架 | React 18 + Vite |
-| Embedding 模型 | text-embedding-v4 |
-| 核验 AI | mimoV2.5-pro |
+| Embedding 模型 | Qwen3.7plus |
+| 核验 AI | Qwen3.7plus |
 | 匹配流程 | 双方向量化 → pgvector 相似度 → TOP-5 |
 | 隐藏问题 | 拾得者上传隐藏特征 → LLM 自动生成问题 |
 
@@ -71,10 +71,10 @@
 | 数据库 | PostgreSQL + pgvector | ✅ PRD 已确认 |
 | ORM | SQLAlchemy + raw SQL for pgvector | ✅ 方案确认 |
 | 认证 | JWT (access + refresh) | ✅ 方案确认 |
-| Embedding | text-embedding-v4 | ✅ 用户确认 |
+| Embedding | Qwen3.7plus | ✅ 用户确认 |
 | 匹配引擎 | pgvector 余弦相似度 → TOP-5 | ✅ 用户确认 |
-| 问题生成 | mimoV2.5-pro | ✅ 用户确认 |
-| 回答核验 | mimoV2.5-pro | ✅ 用户确认 |
+| 问题生成 | Qwen3.7plus | ✅ 用户确认 |
+| 回答核验 | Qwen3.7plus | ✅ 用户确认 |
 
 ---
 
@@ -96,15 +96,15 @@
 
 ### 正面影响
 
-1. **匹配质量最高**：text-embedding-v4 双方信息均向量化，语义召回能力强
+1. **匹配质量最高**：Qwen3.7plus 双方信息均向量化，语义召回能力强
 2. **拾得者门槛最低**：只需上传隐藏特征，LLM 自动生成规范问题
-3. **核验准确**：mimoV2.5-pro 能识别同义表达和模糊描述
+3. **核验准确**：Qwen3.7plus 能识别同义表达和模糊描述
 4. **前端体验最佳**：React SPA 组件化交互
 5. **架构清晰**：前后端分离，各层职责明确
 
 ### 负面影响 / 代价与风险
 
-1. **外部 API 依赖**：text-embedding-v4 + mimoV2.5-pro 均需网络可达
+1. **外部 API 依赖**：Qwen3.7plus 均需网络可达
 2. **React 开发成本**：Vite + JWT + CORS 联调高于 SSR
 3. **LLM 问题生成不稳定**：同一特征可能生成不同问题
 4. **拾得者控制力降低**：问题由 LLM 生成而非手动编写
@@ -128,8 +128,8 @@
 | AI 只引导和检查问题质量（FR-22） | AI 直接生成问题 | 简化流程 |
 | 至少两组有效问答才可发布（FR-23） | 拾得者上传隐藏特征即可发布 | 简化发布 |
 | 前端 | React SPA | 已确认 |
-| Embedding | text-embedding-v4 | 已确认 |
-| 核验 AI | mimoV2.5-pro | 已确认 |
+| Embedding | Qwen3.7plus | 已确认 |
+| 核验 AI | Qwen3.7plus | 已确认 |
 
 ---
 

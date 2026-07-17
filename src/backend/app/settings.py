@@ -22,6 +22,9 @@ class Settings(BaseSettings):
     dashscope_api_key: str = "sk-ws-H.EDYMRII.7Ujj.MEQCICo6ReOxCQUV_NKdC0P6cjbW1jbH7ek3mb7KfzA034rTAiBhd9GiYwn3tZ5LQ-ONzhCAQ7aJ5xdaRvL7tk_503kxqw"
     embedding_model: str = "qwen3.7-text-embedding"
     embedding_dimension: int = 1024
+    question_model: str = "qwen3.7-plus"
+    question_base_url: str = ""
+    question_api_key: str = ""
     model_timeout_seconds: float = 20
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")

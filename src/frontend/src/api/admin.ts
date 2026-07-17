@@ -8,6 +8,14 @@ import type {
   ReviewQueueItem,
 } from './types'
 
+export interface PaginatedAuditResponse {
+  items: AuditEvent[]
+  total: number
+  page: number
+  page_size: number
+  total_pages: number
+}
+
 export const adminApi = {
   async reviews(): Promise<ReviewQueueItem[]> {
     if (isMockMode) return mockApi.unsupported('管理员复核队列')
@@ -30,8 +38,10 @@ export const adminApi = {
     })).data
   },
 
-  async audit(): Promise<AuditEvent[]> {
+  async audit(page: number = 1, pageSize: number = 5): Promise<PaginatedAuditResponse> {
     if (isMockMode) return mockApi.unsupported('审计事件')
-    return (await apiClient.get<AuditEvent[]>('/api/admin/audit-events')).data
+    return (await apiClient.get<PaginatedAuditResponse>('/api/admin/audit-events', {
+      params: { page, page_size: pageSize },
+    })).data
   },
 }

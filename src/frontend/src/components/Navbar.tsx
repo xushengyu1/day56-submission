@@ -1,5 +1,9 @@
 import { useState, useRef, useEffect } from 'react'
 import { Link, useLocation } from 'react-router-dom'
+import DownOutlined from '@ant-design/icons/DownOutlined'
+import LogoutOutlined from '@ant-design/icons/LogoutOutlined'
+import SafetyOutlined from '@ant-design/icons/SafetyOutlined'
+import UpOutlined from '@ant-design/icons/UpOutlined'
 import { useAuth, useLogout } from '@/features/auth/hooks'
 
 export function Navbar() {
@@ -76,7 +80,9 @@ export function Navbar() {
                 {user?.role === 'ADMIN' ? '管理员' : '普通用户'}
               </p>
             </div>
-            <i className={`fas fa-chevron-${menuOpen ? 'up' : 'down'} text-[9px]`} style={{ color: 'var(--muted)' }}></i>
+            {menuOpen
+              ? <UpOutlined aria-hidden="true" className="text-[9px]" style={{ color: 'var(--muted)' }} />
+              : <DownOutlined aria-hidden="true" className="text-[9px]" style={{ color: 'var(--muted)' }} />}
           </button>
 
           {menuOpen && (
@@ -94,7 +100,7 @@ export function Navbar() {
                   onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(107,139,164,0.06)'}
                   onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
                 >
-                  <i className="fas fa-shield-halved w-5 text-center text-xs" style={{ color: 'var(--purple)' }}></i>
+                  <SafetyOutlined aria-hidden="true" className="w-5 text-center text-xs" style={{ color: 'var(--purple)' }} />
                   管理员工作台
                 </Link>
               )}
@@ -105,7 +111,7 @@ export function Navbar() {
                 onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(184,92,92,0.06)'}
                 onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
               >
-                <i className="fas fa-right-from-bracket w-5 text-center text-xs"></i>
+                <LogoutOutlined aria-hidden="true" className="w-5 text-center text-xs" />
                 退出登录
               </button>
             </div>

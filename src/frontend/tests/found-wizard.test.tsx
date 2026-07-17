@@ -7,7 +7,7 @@ import { uploadsApi } from '@/api/uploads'
 
 vi.mock('@/api/foundRecords', () => ({
   foundRecordsApi: {
-    createDraft: vi.fn(), extract: vi.fn(), confirm: vi.fn(), confirmIdentity: vi.fn(),
+    createDraft: vi.fn(), extract: vi.fn(), extractPreview: vi.fn(), confirm: vi.fn(), confirmIdentity: vi.fn(),
     redact: vi.fn(), confirmQuestions: vi.fn(), publish: vi.fn(),
   },
 }))
@@ -40,6 +40,7 @@ describe('FoundWizardPage OTHER flow', () => {
     vi.mocked(foundRecordsApi.createDraft).mockResolvedValue({ id: 'found-1', status: 'DRAFT', version: 1 })
     vi.mocked(uploadsApi.upload).mockResolvedValue({ image_asset_id: 'asset-original', purpose: 'FINDER_ORIGINAL' })
     vi.mocked(foundRecordsApi.extract).mockResolvedValue({ suggested_name: 'AI 名称', suggested_description: 'AI 描述', suggested_item_type: 'OTHER', confidence: 0.9, status: 'SUCCEEDED' })
+    vi.mocked(foundRecordsApi.extractPreview).mockResolvedValue({ suggested_name: 'AI 名称', suggested_description: 'AI 描述', suggested_item_type: 'OTHER', confidence: 0.9, status: 'SUCCEEDED' })
     vi.mocked(foundRecordsApi.confirm).mockResolvedValue({ id: 'found-1', version: 2 })
     vi.mocked(foundRecordsApi.confirmQuestions).mockResolvedValue({ verification_set_id: 'set-1' })
     vi.mocked(foundRecordsApi.publish).mockResolvedValue({ id: 'found-1', status: 'PUBLISHED', version: 3 })
@@ -53,36 +54,41 @@ describe('FoundWizardPage OTHER flow', () => {
     expect(screen.getByText('物归原主，屿过天晴')).toBeInTheDocument()
   })
 
-  it('keeps file selection local and revokes preview on replacement and unmount', () => {
+  it('recognizes immediately, fills the public description, and revokes previews', async () => {
     const view = renderWizard()
     const input = screen.getByLabelText('选择物品图片')
     fireEvent.change(input, { target: { files: [new File(['one'], 'one.png', { type: 'image/png' })] } })
 
     expect(screen.getByRole('img', { name: '招领图片预览' })).toHaveAttribute('src', 'blob:preview-1')
+    expect(screen.getByRole('status')).toHaveTextContent('AI 正在识别图片')
+    await waitFor(() => expect(foundRecordsApi.extractPreview).toHaveBeenCalledWith(expect.any(File)))
+    expect(screen.getByPlaceholderText('物品名称')).toHaveValue('AI 名称')
+    expect(screen.getByPlaceholderText(/公开描述/)).toHaveValue('AI 描述')
     expect(foundRecordsApi.createDraft).not.toHaveBeenCalled()
     expect(uploadsApi.upload).not.toHaveBeenCalled()
     expect(foundRecordsApi.extract).not.toHaveBeenCalled()
 
     fireEvent.change(input, { target: { files: [new File(['two'], 'two.png', { type: 'image/png' })] } })
     expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:preview-1')
+    await waitFor(() => expect(foundRecordsApi.extractPreview).toHaveBeenCalledTimes(2))
     view.unmount()
     expect(URL.revokeObjectURL).toHaveBeenCalledTimes(2)
     expect(URL.revokeObjectURL).toHaveBeenLastCalledWith('blob:preview-2')
   })
 
-  it('creates, uploads and extracts on first submit without overriding user public fields, then explicitly publishes', async () => {
+  it('creates and uploads on submit without re-running recognition, then explicitly publishes', async () => {
     renderWizard()
     fillBase('ELECTRONICS')
     fireEvent.change(screen.getByLabelText('选择物品图片'), { target: { files: [new File(['image'], 'item.png', { type: 'image/png' })] } })
+    await waitFor(() => expect(foundRecordsApi.extractPreview).toHaveBeenCalledOnce())
 
     fireEvent.click(screen.getByRole('button', { name: '创建草稿并继续' }))
     expect(await screen.findByRole('button', { name: '确认信息并发布' })).toBeInTheDocument()
 
     expect(foundRecordsApi.createDraft).toHaveBeenCalledWith({ event_time: new Date('2026-07-17T10:30').toISOString(), location_area: 'TEACHING_BUILDING' })
     expect(uploadsApi.upload).toHaveBeenCalledWith('found-1', 'FINDER_ORIGINAL', expect.any(File))
-    expect(foundRecordsApi.extract).toHaveBeenCalledWith('found-1', 'asset-original')
+    expect(foundRecordsApi.extract).not.toHaveBeenCalled()
     expect(vi.mocked(foundRecordsApi.createDraft).mock.invocationCallOrder[0]).toBeLessThan(vi.mocked(uploadsApi.upload).mock.invocationCallOrder[0])
-    expect(vi.mocked(uploadsApi.upload).mock.invocationCallOrder[0]).toBeLessThan(vi.mocked(foundRecordsApi.extract).mock.invocationCallOrder[0])
     expect(screen.getByPlaceholderText('物品名称')).toHaveValue('用户填写的耳机')
     expect(screen.getByPlaceholderText(/公开描述/)).toHaveValue('教学楼 B 区 302 教室拾得')
     expect(screen.getByLabelText('物品类别')).toHaveValue('ELECTRONICS')
@@ -105,6 +111,7 @@ describe('FoundWizardPage OTHER flow', () => {
     expect(await screen.findByRole('button', { name: '确认信息并发布' })).toBeInTheDocument()
     expect(uploadsApi.upload).not.toHaveBeenCalled()
     expect(foundRecordsApi.extract).not.toHaveBeenCalled()
+    expect(foundRecordsApi.extractPreview).not.toHaveBeenCalled()
   })
 
   it('revalidates editable confirmation fields and exposes backend length limits', async () => {
@@ -124,21 +131,20 @@ describe('FoundWizardPage OTHER flow', () => {
     expect(foundRecordsApi.confirm).not.toHaveBeenCalled()
   })
 
-  it('preserves the draft and upload after AI failure and offers retry plus manual entry', async () => {
-    vi.mocked(foundRecordsApi.extract).mockRejectedValueOnce(new Error('模型暂时不可用'))
+  it('allows manual entry and draft creation after immediate recognition fails', async () => {
+    vi.mocked(foundRecordsApi.extractPreview).mockRejectedValueOnce(new Error('模型暂时不可用'))
     renderWizard()
     fillBase()
     fireEvent.change(screen.getByLabelText('选择物品图片'), { target: { files: [new File(['image'], 'item.png', { type: 'image/png' })] } })
-    fireEvent.click(screen.getByRole('button', { name: '创建草稿并继续' }))
 
     expect(await screen.findByRole('alert')).toHaveTextContent('AI 识别失败')
-    expect(screen.getByRole('button', { name: '跳过 AI，手工填写' })).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: '创建草稿并继续' }))
 
     expect(await screen.findByRole('button', { name: '确认信息并发布' })).toBeInTheDocument()
     expect(foundRecordsApi.createDraft).toHaveBeenCalledOnce()
     expect(uploadsApi.upload).toHaveBeenCalledOnce()
-    expect(foundRecordsApi.extract).toHaveBeenCalledTimes(2)
+    expect(foundRecordsApi.extractPreview).toHaveBeenCalledOnce()
+    expect(foundRecordsApi.extract).not.toHaveBeenCalled()
   })
 
   it('retries a failed publish with the latest version without generating questions twice', async () => {

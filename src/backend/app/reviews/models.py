@@ -89,7 +89,7 @@ class ClaimAttempt(Base):
     )
     attempt_no: Mapped[int] = mapped_column(Integer, nullable=False)
     submitted_hmac: Mapped[bytes | None] = mapped_column(LargeBinary)
-    result_code: Mapped[str] = mapped_column(String(64), nullable=False)
+    result_code: Mapped[str] = mapped_column(String(256), nullable=False)
     answer_summary: Mapped[dict[str, object] | None] = mapped_column(JSONB)
     risk_flag: Mapped[str | None] = mapped_column(String(64))
     created_at: Mapped[datetime] = mapped_column(

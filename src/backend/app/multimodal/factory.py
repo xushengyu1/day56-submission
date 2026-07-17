@@ -11,11 +11,6 @@ def build_multimodal_adapter(config: Settings = settings) -> MultimodalPort:
         return MockMultimodalAdapter()
     if not config.mimo_api_key:
         raise ModelAdapterError("MIMO_API_KEY_MISSING")
-    if {
-        config.mimo_multimodal_model,
-        config.mimo_text_model,
-    } != {"mimo-v2.5"}:
-        raise ModelAdapterError("MODEL_CONFIG_INVALID")
     return OpenAICompatibleAdapter(
         base_url=config.mimo_base_url,
         api_key=config.mimo_api_key,
@@ -23,6 +18,9 @@ def build_multimodal_adapter(config: Settings = settings) -> MultimodalPort:
         text_model=config.mimo_text_model,
         version="openai-chat-completions-v1",
         timeout_seconds=config.model_timeout_seconds,
+        question_model=config.question_model,
+        question_base_url=config.question_base_url,
+        question_api_key=config.question_api_key,
     )
 
 

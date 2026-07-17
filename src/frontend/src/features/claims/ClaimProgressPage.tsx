@@ -14,6 +14,30 @@ const STATUS_LABELS = {
   LOCKED: '核验已锁定',
 } as const
 
+const RESULT_CODE_LABELS: Record<string, string> = {
+  IDENTITY_VERIFIED: '身份已验证',
+  IDENTITY_NOT_VERIFIED: '身份未验证',
+  DUPLICATE_IDENTITY_REVIEW: '重复身份待复核',
+  ATTEMPT_LOCKED: '尝试次数已锁定',
+  ANSWERS_VERIFIED: '答案已验证',
+  ALL_KEY_ANSWERS_MATCH: '所有关键答案匹配',
+  ALL_MATCH: '全部匹配',
+  PARTIAL_MATCH: '部分匹配',
+  KEY_ANSWER_CONFLICT: '关键答案冲突',
+  ANSWER_VAGUE: '答案模糊',
+  ANSWER_UNCLEAR: '答案不清晰',
+  CONFIDENCE_TOO_LOW: '置信度过低',
+  MODEL_UNAVAILABLE: '模型不可用',
+}
+
+const EVENT_TYPE_LABELS: Record<string, string> = {
+  CLAIM_SUBMITTED: '认领已提交',
+  IDENTITY_CLAIM_ATTEMPTED: '身份认领尝试',
+  OTHER_CLAIM_VERIFIED: '其他认领核验',
+  ADMIN_REVIEW_DECIDED: '管理员复核决定',
+  HANDOFF_COMPLETED: '交接完成',
+}
+
 export function ClaimProgressPage() {
   const { id = '' } = useParams<{ id: string }>()
   const claimQuery = useQuery({
@@ -49,7 +73,7 @@ export function ClaimProgressPage() {
       <header className="bg-white rounded-2xl border border-gray-100 p-6 mb-6">
         <p className="text-xs text-gray-400">认领编号：{claim.id}</p>
         <h2 className="text-2xl font-bold mt-2">{STATUS_LABELS[claim.status]}</h2>
-        <p className="text-sm text-gray-500 mt-2">结果代码：{claim.result_code ?? '处理中'}</p>
+        <p className="text-sm text-gray-500 mt-2">结果：{RESULT_CODE_LABELS[claim.result_code] ?? claim.result_code ?? '处理中'}</p>
         <p className="text-sm text-gray-500">已尝试 {claim.attempt_count} 次；剩余 {claim.attempts_remaining} 次</p>
       </header>
       <section className="bg-white rounded-2xl border border-gray-100 p-6 mb-6">
@@ -77,7 +101,9 @@ export function ClaimProgressPage() {
         <section className="bg-white rounded-2xl border border-gray-100 p-6 mb-6">
           <h3 className="font-bold mb-3">处理时间线</h3>
           {claim.timeline.map((event, index) => (
-            <p key={`${event.created_at}-${index}`} className="text-sm py-2 border-b last:border-0">{event.event_type} · {event.result_code}</p>
+            <p key={`${event.created_at}-${index}`} className="text-sm py-2 border-b last:border-0">
+              {EVENT_TYPE_LABELS[event.event_type] ?? event.event_type} · {RESULT_CODE_LABELS[event.result_code] ?? event.result_code}
+            </p>
           ))}
         </section>
       )}

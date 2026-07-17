@@ -1,12 +1,20 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import ArrowLeftOutlined from '@ant-design/icons/ArrowLeftOutlined'
+import ArrowRightOutlined from '@ant-design/icons/ArrowRightOutlined'
+import CloseOutlined from '@ant-design/icons/CloseOutlined'
+import GiftOutlined from '@ant-design/icons/GiftOutlined'
+import LoadingOutlined from '@ant-design/icons/LoadingOutlined'
+import ReloadOutlined from '@ant-design/icons/ReloadOutlined'
+import SendOutlined from '@ant-design/icons/SendOutlined'
+import UploadOutlined from '@ant-design/icons/UploadOutlined'
 import { locationAreaOptions, publicCategoryOptions } from '@/api/catalog'
 import { foundRecordsApi } from '@/api/foundRecords'
 import { uploadsApi } from '@/api/uploads'
 import type { LocationArea, PublicCategory, RedactionRegion } from '@/api/types'
 import { RedactionRegionPicker } from './RedactionRegionPicker'
 
-export type FoundWizardState = 'editing' | 'extracting' | 'confirming' | 'publishing' | 'published'
+export type FoundWizardState = 'editing' | 'extracting' | 'creating' | 'confirming' | 'publishing' | 'published'
 
 interface PublicForm {
   name: string
@@ -25,6 +33,7 @@ function errorMessage(error: unknown): string {
 export function FoundWizardPage() {
   const navigate = useNavigate()
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const extractionRequestRef = useRef(0)
   const [state, setState] = useState<FoundWizardState>('editing')
   const [form, setForm] = useState<PublicForm>(initialForm)
   const [file, setFile] = useState<File | null>(null)
@@ -40,7 +49,6 @@ export function FoundWizardPage() {
   const [redactionConfirmed, setRedactionConfirmed] = useState(false)
   const [questionsConfirmed, setQuestionsConfirmed] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [canContinueManually, setCanContinueManually] = useState(false)
 
   const updateForm = <K extends keyof PublicForm>(key: K, value: PublicForm[K]) => {
     setForm((current) => ({ ...current, [key]: value }))
@@ -54,15 +62,38 @@ export function FoundWizardPage() {
     }
   }
 
+  const recognizeImage = async (nextFile: File, requestId: number) => {
+    setState('extracting')
+    try {
+      const extraction = await foundRecordsApi.extractPreview(nextFile)
+      if (extractionRequestRef.current !== requestId) return
+      setForm((current) => ({
+        ...current,
+        name: current.name.trim() ? current.name : extraction.suggested_name,
+        description: current.description.trim() ? current.description : extraction.suggested_description,
+      }))
+      setState('editing')
+    } catch (extractionError) {
+      if (extractionRequestRef.current !== requestId) return
+      setError(`AI 识别失败：${errorMessage(extractionError)}。你仍可手工填写后创建草稿。`)
+      setState('editing')
+    }
+  }
+
   const selectFile = (nextFile: File | null) => {
+    const requestId = ++extractionRequestRef.current
     setFile(nextFile)
     setOriginalAssetId(null)
     setRegion(null)
     setRedactionConfirmed(false)
-    setCanContinueManually(false)
     setError(null)
     setPreview(nextFile ? URL.createObjectURL(nextFile) : null)
-    if (!nextFile && fileInputRef.current) fileInputRef.current.value = ''
+    if (nextFile) {
+      void recognizeImage(nextFile, requestId)
+    } else {
+      setState('editing')
+      if (fileInputRef.current) fileInputRef.current.value = ''
+    }
   }
 
   useEffect(() => () => { if (preview) URL.revokeObjectURL(preview) }, [preview])
@@ -76,9 +107,8 @@ export function FoundWizardPage() {
   const prepareConfirmation = async () => {
     const validation = validateDraft()
     if (validation) { setError(validation); return }
-    setState('extracting')
+    setState('creating')
     setError(null)
-    setCanContinueManually(false)
     try {
       let nextId = recordId
       let nextVersion = version
@@ -91,24 +121,9 @@ export function FoundWizardPage() {
         setVersion(nextVersion)
       }
       if (file) {
-        let assetId = originalAssetId
-        if (!assetId) {
+        if (!originalAssetId) {
           const uploaded = await uploadsApi.upload(nextId, 'FINDER_ORIGINAL', file)
-          assetId = uploaded.image_asset_id
-          setOriginalAssetId(assetId)
-        }
-        try {
-          const extraction = await foundRecordsApi.extract(nextId, assetId)
-          setForm((current) => ({
-            ...current,
-            name: current.name.trim() ? current.name : extraction.suggested_name,
-            description: current.description.trim() ? current.description : extraction.suggested_description,
-          }))
-        } catch (extractionError) {
-          setError(`AI 识别失败：${errorMessage(extractionError)}`)
-          setCanContinueManually(true)
-          setState('editing')
-          return
+          setOriginalAssetId(uploaded.image_asset_id)
         }
       }
       if (nextVersion === null) throw new Error('草稿版本缺失')
@@ -178,19 +193,25 @@ export function FoundWizardPage() {
     }
   }
 
-  const busy = state === 'extracting' || state === 'publishing'
+  const busy = state === 'extracting' || state === 'creating' || state === 'publishing'
   return (
     <div className="page-shell">
-      <div className="page-title">我要招领</div>
+      <div className="page-title"><GiftOutlined aria-hidden="true" style={{ color: '#6b9e7a' }} />我要招领</div>
       <div className="form-container">
         <section>
-          <input ref={fileInputRef} aria-label="选择物品图片" type="file" accept="image/jpeg,image/png,image/webp" onChange={(event) => selectFile(event.target.files?.[0] ?? null)} className="hidden" />
+          <input ref={fileInputRef} aria-label="选择物品图片" type="file" accept="image/jpeg,image/png,image/webp" disabled={busy} onChange={(event) => selectFile(event.target.files?.[0] ?? null)} className="hidden" />
           {preview ? (
             <div>
               <img src={preview} alt="招领图片预览" className="w-full max-h-80 object-contain rounded-xl" />
-              {state === 'editing' ? <div className="flex gap-2 mt-2"><button type="button" className="btn btn-secondary" onClick={() => fileInputRef.current?.click()}>更换图片</button><button type="button" className="btn btn-secondary" onClick={() => selectFile(null)}>移除图片</button></div> : null}
+              {state === 'editing' ? (
+                <div className="flex gap-2 mt-2">
+                  <button type="button" className="btn btn-secondary" onClick={() => fileInputRef.current?.click()}><ReloadOutlined aria-hidden="true" />更换图片</button>
+                  <button type="button" className="btn btn-secondary" onClick={() => selectFile(null)}><CloseOutlined aria-hidden="true" />移除图片</button>
+                </div>
+              ) : null}
+              {state === 'extracting' ? <p role="status" className="mt-2 text-sm"><LoadingOutlined aria-hidden="true" spin className="mr-1.5" />AI 正在识别图片并生成公开描述...</p> : null}
             </div>
-          ) : <button type="button" className="upload-area w-full" onClick={() => fileInputRef.current?.click()}><span className="plus">+</span><span className="text block">上传图片</span><span className="text-xs">选择后仅本地预览，提交草稿时才上传</span></button>}
+          ) : <button type="button" className="upload-area w-full" onClick={() => fileInputRef.current?.click()}><span className="plus"><UploadOutlined aria-hidden="true" /></span><span className="text block">上传图片</span><span className="text-xs">选择后自动识别，并把物品特征填入公开描述</span></button>}
         </section>
 
         <form className="form-fields" onSubmit={(event) => { event.preventDefault(); if (state === 'editing') void prepareConfirmation(); else if (state === 'confirming') void publish() }}>
@@ -214,9 +235,11 @@ export function FoundWizardPage() {
           {state === 'publishing' && form.category === 'IDENTITY_CARD' && identityConfirmed ? <p role="status" style={{ gridColumn: '1 / -1' }}>证件号已安全确认，完整号码已从页面清除。</p> : null}
 
           {error ? <div role="alert" className="callout callout-warning" style={{ gridColumn: '1 / -1' }}>{error}</div> : null}
-          {state === 'editing' && canContinueManually ? <button type="button" className="btn btn-secondary" onClick={() => { setError(null); setState('confirming') }}>跳过 AI，手工填写</button> : null}
-          {state === 'confirming' ? <button type="button" className="btn btn-secondary" onClick={() => { setError(null); setState('editing') }}>返回编辑</button> : null}
-          <button type="submit" className="submit-btn" disabled={busy || state === 'published'}>{state === 'extracting' ? 'AI 识别中...' : state === 'publishing' ? '发布中...' : state === 'confirming' ? '确认信息并发布' : '创建草稿并继续'}</button>
+          {state === 'confirming' ? <button type="button" className="btn btn-secondary" onClick={() => { setError(null); setState('editing') }}><ArrowLeftOutlined aria-hidden="true" />返回编辑</button> : null}
+          <button type="submit" className="submit-btn" disabled={busy || state === 'published'}>
+            {busy ? <LoadingOutlined aria-hidden="true" spin /> : state === 'confirming' ? <SendOutlined aria-hidden="true" /> : <ArrowRightOutlined aria-hidden="true" />}
+            {state === 'extracting' ? 'AI 识别中...' : state === 'creating' ? '创建草稿中...' : state === 'publishing' ? '发布中...' : state === 'confirming' ? '确认信息并发布' : '创建草稿并继续'}
+          </button>
         </form>
       </div>
       <div className="page-slogan">物归原主，屿过天晴</div>

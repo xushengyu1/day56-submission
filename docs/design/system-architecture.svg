@@ -266,7 +266,7 @@
   <rect x="190" y="738" width="820" height="52" rx="10" fill="#fff" stroke="#dce2e8" stroke-width="1" filter="url(#ds2)"/>
   <text x="204" y="758" font-size="11" font-weight="700" fill="#4a5568">技术栈</text>
   <text x="204" y="776" font-size="10" fill="#94a3b8">Python + FastAPI  ·  PostgreSQL + pgvector  ·  React + TypeScript + Vite  ·  JWT  ·  Docker Compose</text>
-  <text x="204" y="790" font-size="10" fill="#94a3b8">MiMo-V2.5 多模态  ·  text-embedding-v4  ·  mimoV2.5-pro</text>
+  <text x="204" y="790" font-size="10" fill="#94a3b8">Qwen3.7plus 多模态 + 文本 + embedding</text>
 
   <!-- ============================================================ -->
   <!-- 左右栏底部标注 -->

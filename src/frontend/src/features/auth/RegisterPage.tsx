@@ -1,5 +1,8 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
+import LoadingOutlined from '@ant-design/icons/LoadingOutlined'
+import UserAddOutlined from '@ant-design/icons/UserAddOutlined'
+import WarningOutlined from '@ant-design/icons/WarningOutlined'
 import { useRegister } from './hooks'
 
 export function RegisterPage() {
@@ -46,7 +49,7 @@ export function RegisterPage() {
               </div>
             </div>
 
-            <div className="hero-badge"><i className="fas fa-user-plus mr-1.5"></i> 新用户注册</div>
+            <div className="hero-badge"><UserAddOutlined aria-hidden="true" className="mr-1.5" /> 新用户注册</div>
             <h1 style={{ fontSize: '38px', lineHeight: 1.2, color: 'var(--text)', marginBottom: '16px', letterSpacing: '-0.03em', whiteSpace: 'pre-line' }}>
               加入校园{'\n'}失物招领网络
             </h1>
@@ -73,12 +76,12 @@ export function RegisterPage() {
 
               {registerMutation.isError && (
                 <div className="callout callout-warning" style={{ fontSize: '13px' }}>
-                  <i className="fas fa-triangle-exclamation mt-0.5 text-xs"></i><span>注册失败，请稍后重试</span>
+                  <WarningOutlined aria-hidden="true" className="mt-0.5 text-xs" /><span>注册失败，请稍后重试</span>
                 </div>
               )}
 
               <button type="submit" disabled={registerMutation.isPending || !form.username.trim() || !form.email.trim() || form.password.length < 8 || !passwordsMatch} className="btn-main primary w-full" style={{ marginTop: '4px' }}>
-                {registerMutation.isPending ? <><i className="fas fa-spinner fa-spin text-xs"></i> 注册中...</> : '注册'}
+                {registerMutation.isPending ? <><LoadingOutlined aria-hidden="true" spin className="text-xs" /> 注册中...</> : '注册'}
               </button>
             </form>
 

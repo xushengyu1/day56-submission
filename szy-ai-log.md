@@ -540,13 +540,13 @@
 
 ---
 
-## 本阶段人工判断汇总（阶段十）
+## 本阶段人工判断汇总（阶段十～十二）
 
 | 类型 | 数量 | 代表性内容 |
 |---|---:|---|
 | 🔴 拒绝 / 替代 | 1 | 拒绝 `item_type` 做匹配硬过滤，改用 `public_category` |
-| 🟡 修改 AI 方案 | 7 | 地点枚举缩减为 5 个；两层地点匹配机制；字段命名全量对齐后端；架构图改为横切布局；权限区分自己/他人寻物；招领表单新增隐藏信息；文档全量更新 |
-| 🟢 附条件采纳 | 6 | SSE 推送进度条；熔断兜底策略；候选评分简化；email 登录；管理员筛选过滤；接口对照文档 |
+| 🟡 修改 AI 方案 | 9 | 地点枚举缩减为 5 个；两层地点匹配机制；字段命名全量对齐后端；架构图改为横切布局；权限区分自己/他人寻物；招领表单新增隐藏信息；文档全量更新；种子数据中文枚举修复；AI 模型切换为 qwen3.7-plus |
+| 🟢 附条件采纳 | 7 | SSE 推送进度条；熔断兜底策略；候选评分简化；email 登录；管理员筛选过滤；接口对照文档；双 client 架构统一模型 |
 
 ### 已形成的明确拒绝/修改证据（累计）
 
@@ -560,10 +560,65 @@
 8. 我拒绝了 AI 的"已更新完毕"声明，要求全局一致性扫描，发现并修复 18 处残留旧术语。（阶段八）
 9. 我拒绝了 `item_type`（2 种）做候选匹配硬过滤，改为 `public_category`（5 种精确匹配）。（阶段十）
 10. 我修改了地点评分机制，从单一粗匹配改为两层叠加（下拉框粗匹配 + 详细描述语义匹配）。（阶段十）
+11. 我将图像识别和问题生成模型从 mimo-v2.5 切换为 qwen3.7-plus，要求中文提示词并区分物品主体与背景。（阶段十二）
 
 ### 当前验证边界
 
-- 已验证：V0.9/V1.4 文档结构、前端全部页面实现、46 个测试用例通过、前后端接口对照文档生成。
-- 尚未验证：后端 SSE 匹配接口实现、熔断策略实现、前后端真实联调、Playwright E2E 测试、浏览器存储安全扫描。
+- 已验证：V0.9/V1.4 文档结构、前端全部页面实现、46 个测试用例通过、前后端接口对照文档生成、种子数据成功写入（全部 12 张表共 70+ 条记录）、qwen3.7-plus 图像识别效果（羽毛球拍测试通过，置信度 0.98）。
+- 尚未验证：后端 SSE 匹配接口实现、熔断策略实现、前后端真实联调、Playwright E2E 测试、浏览器存储安全扫描、qwen3.7-plus 问题生成效果、HTTP API 层图像识别集成测试。
+
+---
+
+## 阶段十一：环境配置与后端启动
+
+### 记录 46：修复寻物提交功能——嵌入模式配置问题 🟡
+
+| 字段 | 内容 |
+|---|---|
+| **目的** | 解决用户在前端提交寻物信息时显示"请求无法处理"的问题 |
+| **输入** | 用户反馈：填写寻物信息后点击提交，显示"请求无法处理"。后端日志无详细错误信息。 |
+| **问题排查** | 1. 测试 API 端点 `/api/lost-records`，返回 `{"error_code":"REQUEST_FAILED","message":"请求无法处理"}`<br>2. 查看 `app/api/errors.py`，发现 `REQUEST_FAILED` 是通用错误（当异常没有 `code` 属性时默认返回）<br>3. 检查数据库连接正常，`item_records` 表存在且有数据<br>4. 分析 `create_lost_record` 函数，发现调用 `build_embedding_adapter()` 时抛出异常<br>5. 查看 `app/matching/embedding_factory.py`，发现 `EMBEDDING_MODE=dashscope` 但 `DASHSCOPE_API_KEY` 为空<br>6. 导致抛出 `EmbeddingError("EMBEDDING_API_KEY_MISSING")`，最终转换为 `DomainError("EMBEDDING_UNAVAILABLE")` |
+| **解决方案** | 修改 `src/backend/.env` 文件：将 `EMBEDDING_MODE=dashscope` 改为 `EMBEDDING_MODE=mock`，使用哈希嵌入适配器代替真实的 DashScope API |
+| **人工判断** | **采纳 mock 模式**：当前环境没有配置 DashScope API Key，使用 mock 模式可以正常运行和测试。后续如需使用真实嵌入服务，需配置有效的 API Key。 |
+| **验证** | 重启后端服务器后，测试成功创建寻物记录：`{"id":"aa39fe24-e7ad-42b8-8a4d-48d84a2adbc1","status":"PUBLISHED"}` |
+
+### 注意事项
+
+1. **Windows 环境下 curl 中文编码问题**：curl 在 Windows 上处理中文 JSON 时编码有问题，测试中文内容需使用 Python httpx
+2. **后端服务器需重启加载 .env**：uvicorn 热重载不会重新读取环境变量，修改 `.env` 后需重启服务器
+3. **通用错误处理**：`REQUEST_FAILED` 是兜底错误，实际错误可能是 `EMBEDDING_UNAVAILABLE` 等具体错误，需查看后端日志或使用 verbose 模式调试
+
+---
+
+## 阶段十二：种子数据写入与 AI 模型切换
+
+### 记录 47：种子数据写入——修复中文枚举值映射问题 🟡
+
+| 字段 | 内容 |
+|---|---|
+| **目的** | 将 `seed_persistent.py` 生成的完整种子数据（3 用户、4 物品记录、41 条审计等）写入 PostgreSQL 数据库 |
+| **输入** | `seed_persistent.sql` 已生成但执行失败；数据库中残留的是之前测试的杂乱数据（17 条 item_records、0 条 review_requests、0 条 admin_reviews、6 条 audit_events），且缺少管理员账号（赵管理） |
+| **问题排查** | 1. 检查数据库实际数据：users 3 人（多了 linxiao.demo，缺赵管理）、item_records 17 条（应为 4）、review_requests 0 条（应为 2）、admin_reviews 0 条（应为 2）、audit_events 6 条（应为 41）<br>2. 对比 seed_persistent.sql 与 PostgreSQL 枚举定义，发现 SQL 中使用中文枚举值（`'所有者'`、`'批准交接'`、`'草稿'`、`'已发布'` 等），而数据库期望英文值（`OWNER`、`APPROVE_TO_HANDOFF`、`DRAFT`、`PUBLISHED` 等）<br>3. 共涉及 17 类枚举的中文→英文映射缺失 |
+| **解决方案** | 编写 `scripts/write_seed.py`：(1) 定义完整的中文→英文枚举映射表；(2) 按外键依赖顺序清理旧数据；(3) 修正 SQL 后逐条执行插入 |
+| **人工判断** | **采纳修正脚本方案**。用户明确"不需要每次都用 seed 脚本生成数据，希望把数据真正写入数据库"，因此直接执行一次性写入而非修复 seed_persistent.py 的生成逻辑 |
+| **验证** | 写入后数据库记录数完全匹配：users 3、item_records 4、ai_extractions 4、candidate_matches 2、verification_sets 1、verification_questions 3、identity_document_secrets 1、claims 2、claim_attempts 2、review_requests 2、admin_reviews 2、image_assets 6、audit_events 41。登录凭据：张明/李婷/赵管理，密码统一 Xiaoming123! |
+
+### 记录 48：AI 模型切换——图像识别与问题生成改用 qwen3.7-plus 🟡
+
+| 字段 | 内容 |
+|---|---|
+| **目的** | 将图像识别（extract_found_item）和隐藏问题生成（generate_questions）的模型从 mimo-v2.5 切换为 qwen3.7-plus，提示词改为中文 |
+| **输入** | 用户指定：(1) 问题生成使用 qwen3.7-plus，提供完整的中文提示词；(2) 图像识别也换为 qwen3.7-plus，提示词要求重点提取颜色、外观、形状、材质、品牌标志、特殊标记；(3) 两个方法都需要区分物品主体和背景，背景信息不写入描述 |
+| **建议** | AI 建议在 settings.py 新增 `question_model`/`question_base_url`/`question_api_key` 配置项；在 OpenAICompatibleAdapter 中为问题生成创建独立的 OpenAI client（指向 DashScope 端点），与主模型 client 分离；两个方法均改用 `_call_with_client(self._question_client, self.question_model, messages)` |
+| **人工判断** | **采纳双 client 架构并统一模型**。图像识别和问题生成都使用 qwen3.7-plus（DashScope 端点），主模型 mimo-v2.5 保留用于 verify_answers 等其他调用。同时要求提示词明确：只描述物品本身，忽略桌面、地板、墙壁等背景环境 |
+| **代码改动** | (1) `settings.py`：新增 `question_model`/`question_base_url`/`question_api_key`<br>(2) `openai_compatible.py`：`__init__` 新增 question 参数，创建 `_question_client`；新增 `_call_with_client` 方法；`extract_found_item` 和 `generate_questions` 改用 question_client + 中文 prompt<br>(3) `factory.py`：移除模型硬编码校验，传入 question 配置<br>(4) `.env`：新增 QUESTION_MODEL/QUESTION_BASE_URL/QUESTION_API_KEY，MIMO 相关也改为 DashScope |
+| **验证** | 用羽毛球拍图片直接调用 Python 测试：qwen3.7-plus 正确识别为"YONEX羽毛球拍"，描述包含蓝色框架、白色拍面、皮革手柄、AEROX 字样等准确特征，置信度 0.98。HTTP API 测试因后端进程未重启未生效，需手动重启后验证 |
+
+### 注意事项
+
+1. **中文枚举值陷阱**：Python 脚本生成 SQL 时容易使用中文枚举标签（如 `'所有者'`、`'草稿'`），但 PostgreSQL 枚举类型要求英文值（如 `OWNER`、`DRAFT`）。写入前必须做映射检查。
+2. **后端配置热重载限制**：uvicorn 的 `reload=True` 监听 .py 文件变化，但 `.env` 文件变化不会触发重新加载 Settings 对象。修改 `.env` 后必须重启进程。
+3. **DashScope 双用途**：同一个 DashScope API Key 可同时用于 embedding（qwen3.7-text-embedding）和文本/多模态推理（qwen3.7-plus），但 base_url 不同——embedding 用私有部署端点，推理用公共 compatible-mode 端点。
+4. **主体与背景区分**：多模态模型识别物品图片时，需要在 prompt 中明确要求区分物品主体和背景，否则可能将桌面颜色、环境光线等背景信息混入物品描述。
 
 ---

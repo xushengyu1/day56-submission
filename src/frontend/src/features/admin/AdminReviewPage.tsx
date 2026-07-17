@@ -4,6 +4,27 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { adminApi } from '@/api/admin'
 import type { AdminDecision } from '@/api/types'
 
+const RESULT_CODE_LABELS: Record<string, string> = {
+  IDENTITY_VERIFIED: '身份已验证',
+  IDENTITY_NOT_VERIFIED: '身份未验证',
+  DUPLICATE_IDENTITY_REVIEW: '重复身份待复核',
+  ATTEMPT_LOCKED: '尝试次数已锁定',
+  ANSWERS_VERIFIED: '答案已验证',
+  ALL_KEY_ANSWERS_MATCH: '所有关键答案匹配',
+  ALL_MATCH: '全部匹配',
+  PARTIAL_MATCH: '部分匹配',
+  KEY_ANSWER_CONFLICT: '关键答案冲突',
+  ANSWER_VAGUE: '答案模糊',
+  ANSWER_UNCLEAR: '答案不清晰',
+  CONFIDENCE_TOO_LOW: '置信度过低',
+  MODEL_UNAVAILABLE: '模型不可用',
+}
+
+const RISK_FLAG_LABELS: Record<string, string> = {
+  ATTEMPT_LIMIT: '尝试次数超限',
+  DUPLICATE_IDENTITY: '重复身份',
+}
+
 export function AdminReviewPage() {
   const { id = '' } = useParams<{ id: string }>()
   const navigate = useNavigate()
@@ -60,7 +81,7 @@ export function AdminReviewPage() {
           <section className="glass-card" style={{ padding: '24px', borderRadius: '24px' }}>
             <h2 style={{ fontSize: '20px', fontWeight: 800 }}>{primaryRecord?.name_public ?? '复核详情'}</h2>
             <p className="text-sm mt-2">来源：{review.source} · 状态：{review.status}</p>
-            <p className="text-sm mt-2">申请人：{review.requester_user_id}</p>
+            <p className="text-sm mt-2">申请人：{review.requester_user_name}</p>
             {review.reason && <p className="text-sm mt-2">申请理由：{review.reason}</p>}
             {primaryRecord && <p className="text-sm mt-2">{primaryRecord.location_public ?? '地点未填写'} · {primaryRecord.event_time_public ?? '时间未填写'}</p>}
           </section>
@@ -91,8 +112,8 @@ export function AdminReviewPage() {
               {review.evidence.length === 0 && <p className="text-sm text-gray-500">暂无核验证据</p>}
               {review.evidence.map((evidence) => (
                 <div key={`${evidence.attempt_no}-${evidence.created_at}`} className="border rounded-xl p-4 mb-3">
-                  <p className="font-semibold">第 {evidence.attempt_no} 次 · {evidence.result_code}</p>
-                  {evidence.risk_flag && <p className="text-sm mt-1">风险标记：{evidence.risk_flag}</p>}
+                  <p className="font-semibold">第 {evidence.attempt_no} 次 · {RESULT_CODE_LABELS[evidence.result_code] ?? evidence.result_code}</p>
+                  {evidence.risk_flag && <p className="text-sm mt-1">风险标记：{RISK_FLAG_LABELS[evidence.risk_flag] ?? evidence.risk_flag}</p>}
                   {evidence.answer_summary && <p className="text-sm mt-1">摘要：{JSON.stringify(evidence.answer_summary)}</p>}
                 </div>
               ))}

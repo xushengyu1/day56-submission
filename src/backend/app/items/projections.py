@@ -23,7 +23,9 @@ async def project_records(
         return []
 
     record_ids = [record.id for record in records]
-    image_rows = await session.execute(
+
+    # Get PUBLIC_REDACTED images
+    public_image_rows = await session.execute(
         select(ImageAsset.record_id, ImageAsset.id)
         .where(
             ImageAsset.record_id.in_(record_ids),
@@ -34,8 +36,26 @@ async def project_records(
         .order_by(ImageAsset.created_at.desc(), ImageAsset.id)
     )
     image_ids: dict[UUID, UUID] = {}
-    for record_id, asset_id in image_rows:
+    for record_id, asset_id in public_image_rows:
         image_ids.setdefault(record_id, asset_id)
+
+    # For records owned by the actor, also get their PRIVATE images if no public image exists
+    owned_record_ids = [r.id for r in records if r.owner_user_id == actor_id]
+    if owned_record_ids:
+        missing_ids = [rid for rid in owned_record_ids if rid not in image_ids]
+        if missing_ids:
+            private_image_rows = await session.execute(
+                select(ImageAsset.record_id, ImageAsset.id)
+                .where(
+                    ImageAsset.record_id.in_(missing_ids),
+                    ImageAsset.purpose.in_([ImagePurpose.FINDER_ORIGINAL, ImagePurpose.OWNER_SUPPORT]),
+                    ImageAsset.data_class == DataClass.PRIVATE,
+                    ImageAsset.uploader_user_id == actor_id,
+                )
+                .order_by(ImageAsset.created_at.desc(), ImageAsset.id)
+            )
+            for record_id, asset_id in private_image_rows:
+                image_ids.setdefault(record_id, asset_id)
 
     identity_rows = await session.execute(
         select(

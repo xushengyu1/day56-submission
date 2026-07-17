@@ -19,6 +19,7 @@ REQUIRED_OPERATIONS = {
     ("get", "/api/lost-records/{record_id}/match"),
     ("post", "/api/lost-records/{record_id}/review-requests"),
     ("post", "/api/found-records"),
+    ("post", "/api/found-records/extract-preview"),
     ("get", "/api/found-records/{record_id}"),
     ("post", "/api/found-records/{record_id}/extract"),
     ("put", "/api/found-records/{record_id}/confirmation"),

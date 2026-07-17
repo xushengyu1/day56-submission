@@ -15,7 +15,7 @@
 ### 1.1 设计目标
 
 1. 用一个 React Web 前端和一个 FastAPI 服务端跑通“发布 → 候选 → 认领核验 → 自动/人工路由 → 线下交接 → 审计追溯”。
-2. 拾得者上传图片后，由 MiMo-V2.5 生成物品类型、名称和公开描述草稿；拾得者修改、确认后才成为正式事实。
+2. 拾得者上传图片后，由 Qwen3.7plus 生成物品类型、名称和公开描述草稿；拾得者修改、确认后才成为正式事实。
 3. 将居民身份证与其他物品拆成两条确定的认领路径：身份证号码 HMAC 精确核验；其他物品使用隐藏描述生成的问题进行语义核验。
 4. 候选匹配只使用 `PUBLIC + MATCH_ONLY` 数据；核验答案、完整号码、原图和联系方式不得进入候选向量。
 5. 所有自动判断都可回溯到原始输入、模型版本、AI 原始输出、人工修改、规则结果和状态事件。
@@ -62,7 +62,7 @@
 flowchart LR
     B["浏览器：不可信输入"] -->|"HTTPS / JWT"| API["FastAPI：权限与业务边界"]
     API -->|"参数化 SQL / TLS"| DB["PostgreSQL + pgvector"]
-    API -->|"受控图片/文本，超时限制"| AI["MiMo / embedding 外部服务"]
+    API -->|"受控图片/文本，超时限制"| AI["Qwen3.7plus 外部服务"]
     API -->|"不可猜测对象键"| FS["MVP 私有文件存储"]
     ADMIN["管理员浏览器"] -->|"角色 + 临时授权 + 理由"| API
 ```
@@ -96,7 +96,7 @@ flowchart LR
 | 数据访问 | SQLAlchemy 2.x async + asyncpg、Alembic | 事务、迁移、PostgreSQL 访问 |
 | 数据库 | PostgreSQL 16+ + pgvector | 结构化数据、JSON、审计、文本向量 |
 | 认证 | JWT access/refresh + 密码哈希 | 注册登录和角色授权 |
-| AI | MiMo-V2.5 图片能力、mimoV2.5-pro 文本能力、text-embedding-v4；均经兼容适配器调用 | 图片特征提取、问题/核验、公开文本向量 |
+| AI | Qwen3.7plus 图片理解、文本生成与 embedding 能力；经兼容适配器调用 | 图片特征提取、问题/核验、公开文本向量 |
 | 文件 | MVP 本地私有目录 + `StoragePort` 抽象 | PRIVATE 原图与 PUBLIC 脱敏副本 |
 | 测试 | pytest、httpx、Testcontainers/PostgreSQL、Vitest、Playwright | 单元、集成和 E2E |
 
@@ -113,7 +113,7 @@ day6/
 │   │   ├── items/               # 失物/招领记录与状态机
 │   │   ├── matching/            # embedding、候选评分和解释
 │   │   ├── verification/        # 身份证/其他物品核验
-│   │   ├── multimodal/          # MiMo 适配器与结构校验
+│   │   ├── multimodal/          # Qwen3.7plus 适配器与结构校验
 │   │   ├── images/              # 上传、脱敏、受控读取和清理
 │   │   ├── reviews/             # 管理员复核
 │   │   ├── audit/               # 只追加审计事件
@@ -495,7 +495,7 @@ sequenceDiagram
     participant W as React Web
     participant A as FastAPI
     participant S as Image Service
-    participant M as MiMo-V2.5
+    participant M as Qwen3.7plus
     participant D as PostgreSQL
 
     F->>W: 输入时间、地点并上传整体图片
@@ -545,7 +545,7 @@ sequenceDiagram
     participant W as React Web
     participant A as FastAPI 接口层
     participant I as Image Service
-    participant E as text-embedding-v4
+    participant E as Qwen3.7plus
     participant M as Candidate Matching
     participant D as PostgreSQL / pgvector
 
@@ -583,7 +583,7 @@ sequenceDiagram
     end
 ```
 
-时序图中的失主图片只通过 Image Service 保存为 PRIVATE 材料，不经过 MiMo，也不生成图片向量。候选列表由服务端生成 PUBLIC DTO，前端不能从完整数据库对象中自行删除敏感字段。
+时序图中的失主图片只通过 Image Service 保存为 PRIVATE 材料，不经过 Qwen3.7plus，也不生成图片向量。候选列表由服务端生成 PUBLIC DTO，前端不能从完整数据库对象中自行删除敏感字段。
 
 ### 5.3 身份证认领
 
@@ -620,7 +620,7 @@ flowchart TD
     E --> F["保存原始回答快照与输入哈希"]
     F --> G{"确定性输入检查是否通过？"}
     G -- "空回答 / 复制问题 / 重复试探" --> R["进入 PENDING_ADMIN_REVIEW"]
-    G -- "通过" --> H["mimoV2.5-pro 比较答案要点与失主回答"]
+    G -- "通过" --> H["Qwen3.7plus 比较答案要点与失主回答"]
     H --> I{"模型输出是否有效且置信度 >= 0.8？"}
     I -- "否：超时 / 非法 JSON / 低置信" --> R
     I -- "是" --> J["逐题输出：匹配 / 部分匹配 / 无法判断 / 冲突"]
@@ -636,7 +636,7 @@ flowchart TD
 1. 失主选择候选后，服务端只返回问题文本和问题 ID，不返回标准答案或隐藏描述。
 2. 失主一次提交 2～3 个开放式回答；服务端保存原始回答快照。
 3. 规则先检查空回答、复制问题、明显冲突、异常重复提交。
-4. mimoV2.5-pro 文本核验仅接收问题、答案要点和失主回答，返回每题结果、置信度和理由代码；不得生成面向失主的隐藏答案解释。
+4. Qwen3.7plus 文本核验仅接收问题、答案要点和失主回答，返回每题结果、置信度和理由代码；不得生成面向失主的隐藏答案解释。
 5. 所有关键题均为匹配、每题置信度 `>= 0.8`、模型输出合法且不存在其他活动认领时进入 `PENDING_HANDOFF`；否则进入 `PENDING_ADMIN_REVIEW`。
 6. AI 超时、非法输出或低置信一律转管理员，不自动通过或拒绝。
 
@@ -1052,7 +1052,7 @@ generate_questions(hidden_description) -> QuestionSetDraft
 verify_answers(question_set, answers) -> VerificationResult
 ```
 
-适配器负责 OpenAI 兼容请求、超时、有限重试、响应 JSON 提取、Pydantic 校验、敏感字段清理和模型元数据。业务模块不依赖供应商原始响应格式。
+适配器负责 Qwen3.7plus API 请求、超时、有限重试、响应 JSON 提取、Pydantic 校验、敏感字段清理和模型元数据。业务模块不依赖供应商原始响应格式。
 
 ### 8.4 Item Service
 
@@ -1478,7 +1478,7 @@ HALF_OPEN（试探）
 | 同账号同候选最多 2 次 | 5.3、6.3、8.6 | 并发与限次测试 |
 | 同号码多记录转管理员 | 5.3、6.3、7 | 集成/E2E |
 | OTHER 至少一段隐藏描述、生成 2～3 问 | 5.1、6.2、10.2 | 规则/模型契约测试 |
-| MiMo-V2.5 图片能力优先、mimoV2.5-pro 文本核验、手工降级 | 8.3、15 | spike/故障注入 |
+| Qwen3.7plus 图片理解与文本核验、手工降级 | 8.3、15 | spike/故障注入 |
 | 原图保存到关闭、候选只看脱敏副本 | 2.3、8.2、14.3 | 权限/清理测试 |
 | 管理员最小权限、授权临时看原图 | 5.5、8.8 | RBAC/审计测试 |
 | 分类型核验通过且无多人认领才待交接，最终由拾得者确认 | 5.3、5.4、13 | 状态机/E2E |
@@ -1497,13 +1497,9 @@ JWT_SECRET
 JWT_ACCESS_TTL_MINUTES
 JWT_REFRESH_TTL_DAYS
 ID_HMAC_KEY_V1
-MIMO_BASE_URL
-MIMO_API_KEY
-MIMO_MULTIMODAL_MODEL
-MIMO_TEXT_MODEL
-EMBEDDING_BASE_URL
-EMBEDDING_API_KEY
-EMBEDDING_MODEL
+QWEN_BASE_URL
+QWEN_API_KEY
+QWEN_MODEL
 EMBEDDING_DIMENSION
 PRIVATE_STORAGE_ROOT
 PUBLIC_STORAGE_ROOT
@@ -1511,7 +1507,7 @@ MAX_UPLOAD_BYTES
 MODEL_TIMEOUT_SECONDS
 ```
 
-启动时校验必需配置和 embedding 维度；维度与数据库列不一致则拒绝启动，避免运行期写入错误。
+启动时校验必需配置和 Qwen3.7plus embedding 维度；维度与数据库列不一致则拒绝启动，避免运行期写入错误。
 
 ### 19.2 MVP 部署
 

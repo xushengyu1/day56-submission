@@ -124,30 +124,67 @@ async def list_admin_review_queue(
             .order_by(ReviewRequest.created_at)
         )
     ).all()
-    items = [
-        ReviewQueueItem(
-            id=claim.id,
-            source="CLAIM",
-            item_type=claim.item_type,
-            status=claim.status.value,
-            route_source=claim.route_source,
-            result_code=claim.final_reason,
-            created_at=claim.created_at,
+
+    # Collect all user IDs and item IDs for batch lookup
+    user_ids = set()
+    item_ids = set()
+
+    for claim in claims:
+        user_ids.add(claim.requester_user_id)
+        candidate = await session.get(CandidateMatch, claim.candidate_id)
+        if candidate:
+            item_ids.add(candidate.found_record_id)
+
+    for request in requests:
+        user_ids.add(request.requester_user_id)
+        if request.lost_record_id:
+            item_ids.add(request.lost_record_id)
+
+    # Batch lookup users
+    users = {}
+    if user_ids:
+        user_rows = (await session.scalars(select(User).where(User.id.in_(user_ids)))).all()
+        users = {u.id: u.username for u in user_rows}
+
+    # Batch lookup items
+    items_map = {}
+    if item_ids:
+        item_rows = (await session.scalars(select(ItemRecord).where(ItemRecord.id.in_(item_ids)))).all()
+        items_map = {i.id: i.name_public for i in item_rows}
+
+    result_items = []
+    for claim in claims:
+        candidate = await session.get(CandidateMatch, claim.candidate_id)
+        item_name = items_map.get(candidate.found_record_id) if candidate else None
+        result_items.append(
+            ReviewQueueItem(
+                id=claim.id,
+                source="CLAIM",
+                item_type=claim.item_type,
+                status=claim.status.value,
+                route_source=claim.route_source,
+                result_code=claim.final_reason,
+                created_at=claim.created_at,
+                item_name=item_name,
+                requester_user_name=users.get(claim.requester_user_id),
+            )
         )
-        for claim in claims
-    ]
-    items.extend(
-        ReviewQueueItem(
-            id=request.id,
-            source=request.request_type.value,
-            item_type=None,
-            status=request.status,
-            result_code=None,
-            created_at=request.created_at,
+
+    for request in requests:
+        item_name = items_map.get(request.lost_record_id) if request.lost_record_id else None
+        result_items.append(
+            ReviewQueueItem(
+                id=request.id,
+                source=request.request_type.value,
+                item_type=None,
+                status=request.status,
+                result_code=None,
+                created_at=request.created_at,
+                item_name=item_name,
+                requester_user_name=users.get(request.requester_user_id),
+            )
         )
-        for request in requests
-    )
-    return items
+    return result_items
 
 
 async def get_claim_detail(
@@ -323,6 +360,9 @@ async def get_admin_review_detail(
         requester_id = request.requester_user_id
         status = request.status
         created_at = request.created_at
+    # Look up requester user name
+    requester_user = await session.get(User, requester_id)
+    requester_user_name = requester_user.username if requester_user else "未知用户"
     return ReviewDetail(
         id=review_id,
         source=source,
@@ -331,6 +371,7 @@ async def get_admin_review_detail(
         route_source=claim.route_source if claim is not None else None,
         result_code=claim.final_reason if claim is not None else None,
         requester_user_id=requester_id,
+        requester_user_name=requester_user_name,
         reason=request.reason if request is not None else None,
         created_at=created_at,
         lost_record=projections.get(lost.id) if lost is not None else None,

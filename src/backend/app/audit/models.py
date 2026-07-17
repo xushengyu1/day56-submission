@@ -29,7 +29,7 @@ class AuditEvent(Base):
     rule_version: Mapped[str | None] = mapped_column(String(64))
     model_version: Mapped[str | None] = mapped_column(String(128))
     input_snapshot_hash: Mapped[str | None] = mapped_column(String(64))
-    result_code: Mapped[str] = mapped_column(String(64), nullable=False)
+    result_code: Mapped[str] = mapped_column(String(256), nullable=False)
     metadata_redacted: Mapped[dict[str, object]] = mapped_column(
         JSONB, nullable=False, default=dict
     )

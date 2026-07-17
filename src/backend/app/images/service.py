@@ -73,6 +73,32 @@ async def create_confirmed_redaction(
     return asset
 
 
+async def create_public_copy(
+    session: AsyncSession,
+    storage: LocalStorage,
+    *,
+    original: ImageAsset,
+) -> ImageAsset:
+    """Create a public copy of a private image (for non-identity items)."""
+    if original.purpose is not ImagePurpose.FINDER_ORIGINAL:
+        raise ValueError("COPY_SOURCE_INVALID")
+    source = storage.read(original.object_key)
+    object_key = storage.save(source, namespace="public", suffix="png")
+    asset = ImageAsset(
+        record_id=original.record_id,
+        uploader_user_id=original.uploader_user_id,
+        purpose=ImagePurpose.PUBLIC_REDACTED,
+        data_class=DataClass.PUBLIC,
+        object_key=object_key,
+        sha256=hashlib.sha256(source).hexdigest(),
+        mime_type="image/png",
+        size_bytes=len(source),
+        redaction_status=RedactionStatus.CONFIRMED,
+    )
+    session.add(asset)
+    return asset
+
+
 async def cleanup_private_assets(
     session: AsyncSession,
     storage: LocalStorage,

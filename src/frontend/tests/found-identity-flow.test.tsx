@@ -6,7 +6,7 @@ import { foundRecordsApi } from '@/api/foundRecords'
 import { uploadsApi } from '@/api/uploads'
 
 vi.mock('@/api/foundRecords', () => ({ foundRecordsApi: {
-  createDraft: vi.fn(), extract: vi.fn(), confirm: vi.fn(), confirmIdentity: vi.fn(), redact: vi.fn(), confirmQuestions: vi.fn(), publish: vi.fn(),
+  createDraft: vi.fn(), extract: vi.fn(), extractPreview: vi.fn(), confirm: vi.fn(), confirmIdentity: vi.fn(), redact: vi.fn(), confirmQuestions: vi.fn(), publish: vi.fn(),
 } }))
 vi.mock('@/api/uploads', () => ({ uploadsApi: { upload: vi.fn() } }))
 
@@ -22,6 +22,8 @@ async function reachIdentityConfirmation() {
   fireEvent.change(screen.getByLabelText('拾取时间'), { target: { value: '2026-07-17T11:00' } })
   fireEvent.change(screen.getByPlaceholderText(/公开描述/), { target: { value: '图书馆三楼阅览室拾得' } })
   fireEvent.change(screen.getByLabelText('选择物品图片'), { target: { files: [new File(['identity'], 'identity.png', { type: 'image/png' })] } })
+  await waitFor(() => expect(foundRecordsApi.extractPreview).toHaveBeenCalledOnce())
+  await waitFor(() => expect(screen.getByRole('button', { name: '创建草稿并继续' })).toBeEnabled())
   fireEvent.click(screen.getByRole('button', { name: '创建草稿并继续' }))
   await screen.findByLabelText('完整证件号')
 }
@@ -44,6 +46,7 @@ describe('FoundWizardPage identity flow', () => {
     vi.mocked(foundRecordsApi.createDraft).mockResolvedValue({ id: 'identity-1', status: 'DRAFT', version: 1 })
     vi.mocked(uploadsApi.upload).mockResolvedValue({ image_asset_id: 'identity-original', purpose: 'FINDER_ORIGINAL' })
     vi.mocked(foundRecordsApi.extract).mockResolvedValue({ suggested_name: 'AI 证件', suggested_description: 'AI 描述', suggested_item_type: 'IDENTITY_DOCUMENT', confidence: 0.98, status: 'SUCCEEDED' })
+    vi.mocked(foundRecordsApi.extractPreview).mockResolvedValue({ suggested_name: 'AI 证件', suggested_description: 'AI 描述', suggested_item_type: 'IDENTITY_DOCUMENT', confidence: 0.98, status: 'SUCCEEDED' })
     vi.mocked(foundRecordsApi.confirm).mockResolvedValue({ id: 'identity-1', version: 2 })
     vi.mocked(foundRecordsApi.confirmIdentity).mockResolvedValue({ number_masked: '1101********002X' })
     vi.mocked(foundRecordsApi.redact).mockResolvedValue({ asset_id: 'public-redacted', status: 'CONFIRMED' })

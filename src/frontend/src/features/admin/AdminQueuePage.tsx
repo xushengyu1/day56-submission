@@ -16,21 +16,38 @@ const STATUS_LABELS: Record<string, string> = {
   RESOLVED: '已处理',
 }
 
+const RESULT_CODE_LABELS: Record<string, string> = {
+  IDENTITY_VERIFIED: '身份已验证',
+  IDENTITY_NOT_VERIFIED: '身份未验证',
+  DUPLICATE_IDENTITY_REVIEW: '重复身份待复核',
+  ATTEMPT_LOCKED: '尝试次数已锁定',
+  ANSWERS_VERIFIED: '答案已验证',
+  ALL_KEY_ANSWERS_MATCH: '所有关键答案匹配',
+  ALL_MATCH: '全部匹配',
+  PARTIAL_MATCH: '部分匹配',
+  KEY_ANSWER_CONFLICT: '关键答案冲突',
+  ANSWER_VAGUE: '答案模糊',
+  ANSWER_UNCLEAR: '答案不清晰',
+  CONFIDENCE_TOO_LOW: '置信度过低',
+  MODEL_UNAVAILABLE: '模型不可用',
+}
+
 function ReviewRow({ review }: { review: ReviewQueueItem }) {
   return (
     <Link to={`/admin/reviews/${encodeURIComponent(review.id)}`} className="list-item" style={{ marginBottom: '10px' }}>
       <div className="list-item-head">
         <div>
-          <span className="list-item-title">{review.id}</span>
+          <span className="list-item-title">{review.item_name ?? '未命名物品'}</span>
           <p style={{ fontSize: '12px', color: 'var(--muted)', marginTop: '4px' }}>
             {review.item_type === 'IDENTITY_DOCUMENT' ? '身份证件' : review.item_type === 'OTHER' ? '其他物品' : '寻物记录'}
+            {review.requester_user_name && <span> · 申请人：{review.requester_user_name}</span>}
           </p>
         </div>
         <span className="badge">{SOURCE_LABELS[review.source] ?? review.source}</span>
       </div>
       <div style={{ display: 'flex', gap: '16px', marginTop: '8px', fontSize: '12px', color: 'var(--muted)' }}>
         <span>{STATUS_LABELS[review.status] ?? review.status}</span>
-        {review.result_code && <span>{review.result_code}</span>}
+        {review.result_code && <span>{RESULT_CODE_LABELS[review.result_code] ?? review.result_code}</span>}
         <span>{new Date(review.created_at).toLocaleString('zh-CN')}</span>
       </div>
     </Link>

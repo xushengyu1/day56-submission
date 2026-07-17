@@ -1,5 +1,15 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
+import EyeInvisibleOutlined from '@ant-design/icons/EyeInvisibleOutlined'
+import EyeOutlined from '@ant-design/icons/EyeOutlined'
+import InfoCircleOutlined from '@ant-design/icons/InfoCircleOutlined'
+import LinkOutlined from '@ant-design/icons/LinkOutlined'
+import LoadingOutlined from '@ant-design/icons/LoadingOutlined'
+import LockOutlined from '@ant-design/icons/LockOutlined'
+import MailOutlined from '@ant-design/icons/MailOutlined'
+import RobotOutlined from '@ant-design/icons/RobotOutlined'
+import SafetyOutlined from '@ant-design/icons/SafetyOutlined'
+import WarningOutlined from '@ant-design/icons/WarningOutlined'
 import { useLogin } from './hooks'
 
 export function LoginPage() {
@@ -46,7 +56,7 @@ export function LoginPage() {
             </div>
 
             <div className="hero-badge">
-              <i className="fas fa-leaf mr-1.5"></i> 校园失物招领平台
+              <SafetyOutlined aria-hidden="true" className="mr-1.5" /> 校园失物招领平台
             </div>
             <h1 style={{ fontSize: '42px', lineHeight: 1.2, color: 'var(--text)', marginBottom: '16px', letterSpacing: '-0.03em', whiteSpace: 'pre-line' }}>
               物归原主{'\n'}屿过天晴
@@ -58,16 +68,16 @@ export function LoginPage() {
             {/* 功能说明 */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
               {[
-                { icon: 'fa-robot', text: 'AI 自动提取物品名称与特征描述' },
-                { icon: 'fa-shield-halved', text: '四级数据分类，敏感信息脱敏展示' },
-                { icon: 'fa-link', text: '语义匹配 + 隐藏核验，防止冒领' },
+                { icon: <RobotOutlined aria-hidden="true" />, text: 'AI 自动提取物品名称与特征描述' },
+                { icon: <SafetyOutlined aria-hidden="true" />, text: '四级数据分类，敏感信息脱敏展示' },
+                { icon: <LinkOutlined aria-hidden="true" />, text: '语义匹配 + 隐藏核验，防止冒领' },
               ].map((item) => (
                 <div key={item.text} style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                   <div style={{
                     width: '32px', height: '32px', borderRadius: '10px',
                     background: 'rgba(107, 139, 164, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center'
                   }}>
-                    <i className={`fas ${item.icon}`} style={{ fontSize: '13px', color: 'var(--primary)' }}></i>
+                    <span style={{ fontSize: '15px', color: 'var(--primary)', display: 'inline-flex' }}>{item.icon}</span>
                   </div>
                   <span style={{ fontSize: '14px', color: '#4a5568' }}>{item.text}</span>
                 </div>
@@ -90,7 +100,7 @@ export function LoginPage() {
               <div>
                 <label className="form-label">邮箱</label>
                 <div style={{ position: 'relative' }}>
-                  <i className="fas fa-envelope" style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8', fontSize: '13px' }}></i>
+                  <MailOutlined aria-hidden="true" style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8', fontSize: '14px' }} />
                   <input type="email" placeholder="请输入邮箱地址" value={email} onChange={(e) => setEmail(e.target.value)} className="form-input" style={{ paddingLeft: '38px' }} />
                 </div>
               </div>
@@ -98,24 +108,24 @@ export function LoginPage() {
               <div>
                 <label className="form-label">密码</label>
                 <div style={{ position: 'relative' }}>
-                  <i className="fas fa-lock" style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8', fontSize: '13px' }}></i>
+                  <LockOutlined aria-hidden="true" style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8', fontSize: '14px' }} />
                   <input type={showPassword ? 'text' : 'password'} placeholder="请输入密码" value={password} onChange={(e) => setPassword(e.target.value)} className="form-input" style={{ paddingLeft: '38px', paddingRight: '38px' }} />
                   <button type="button" onClick={() => setShowPassword(!showPassword)}
                     style={{ position: 'absolute', right: '14px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8', background: 'none', border: 'none', cursor: 'pointer' }}>
-                    <i className={`fas ${showPassword ? 'fa-eye-slash' : 'fa-eye'} text-xs`}></i>
+                    {showPassword ? <EyeInvisibleOutlined aria-hidden="true" /> : <EyeOutlined aria-hidden="true" />}
                   </button>
                 </div>
               </div>
 
               {loginMutation.isError && (
                 <div className="callout callout-warning" style={{ fontSize: '13px' }}>
-                  <i className="fas fa-triangle-exclamation mt-0.5 text-xs"></i>
+                  <WarningOutlined aria-hidden="true" className="mt-0.5 text-xs" />
                   <span>邮箱或密码错误，请检查后重试</span>
                 </div>
               )}
 
               <button type="submit" disabled={loginMutation.isPending || !email.trim() || !password.trim()} className="btn-main primary w-full" style={{ marginTop: '4px' }}>
-                {loginMutation.isPending ? <><i className="fas fa-spinner fa-spin text-xs"></i> 登录中...</> : '登录'}
+                {loginMutation.isPending ? <><LoadingOutlined aria-hidden="true" spin className="text-xs" /> 登录中...</> : '登录'}
               </button>
             </form>
 
@@ -131,7 +141,7 @@ export function LoginPage() {
             </div>
 
             <div className="callout callout-info" style={{ marginTop: '20px', fontSize: '12px' }}>
-              <i className="fas fa-circle-info text-xs mt-0.5"></i>
+              <InfoCircleOutlined aria-hidden="true" className="text-xs mt-0.5" />
               <span>管理员请使用 <strong>admin@campus.edu.cn</strong> 登录</span>
             </div>
 

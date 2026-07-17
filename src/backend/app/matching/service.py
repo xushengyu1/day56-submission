@@ -8,9 +8,11 @@ from sqlalchemy import delete, select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.audit.schemas import AuditEventInput
+from app.audit.service import append_audit_event
 from app.auth.models import User  # noqa: F401 - register FK target metadata
 from app.core.idempotency import hash_request
-from app.db.enums import LocationArea, PublicCategory, RecordKind, RecordStatus
+from app.db.enums import ActorType, LocationArea, PublicCategory, RecordKind, RecordStatus
 from app.items.catalog import (
     build_public_embedding_text,
     item_type_for,
@@ -86,6 +88,31 @@ async def create_lost_record(
         published_at=datetime.now(timezone.utc),
     )
     session.add(record)
+
+    # Get user name for audit
+    owner = await session.get(User, owner_user_id)
+
+    append_audit_event(
+        session,
+        AuditEventInput(
+            event_type="LOST_RECORD_CREATED",
+            aggregate_type="item_record",
+            aggregate_id=record.id,
+            actor_type=ActorType.OWNER,
+            actor_id=owner_user_id,
+            result_code="PUBLISHED",
+            metadata={
+                "item_type": record.item_type.value,
+                "public_category": public_category.value,
+                "owner_name": owner.username if owner else str(owner_user_id),
+                "owner_email": owner.email if owner else None,
+                "item_name": name_public.strip(),
+                "location": location_public.strip(),
+                "kind": "丢失",
+            },
+        ),
+    )
+
     return record
 
 

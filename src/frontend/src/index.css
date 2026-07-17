@@ -131,6 +131,7 @@ button, input, select, textarea { font: inherit; }
 .hero-feature-icon {
   width: 40px; height: 40px; border-radius: 12px;
   display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  font-size: 18px;
 }
 .hero-feature-text .feature-title { font-size: 15px; font-weight: 700; color: var(--text); }
 .hero-feature-text .feature-desc { font-size: 12px; color: var(--muted); margin-top: 2px; }
@@ -164,6 +165,7 @@ button, input, select, textarea { font: inherit; }
   background: rgba(255, 255, 255, 0.5);
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.35);
   backdrop-filter: blur(6px);
+  font-size: 22px;
 }
 .function-card:nth-child(1) .card-icon-wrap { color: #4a6b82; }
 .function-card:nth-child(2) .card-icon-wrap { color: #4a7a5a; }
@@ -219,7 +221,7 @@ button, input, select, textarea { font: inherit; }
   cursor: pointer; transition: transform 0.2s ease, border-color 0.2s ease;
 }
 .upload-area:hover { transform: translateY(-2px); border-color: var(--primary); }
-.upload-area .plus { font-size: 60px; color: var(--muted); font-weight: 200; }
+.upload-area .plus { display: inline-flex; font-size: 48px; line-height: 1; color: var(--muted); font-weight: 200; }
 .upload-area .text { font-size: 18px; color: var(--muted); }
 .form-fields {
   flex: 1; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -248,6 +250,7 @@ button, input, select, textarea { font: inherit; }
   display: flex; align-items: center; gap: 12px;
   font-size: 28px; font-weight: 800; color: var(--text);
 }
+.page-title > .anticon { font-size: 30px; }
 .page-title img { width: 36px; height: 36px; }
 .page-slogan { text-align: center; font-size: 20px; font-weight: 700; margin: 0 0 38px; color: #5a6e7e; }
 
@@ -296,6 +299,31 @@ button, input, select, textarea { font: inherit; }
 .form-label { display: block; font-size: 13px; font-weight: 700; color: #4a5568; margin-bottom: 6px; }
 
 /* ===== 按钮 ===== */
+.btn {
+  border: none; border-radius: 14px; padding: 10px 18px;
+  font-size: 14px; font-weight: 600; cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+}
+.btn:hover { transform: translateY(-1px); }
+.btn:active { transform: translateY(0); }
+.btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+.btn-primary {
+  background: linear-gradient(135deg, var(--primary) 0%, var(--primary-deep) 100%);
+  color: #fff; box-shadow: var(--shadow-btn);
+}
+.btn-primary:hover { box-shadow: 0 8px 20px rgba(107, 139, 164, 0.3); }
+.btn-secondary {
+  background: rgba(255, 255, 255, 0.88); color: var(--primary-deep);
+  border: 1px solid rgba(107, 139, 164, 0.2);
+}
+.btn-secondary:hover { background: rgba(255, 255, 255, 0.95); border-color: rgba(107, 139, 164, 0.4); }
+.btn-danger {
+  background: rgba(184, 92, 92, 0.1); color: var(--danger);
+  border: 1px solid rgba(184, 92, 92, 0.2);
+}
+.btn-danger:hover { background: rgba(184, 92, 92, 0.15); }
+
 .btn-main {
   border: none; border-radius: 14px; padding: 12px 22px;
   font-size: 15px; font-weight: 700; cursor: pointer;

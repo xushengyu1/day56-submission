@@ -1,5 +1,11 @@
 import { useState, useRef, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
+import ArrowRightOutlined from '@ant-design/icons/ArrowRightOutlined'
+import CloseOutlined from '@ant-design/icons/CloseOutlined'
+import LoadingOutlined from '@ant-design/icons/LoadingOutlined'
+import ReloadOutlined from '@ant-design/icons/ReloadOutlined'
+import SendOutlined from '@ant-design/icons/SendOutlined'
+import UploadOutlined from '@ant-design/icons/UploadOutlined'
 import { publicCategoryOptions, locationAreaOptions } from '@/api/catalog'
 import { lostRecordsApi } from '@/api/lostRecords'
 import { uploadsApi } from '@/api/uploads'
@@ -121,6 +127,7 @@ export function LostCreatePage() {
             </div>
             <button
               type="button"
+              aria-label="移除图片"
               onClick={handleRemoveImage}
               style={{
                 position: 'absolute', top: '12px', right: '12px',
@@ -129,7 +136,7 @@ export function LostCreatePage() {
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
               }}
             >
-              <i className="fas fa-times text-xs"></i>
+              <CloseOutlined aria-hidden="true" />
             </button>
             <button
               type="button"
@@ -141,12 +148,12 @@ export function LostCreatePage() {
                 fontSize: '12px', fontWeight: 600, backdropFilter: 'blur(8px)',
               }}
             >
-              <i className="fas fa-redo mr-1"></i> 更换
+              <ReloadOutlined aria-hidden="true" className="mr-1" /> 更换
             </button>
           </div>
         ) : (
           <div className="upload-area" onClick={() => fileInputRef.current?.click()}>
-            <div className="plus">+</div>
+            <div className="plus"><UploadOutlined aria-hidden="true" /></div>
             <div className="text">上传图片</div>
             <div style={{ fontSize: '12px', color: 'var(--muted)', marginTop: '4px' }}>
               支持 JPG / PNG / WebP，最大 10MB
@@ -182,12 +189,12 @@ export function LostCreatePage() {
           )}
 
           <button type="submit" className="submit-btn" disabled={isSubmitting}>
-            <i className="fas fa-paper-plane"></i>
+            {isSubmitting ? <LoadingOutlined aria-hidden="true" spin /> : <SendOutlined aria-hidden="true" />}
             {isSubmitting ? '提交中…' : createdRecordId ? (imageFile ? '重试上传' : '继续匹配') : '提交'}
           </button>
           {createdRecordId && submitError && (
             <button type="button" className="submit-btn" disabled={isSubmitting} onClick={() => continueToCandidates(createdRecordId)}>
-              暂不上传，继续匹配
+              暂不上传，继续匹配 <ArrowRightOutlined aria-hidden="true" />
             </button>
           )}
         </form>

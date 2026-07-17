@@ -5,6 +5,7 @@ from app.multimodal.factory import get_multimodal_adapter
 
 
 EXPECTED = (
+    (found_records.router, "/api/found-records/extract-preview", "POST"),
     (found_records.router, "/api/found-records/{record_id}/extract", "POST"),
     (found_records.router, "/api/found-records/{record_id}/questions", "POST"),
     (claims.router, "/api/candidates/{candidate_id}/claims/answers", "POST"),

@@ -283,10 +283,13 @@ export interface ReviewQueueItem {
   route_source: string | null
   result_code: string | null
   created_at: string
+  item_name: string | null
+  requester_user_name: string | null
 }
 
 export interface ReviewDetail extends ReviewQueueItem {
   requester_user_id: string
+  requester_user_name: string
   reason: string | null
   lost_record: ItemRecordPublic | null
   candidate: ReviewCandidatePublic | null

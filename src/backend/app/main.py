@@ -1,3 +1,9 @@
+import sys
+from pathlib import Path
+
+# Allow running this file directly: add backend/ to sys.path
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
 from fastapi import FastAPI
 
 from app.api.errors import register_error_handlers
@@ -42,3 +48,7 @@ def create_app() -> FastAPI:
 
 
 app = create_app()
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run("app.main:app", host="127.0.0.1", port=8000, reload=True)

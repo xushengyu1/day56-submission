@@ -26,6 +26,15 @@ export const foundRecordsApi = {
     return (await apiClient.post<FoundExtraction>(`/api/found-records/${recordId}/extract`, { image_asset_id: imageAssetId })).data
   },
 
+  async extractPreview(file: File): Promise<FoundExtraction> {
+    if (isMockMode) return mockApi.unsupported('图片预识别')
+    const form = new FormData()
+    form.append('file', file)
+    return (await apiClient.post<FoundExtraction>('/api/found-records/extract-preview', form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    })).data
+  },
+
   async confirm(recordId: string, request: FoundConfirmation): Promise<{ id: string; version: number }> {
     if (isMockMode) return mockApi.unsupported('招领确认')
     return (await apiClient.put<{ id: string; version: number }>(`/api/found-records/${recordId}/confirmation`, request)).data

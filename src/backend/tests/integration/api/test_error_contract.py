@@ -1,9 +1,12 @@
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 from fastapi.testclient import TestClient
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.routes import claims as claim_routes
+from app.db.enums import RecordStatus
+from app.items.models import ItemRecord
 from app.items.service import DomainError
 from app.main import app
 
@@ -176,3 +179,49 @@ def test_locked_claim_uses_canonical_error_shape(monkeypatch) -> None:
         "error_code": "ATTEMPT_LOCKED",
         "message": "尝试次数已用尽，请联系管理员",
     }
+
+
+@pytest.mark.asyncio
+async def test_unmatched_review_api_accepts_only_owned_published_lost_records(
+    auth_database_engine,
+    record_api_data: dict[str, object],
+) -> None:
+    records = record_api_data["records"]
+    assert isinstance(records, dict)
+    owner_lost_id = records["owner_lost"]
+    public_found_id = records["public_found"]
+    assert isinstance(owner_lost_id, UUID)
+    assert isinstance(public_found_id, UUID)
+
+    with TestClient(app) as client:
+        legal = client.post(
+            f"/api/lost-records/{owner_lost_id}/review-requests",
+            headers=record_api_data["owner_headers"],
+            json={"reason": "当前候选中没有合适物品"},
+        )
+        found = client.post(
+            f"/api/lost-records/{public_found_id}/review-requests",
+            headers=record_api_data["other_headers"],
+            json={"reason": "FOUND 记录不能提交未匹配复核"},
+        )
+
+        async with AsyncSession(auth_database_engine) as session:
+            draft_lost = await session.get(ItemRecord, owner_lost_id)
+            assert draft_lost is not None
+            draft_lost.status = RecordStatus.DRAFT
+            await session.commit()
+
+        draft = client.post(
+            f"/api/lost-records/{owner_lost_id}/review-requests",
+            headers=record_api_data["owner_headers"],
+            json={"reason": "DRAFT 记录不能提交未匹配复核"},
+        )
+
+    assert legal.status_code == 201
+    assert legal.json()["status"] == "OPEN"
+    for response in (found, draft):
+        assert response.status_code == 404
+        assert response.json() == {
+            "error_code": "NOT_FOUND",
+            "message": "资源不存在",
+        }

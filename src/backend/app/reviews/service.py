@@ -52,6 +52,11 @@ async def create_unmatched_review_request(
     record = await session.get(ItemRecord, lost_record_id)
     if record is None or record.owner_user_id != requester_id:
         raise DomainError("NOT_FOUND")
+    if (
+        record.kind is not RecordKind.LOST
+        or record.status is not RecordStatus.PUBLISHED
+    ):
+        raise DomainError("NOT_FOUND")
     existing = await session.scalar(
         select(ReviewRequest).where(
             ReviewRequest.requester_user_id == requester_id,

@@ -11,9 +11,9 @@ import type {
 } from './types'
 
 export const foundRecordsApi = {
-  async createDraft(request: FoundDraftCreate): Promise<CreatedRecord> {
+  async createDraft(request: FoundDraftCreate): Promise<CreatedRecord & { version: number }> {
     if (isMockMode) return mockApi.unsupported('招领草稿创建')
-    return (await apiClient.post<CreatedRecord>('/api/found-records', request)).data
+    return (await apiClient.post<CreatedRecord & { version: number }>('/api/found-records', request)).data
   },
 
   async get(recordId: string): Promise<ItemRecordPublic> {
@@ -52,8 +52,8 @@ export const foundRecordsApi = {
     return (await apiClient.post<{ verification_set_id: string }>(`/api/found-records/${recordId}/questions`, { hidden_description: hiddenDescription })).data
   },
 
-  async publish(recordId: string, expectedVersion: number): Promise<CreatedRecord> {
+  async publish(recordId: string, expectedVersion: number): Promise<CreatedRecord & { version: number }> {
     if (isMockMode) return mockApi.unsupported('招领发布')
-    return (await apiClient.post<CreatedRecord>(`/api/found-records/${recordId}/publish`, { expected_version: expectedVersion })).data
+    return (await apiClient.post<CreatedRecord & { version: number }>(`/api/found-records/${recordId}/publish`, { expected_version: expectedVersion })).data
   },
 }

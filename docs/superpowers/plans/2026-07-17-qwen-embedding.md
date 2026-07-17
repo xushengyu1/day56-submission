@@ -219,7 +219,7 @@ git push origin feature/backend
 - Produces: optional `embedding_adapter: EmbeddingPort | None = None` parameters on `create_lost_record` and `publish_found_record`.
 - Produces: persisted `embedding`, `embedding_model`, and `embedding_dimensions` from one adapter response.
 
-- [ ] **Step 1: Write failing service tests**
+- [x] **Step 1: Write failing service tests**
 
 Define a local fake adapter in integration tests:
 
@@ -236,7 +236,7 @@ Add assertions that LOST creation and FOUND publication with this adapter persis
 
 Add an adapter that raises `EmbeddingError("EMBEDDING_UNAVAILABLE")`; assert service raises `DomainError("EMBEDDING_UNAVAILABLE")` before marking FOUND published or adding a LOST record.
 
-- [ ] **Step 2: Run Red integration tests**
+- [x] **Step 2: Run Red integration tests**
 
 Run:
 
@@ -246,7 +246,7 @@ Run:
 
 Expected: failures show the services do not accept `embedding_adapter` and matching does not filter model/dimension.
 
-- [ ] **Step 3: Add a safe embedding helper in each service**
+- [x] **Step 3: Add a safe embedding helper in each service**
 
 Resolve `embedding_adapter or build_embedding_adapter()` once per operation. Await `adapter.embed([public_text])`, convert `EmbeddingError` to `DomainError("EMBEDDING_UNAVAILABLE") from None`, and only then mutate record status or add the new LOST record.
 
@@ -260,7 +260,7 @@ record.embedding_dimensions = adapter.dimension
 
 Do not read `settings.embedding_model` or `settings.embedding_dimension` when writing the snapshot.
 
-- [ ] **Step 4: Filter incompatible candidates in SQL**
+- [x] **Step 4: Filter incompatible candidates in SQL**
 
 Extend the FOUND selection in `generate_candidates` with:
 
@@ -271,7 +271,7 @@ ItemRecord.embedding_dimensions == lost_record.embedding_dimensions,
 
 Keep `_cosine` dimension validation as defense in depth. Update the matching fixture to seed mock FOUND embeddings with `settings.embedding_dimension` and model `mock-hash-v1`.
 
-- [ ] **Step 5: Run focused and regression tests**
+- [x] **Step 5: Run focused and regression tests**
 
 Run:
 
@@ -284,7 +284,7 @@ Run:
 
 Expected: all commands exit 0.
 
-- [ ] **Step 6: Commit and push Task 2**
+- [x] **Step 6: Commit and push Task 2**
 
 ```bash
 git add src/backend/app/items/service.py src/backend/app/matching/service.py src/backend/tests/integration/items src/backend/tests/integration/matching

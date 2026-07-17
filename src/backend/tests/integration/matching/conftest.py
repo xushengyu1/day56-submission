@@ -11,6 +11,7 @@ from app.auth.models import User  # noqa: F401
 from app.db.enums import ItemType, RecordKind, RecordStatus
 from app.items.models import ItemRecord
 from app.matching.embedding import embed_public_text
+from app.settings import settings
 
 
 DATABASE_URL = environ.get(
@@ -50,9 +51,11 @@ async def matching_database() -> AsyncIterator[tuple[AsyncEngine, UUID, UUID]]:
                         event_time_exact=now + timedelta(minutes=index * 10),
                         event_time_public="2026-07-16 上午",
                         location_public="图书馆",
-                        embedding=embed_public_text([text_value], dimension=8)[0],
+                        embedding=embed_public_text(
+                            [text_value], dimension=settings.embedding_dimension
+                        )[0],
                         embedding_model="mock-hash-v1",
-                        embedding_dimensions=8,
+                        embedding_dimensions=settings.embedding_dimension,
                         published_at=now,
                     )
                 )

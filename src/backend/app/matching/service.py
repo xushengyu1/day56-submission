@@ -12,7 +12,8 @@ from app.core.idempotency import hash_request
 from app.db.enums import ItemType, RecordKind, RecordStatus
 from app.items.models import ItemRecord
 from app.items.service import DomainError
-from app.matching.embedding import embed_public_text
+from app.matching.embedding import EmbeddingError, EmbeddingPort
+from app.matching.embedding_factory import build_embedding_adapter
 from app.matching.models import CandidateMatch
 from app.matching.schemas import CandidatePublic
 from app.matching.scoring import (
@@ -23,7 +24,6 @@ from app.matching.scoring import (
     score_candidate,
 )
 from app.reviews.models import Claim
-from app.settings import settings
 
 
 def _cosine(left: list[float], right: list[float]) -> float:
@@ -46,11 +46,16 @@ async def create_lost_record(
     location_public: str,
     name_public: str,
     description_public: str,
+    embedding_adapter: EmbeddingPort | None = None,
 ) -> ItemRecord:
     if not all(value.strip() for value in (location_public, name_public, description_public)):
         raise DomainError("FIELD_INVALID")
     public_text = f"{name_public}\n{description_public}\n{location_public}"
-    embedding = embed_public_text([public_text], dimension=settings.embedding_dimension)[0]
+    try:
+        adapter = embedding_adapter or build_embedding_adapter()
+        embedding = (await adapter.embed([public_text]))[0]
+    except EmbeddingError:
+        raise DomainError("EMBEDDING_UNAVAILABLE") from None
     record = ItemRecord(
         owner_user_id=owner_user_id,
         kind=RecordKind.LOST,
@@ -62,8 +67,8 @@ async def create_lost_record(
         event_time_public=event_time.astimezone(timezone.utc).strftime("%Y-%m-%d %H:%M"),
         location_public=location_public.strip(),
         embedding=embedding,
-        embedding_model=settings.embedding_model,
-        embedding_dimensions=settings.embedding_dimension,
+        embedding_model=adapter.model,
+        embedding_dimensions=adapter.dimension,
         published_at=datetime.now(timezone.utc),
     )
     session.add(record)
@@ -82,6 +87,8 @@ async def generate_candidates(
                 ItemRecord.status == RecordStatus.PUBLISHED,
                 ItemRecord.item_type == lost_record.item_type,
                 ItemRecord.embedding.is_not(None),
+                ItemRecord.embedding_model == lost_record.embedding_model,
+                ItemRecord.embedding_dimensions == lost_record.embedding_dimensions,
             )
         )
     ).all()

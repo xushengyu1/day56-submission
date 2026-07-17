@@ -25,12 +25,12 @@ from app.images.models import ImageAsset
 from app.items.models import ItemRecord
 from app.items.schemas import HandoffResult
 from app.items.policies import validate_common_publish_fields
-from app.matching.embedding import embed_public_text
+from app.matching.embedding import EmbeddingError, EmbeddingPort
+from app.matching.embedding_factory import build_embedding_adapter
 from app.matching.models import CandidateMatch
 from app.multimodal.ports import MultimodalPort
 from app.multimodal.models import AIExtraction
 from app.multimodal.schemas import ExtractionDraft
-from app.settings import settings
 from app.reviews.models import Claim
 from app.verification.identity import compute_id_hmac, mask_cn_id, normalize_cn_id
 from app.verification.models import (
@@ -220,6 +220,7 @@ async def publish_found_record(
     record_id: UUID,
     actor_id: UUID,
     expected_version: int,
+    embedding_adapter: EmbeddingPort | None = None,
 ) -> ItemRecord:
     record = await _owned_record(session, record_id, actor_id)
     if record.status is not RecordStatus.DRAFT:
@@ -258,9 +259,14 @@ async def publish_found_record(
             raise DomainError("PUBLISH_GUARD_FAILED")
 
     text = f"{record.name_public}\n{record.description_public}\n{record.location_public}"
-    record.embedding = embed_public_text([text], dimension=settings.embedding_dimension)[0]
-    record.embedding_model = settings.embedding_model
-    record.embedding_dimensions = settings.embedding_dimension
+    try:
+        adapter = embedding_adapter or build_embedding_adapter()
+        embedding = (await adapter.embed([text]))[0]
+    except EmbeddingError:
+        raise DomainError("EMBEDDING_UNAVAILABLE") from None
+    record.embedding = embedding
+    record.embedding_model = adapter.model
+    record.embedding_dimensions = adapter.dimension
     record.status = RecordStatus.PUBLISHED
     record.published_at = datetime.now(timezone.utc)
     record.version += 1

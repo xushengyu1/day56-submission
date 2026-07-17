@@ -17,8 +17,8 @@ class Settings(BaseSettings):
     mimo_text_model: str = "mimoV2.5-pro"
     embedding_mode: Literal["mock", "dashscope"] = "mock"
     dashscope_api_key: str = ""
-    embedding_model: str = "mock-hash-v1"
-    embedding_dimension: int = 8
+    embedding_model: str = "qwen3.7-text-embedding"
+    embedding_dimension: int = 1024
     model_timeout_seconds: float = 20
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")

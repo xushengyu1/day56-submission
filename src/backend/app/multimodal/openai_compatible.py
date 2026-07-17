@@ -2,8 +2,16 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 import json
+import re
 
-import httpx
+from openai import (
+    APIConnectionError,
+    APIStatusError,
+    APITimeoutError,
+    AsyncOpenAI,
+    RateLimitError,
+)
+from openai.types.chat import ChatCompletionMessageParam
 from pydantic import ValidationError
 
 from app.db.enums import ExtractionStatus, ItemType, QuestionResult
@@ -16,54 +24,70 @@ from app.verification.other import (
 )
 
 
+_JSON_FENCE = re.compile(
+    r"^\s*```(?:json)?\s*(.*?)\s*```\s*$", re.IGNORECASE | re.DOTALL
+)
+
+
+def _json_object(content: str) -> dict[str, object]:
+    match = _JSON_FENCE.match(content)
+    payload = match.group(1) if match else content
+    parsed = json.loads(payload)
+    if not isinstance(parsed, dict):
+        raise TypeError
+    return parsed
+
+
 class OpenAICompatibleAdapter:
+    provider = "xiaomi-mimo"
+
     def __init__(
         self,
         *,
         base_url: str,
         api_key: str,
-        model: str,
+        multimodal_model: str,
+        text_model: str,
         version: str,
-        client: httpx.Client | None = None,
+        client: AsyncOpenAI | None = None,
         timeout_seconds: float = 20,
     ) -> None:
-        self.base_url = base_url.rstrip("/")
-        self.api_key = api_key
-        self.model = model
+        self.multimodal_model = multimodal_model
+        self.text_model = text_model
+        self.model = text_model
         self.version = version
-        self.client = client or httpx.Client(timeout=timeout_seconds)
+        self.client = client or AsyncOpenAI(
+            api_key=api_key,
+            base_url=base_url.rstrip("/"),
+            timeout=timeout_seconds,
+            max_retries=1,
+        )
 
-    def _call(self, operation: str, payload: Mapping[str, object]) -> dict[str, object]:
-        response: httpx.Response | None = None
-        for attempt in range(2):
-            try:
-                response = self.client.post(
-                    f"{self.base_url}/v1/chat/completions",
-                    headers={"Authorization": f"Bearer {self.api_key}"},
-                    json={"model": self.model, "operation": operation, "input": payload},
-                )
-            except (httpx.TimeoutException, httpx.TransportError):
-                if attempt == 0:
-                    continue
-                raise ModelAdapterError("MODEL_UNAVAILABLE") from None
-            if response.status_code == 429 or response.status_code >= 500:
-                if attempt == 0:
-                    continue
-                raise ModelAdapterError("MODEL_UNAVAILABLE")
-            if response.status_code >= 400:
-                raise ModelAdapterError("MODEL_HTTP_ERROR")
-            break
-
-        if response is None:
-            raise ModelAdapterError("MODEL_UNAVAILABLE")
+    async def _call(
+        self, model: str, messages: list[ChatCompletionMessageParam]
+    ) -> dict[str, object]:
         try:
-            body = response.json()
-            content = body["choices"][0]["message"]["content"]
-            parsed = json.loads(content) if isinstance(content, str) else content
-            if not isinstance(parsed, dict):
+            completion = await self.client.chat.completions.create(
+                model=model,
+                messages=messages,
+                max_completion_tokens=1024,
+            )
+        except (APITimeoutError, APIConnectionError, RateLimitError):
+            raise ModelAdapterError("MODEL_UNAVAILABLE") from None
+        except APIStatusError as error:
+            code = (
+                "MODEL_UNAVAILABLE"
+                if error.status_code >= 500
+                else "MODEL_HTTP_ERROR"
+            )
+            raise ModelAdapterError(code) from None
+
+        try:
+            content = completion.choices[0].message.content
+            if not isinstance(content, str) or not content.strip():
                 raise TypeError
-            return parsed
-        except (ValueError, TypeError, KeyError, IndexError, AttributeError):
+            return _json_object(content)
+        except (ValueError, TypeError, IndexError, AttributeError):
             raise ModelAdapterError("MODEL_RESPONSE_INVALID") from None
 
     @staticmethod
@@ -72,20 +96,44 @@ class OpenAICompatibleAdapter:
             raise TypeError
         return float(value)
 
-    def extract_found_item(
-        self, image_ref: str, context: Mapping[str, object]
+    async def extract_found_item(
+        self, image_data_url: str, context: Mapping[str, object]
     ) -> ExtractionDraft:
-        parsed = self._call(
-            "extract_found_item", {"image_ref": image_ref, "context": dict(context)}
-        )
+        messages: list[ChatCompletionMessageParam] = [
+            {
+                "role": "system",
+                "content": (
+                    "You are Xiaomi MiMo. Extract a safe public lost-item draft. "
+                    "Return only one JSON object with item_type, name_public, "
+                    "description_public, and confidence. item_type must be "
+                    "IDENTITY_DOCUMENT or OTHER, and confidence must be between "
+                    "0 and 1. Do not reveal full identity numbers."
+                ),
+            },
+            {
+                "role": "user",
+                "content": [
+                    {
+                        "type": "image_url",
+                        "image_url": {"url": image_data_url},
+                    },
+                    {
+                        "type": "text",
+                        "text": "Context: "
+                        + json.dumps(dict(context), ensure_ascii=False),
+                    },
+                ],
+            },
+        ]
+        parsed = await self._call(self.multimodal_model, messages)
         try:
             return ExtractionDraft(
                 item_type=ItemType(parsed["item_type"]),
                 name_public=str(parsed["name_public"]),
                 description_public=str(parsed["description_public"]),
                 confidence=self._float(parsed["confidence"]),
-                provider="openai-compatible",
-                model=self.model,
+                provider=self.provider,
+                model=self.multimodal_model,
                 version=self.version,
                 status=ExtractionStatus.SUCCEEDED,
                 raw_result_redacted={"response_valid": True},
@@ -93,10 +141,26 @@ class OpenAICompatibleAdapter:
         except (KeyError, TypeError, ValueError, ValidationError):
             raise ModelAdapterError("MODEL_RESPONSE_INVALID") from None
 
-    def generate_questions(self, hidden_description: str) -> QuestionSetDraft:
-        parsed = self._call(
-            "generate_questions", {"hidden_description": hidden_description}
-        )
+    async def generate_questions(self, hidden_description: str) -> QuestionSetDraft:
+        messages: list[ChatCompletionMessageParam] = [
+            {
+                "role": "system",
+                "content": (
+                    "You are Xiaomi MiMo. Return only one JSON object with a "
+                    "questions array containing 2 or 3 open-ended ownership-"
+                    "verification questions. Each item must contain question_text, "
+                    "answer_key, dimension, and is_open_ended. Never include an "
+                    "answer in its question text."
+                ),
+            },
+            {
+                "role": "user",
+                "content": json.dumps(
+                    {"hidden_description": hidden_description}, ensure_ascii=False
+                ),
+            },
+        ]
+        parsed = await self._call(self.text_model, messages)
         try:
             raw_questions = parsed["questions"]
             if not isinstance(raw_questions, list):
@@ -120,26 +184,43 @@ class OpenAICompatibleAdapter:
             raise ModelAdapterError("MODEL_RESPONSE_INVALID")
         return draft
 
-    def verify_answers(
+    async def verify_answers(
         self, question_set: QuestionSetDraft, answers: Mapping[str, str]
     ) -> VerificationResult:
-        parsed = self._call(
-            "verify_answers",
+        verification_payload = {
+            "questions": [
+                {
+                    "dimension": question.dimension,
+                    "question": question.question_text,
+                    "answer_key": question.answer_key,
+                    "claimant_answer": answers.get(question.dimension, ""),
+                }
+                for question in question_set.questions
+            ]
+        }
+        messages: list[ChatCompletionMessageParam] = [
             {
-                "questions": [
-                    {"dimension": question.dimension, "question": question.question_text}
-                    for question in question_set.questions
-                ],
-                "answers": dict(answers),
+                "role": "system",
+                "content": (
+                    "You are Xiaomi MiMo. Compare claimant answers with reference "
+                    "answers. Return only one JSON object with result, confidence, "
+                    "and reason_code. result must be MATCH, PARTIAL_MATCH, CONFLICT, "
+                    "or UNDETERMINED."
+                ),
             },
-        )
+            {
+                "role": "user",
+                "content": json.dumps(verification_payload, ensure_ascii=False),
+            },
+        ]
+        parsed = await self._call(self.text_model, messages)
         try:
             result = VerificationResult(
                 result=QuestionResult(parsed["result"]),
                 confidence=self._float(parsed["confidence"]),
                 reason_code=str(parsed["reason_code"]),
-                provider="openai-compatible",
-                model=self.model,
+                provider=self.provider,
+                model=self.text_model,
                 version=self.version,
             )
         except (KeyError, TypeError, ValueError, ValidationError):

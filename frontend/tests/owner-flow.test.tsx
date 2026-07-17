@@ -1,10 +1,14 @@
-import { describe, it, expect, vi } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { beforeEach, describe, it, expect, vi } from 'vitest'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { LostCreatePage } from '@/features/lost-items/LostCreatePage'
 import { CandidateListPage } from '@/features/candidates/CandidateListPage'
 import { CandidateDetailPage } from '@/features/candidates/CandidateDetailPage'
+import { MyRecordsPage } from '@/features/records/MyRecordsPage'
+import { recordsApi } from '@/api/records'
+import { claimsApi } from '@/api/claims'
+import type { ItemRecordPublic } from '@/api/types'
 
 vi.mock('@/features/auth/hooks', () => ({
   useAuth: vi.fn(() => ({
@@ -31,6 +35,14 @@ vi.mock('@/api/mock', () => ({
       item_record: { id: 'fr-001', record_type: 'FOUND', publisher_id: 'u2', item_type: 'OTHER', public_item_name: '黑色折叠伞', public_time_range: '7月16日上午', public_location: '教学楼B区2楼', public_description: '黑色折叠伞', status: 'PENDING_MATCH', created_at: '', updated_at: '' },
     }),
   },
+}))
+
+vi.mock('@/api/records', () => ({
+  recordsApi: { mine: vi.fn(), summary: vi.fn() },
+}))
+
+vi.mock('@/api/claims', () => ({
+  claimsApi: { completeHandoff: vi.fn() },
 }))
 
 function renderWithProviders(ui: React.ReactNode, route = '/') {
@@ -114,5 +126,90 @@ describe('CandidateDetailPage', () => {
     renderWithProviders(<CandidateDetailPage />, '/candidates/c-001')
     expect(await screen.findByText('评分明细')).toBeInTheDocument()
     expect(screen.getByText('语义相似度')).toBeInTheDocument()
+  })
+})
+
+const handoffRecord: ItemRecordPublic = {
+  id: 'found-1',
+  owner_user_id: 'u1',
+  kind: 'FOUND',
+  item_type: 'OTHER',
+  public_category: 'OTHER_CATEGORY',
+  location_area: 'DORMITORY',
+  status: 'PENDING_HANDOFF',
+  name_public: '黑色雨伞',
+  description_public: '宿舍一楼拾得',
+  event_time_public: '2026-07-17 10:00',
+  location_public: '宿舍区',
+  public_image_asset_id: null,
+  number_masked: null,
+  claim_id: 'claim-77',
+  version: 1,
+  published_at: '2026-07-17T10:00:00Z',
+  created_at: '2026-07-17T10:00:00Z',
+  updated_at: '2026-07-17T10:00:00Z',
+}
+
+describe('MyRecordsPage', () => {
+  beforeEach(() => {
+    vi.restoreAllMocks()
+    vi.clearAllMocks()
+    vi.mocked(recordsApi.mine).mockResolvedValue({ items: [handoffRecord], total: 1, page: 1, page_size: 5 })
+    vi.mocked(recordsApi.summary).mockResolvedValue({ lost_count: 0, found_count: 1, matched_count: 1, total_count: 1 })
+    vi.mocked(claimsApi.completeHandoff).mockResolvedValue({ claim_id: 'claim-77', status: 'CLAIMED' })
+  })
+
+  it('uses server-side kind and pagination parameters', async () => {
+    renderWithProviders(<MyRecordsPage />)
+    expect(await screen.findByText('黑色雨伞')).toBeInTheDocument()
+    expect(recordsApi.mine).toHaveBeenCalledWith(undefined, 1, 5)
+
+    fireEvent.click(screen.getByRole('button', { name: '招领 (1)' }))
+    await waitFor(() => expect(recordsApi.mine).toHaveBeenCalledWith('FOUND', 1, 5))
+  })
+
+  it('completes handoff with the backend claim ID and an idempotency key', async () => {
+    vi.spyOn(globalThis.crypto, 'randomUUID').mockReturnValue('00000000-0000-4000-8000-000000000001')
+    renderWithProviders(<MyRecordsPage />)
+
+    fireEvent.click(await screen.findByRole('button', { name: /确认交接/ }))
+    fireEvent.click(screen.getByRole('button', { name: '确认已取走' }))
+
+    await waitFor(() => expect(claimsApi.completeHandoff).toHaveBeenCalledWith(
+      'claim-77',
+      '00000000-0000-4000-8000-000000000001',
+    ))
+  })
+
+  it('keeps the handoff idempotency key locked while the request is pending', async () => {
+    vi.spyOn(globalThis.crypto, 'randomUUID').mockReturnValue('00000000-0000-4000-8000-000000000002')
+    vi.mocked(claimsApi.completeHandoff).mockReturnValue(new Promise(() => {}))
+    renderWithProviders(<MyRecordsPage />)
+
+    fireEvent.click(await screen.findByRole('button', { name: /确认交接/ }))
+    fireEvent.click(screen.getByRole('button', { name: '确认已取走' }))
+
+    expect(await screen.findByRole('button', { name: '取消' })).toBeDisabled()
+    fireEvent.click(screen.getByRole('button', { name: '确认中...' }))
+    expect(claimsApi.completeHandoff).toHaveBeenCalledOnce()
+    expect(globalThis.crypto.randomUUID).toHaveBeenCalledOnce()
+  })
+
+  it('reuses the handoff idempotency key after an uncertain failure', async () => {
+    vi.spyOn(globalThis.crypto, 'randomUUID').mockReturnValue('00000000-0000-4000-8000-000000000003')
+    vi.mocked(claimsApi.completeHandoff).mockRejectedValueOnce(new Error('connection reset'))
+    renderWithProviders(<MyRecordsPage />)
+
+    fireEvent.click(await screen.findByRole('button', { name: /确认交接/ }))
+    fireEvent.click(screen.getByRole('button', { name: '确认已取走' }))
+    expect(await screen.findByText('确认交接失败，请重试')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: '取消' }))
+    fireEvent.click(screen.getByRole('button', { name: /确认交接/ }))
+    fireEvent.click(screen.getByRole('button', { name: '确认已取走' }))
+
+    await waitFor(() => expect(claimsApi.completeHandoff).toHaveBeenCalledTimes(2))
+    expect(claimsApi.completeHandoff).toHaveBeenNthCalledWith(1, 'claim-77', '00000000-0000-4000-8000-000000000003')
+    expect(claimsApi.completeHandoff).toHaveBeenNthCalledWith(2, 'claim-77', '00000000-0000-4000-8000-000000000003')
+    expect(globalThis.crypto.randomUUID).toHaveBeenCalledOnce()
   })
 })

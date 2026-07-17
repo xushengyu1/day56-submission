@@ -1,7 +1,9 @@
 import { Link, useParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { mockApi } from '@/api/mock'
+import { recordsApi } from '@/api/records'
+import { locationAreaFromLabel } from '@/api/catalog'
 import { StatusBadge } from '@/components/StatusBadge'
+import { ErrorState } from '@/components/ErrorState'
 import { useState } from 'react'
 
 const LOCATION_CONFIG: Record<string, { icon: string; color: string; bg: string }> = {
@@ -17,18 +19,34 @@ const PAGE_SIZE = 5
 export function LocationItemsPage() {
   const { location } = useParams<{ location: string }>()
   const decodedLocation = decodeURIComponent(location || '')
+  const locationArea = locationAreaFromLabel(decodedLocation)
   const [page, setPage] = useState(1)
 
-  const { data, isLoading } = useQuery({
-    queryKey: ['items', 'location', decodedLocation, page],
-    queryFn: () => mockApi.getItemsByLocation(decodedLocation, page, PAGE_SIZE),
+  const recordsQuery = useQuery({
+    queryKey: ['records', 'location', locationArea, page, PAGE_SIZE],
+    queryFn: () => {
+      if (!locationArea) throw new Error('无效地点')
+      return recordsApi.list(locationArea, page, PAGE_SIZE)
+    },
+    enabled: Boolean(locationArea),
   })
+  const { data, isLoading } = recordsQuery
 
   const items = data?.items ?? []
   const total = data?.total ?? 0
   const totalPages = Math.ceil(total / PAGE_SIZE)
 
   const config = LOCATION_CONFIG[decodedLocation] || { icon: 'fa-map-marker-alt', color: '#7a8e9e', bg: 'rgba(122,142,158,0.1)' }
+
+  if (!locationArea) {
+    return (
+      <div className="page-shell" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '60vh', gap: '12px' }}>
+        <i className="fas fa-location-dot" style={{ fontSize: '32px', color: '#b8c8d8' }}></i>
+        <p style={{ color: 'var(--muted)' }}>地点不存在</p>
+        <Link to="/" style={{ fontSize: '13px', color: 'var(--primary)', textDecoration: 'none' }}>返回首页</Link>
+      </div>
+    )
+  }
 
   return (
     <div className="page-shell">
@@ -82,6 +100,8 @@ export function LocationItemsPage() {
               <div style={{ textAlign: 'center', padding: '60px 0' }}>
                 <i className="fas fa-spinner fa-spin text-xl" style={{ color: 'var(--primary)' }}></i>
               </div>
+            ) : recordsQuery.isError ? (
+              <ErrorState message="地点记录加载失败" onRetry={() => void recordsQuery.refetch()} />
             ) : items.length === 0 ? (
               <div style={{ textAlign: 'center', padding: '60px 0' }}>
                 <i className="fas fa-inbox" style={{ fontSize: '32px', color: '#b8c8d8', marginBottom: '12px', display: 'block' }}></i>
@@ -103,9 +123,9 @@ export function LocationItemsPage() {
                       }}>
                         {item.kind === 'LOST' ? '寻物' : '招领'}
                       </span>
-                      <span className="list-item-title">{item.name_public}</span>
+                      <span className="list-item-title">{item.name_public ?? '未命名物品'}</span>
                     </div>
-                    {item.kind === 'LOST' ? (
+                    {item.kind === 'LOST' && item.status === 'PUBLISHED' ? (
                       <span style={{
                         display: 'inline-flex', alignItems: 'center', gap: '4px',
                         padding: '2px 10px', borderRadius: '999px', fontSize: '11px', fontWeight: 700,

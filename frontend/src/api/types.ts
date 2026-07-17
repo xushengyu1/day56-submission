@@ -85,7 +85,6 @@ export interface RegisterRequest {
   username: string
   password: string
   email: string
-  phone?: string
 }
 
 export interface CreatedRecord {
@@ -410,4 +409,11 @@ export interface PaginatedResponse<T> {
   total: number
   page: number
   page_size: number
+}
+
+export interface RecordSummary {
+  lost_count: number
+  found_count: number
+  matched_count: number
+  total_count: number
 }

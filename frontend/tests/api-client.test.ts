@@ -146,6 +146,7 @@ describe('api client', () => {
 
     await authApi.getMe()
     await recordsApi.recent()
+    await recordsApi.summary()
     await recordsApi.timeline('record-1')
     await lostRecordsApi.get('lost-1')
     await foundRecordsApi.get('found-1')
@@ -161,6 +162,7 @@ describe('api client', () => {
     expect(paths).toEqual([
       '/api/auth/me',
       '/api/records/recent',
+      '/api/records/mine/summary',
       '/api/records/record-1/timeline',
       '/api/lost-records/lost-1',
       '/api/found-records/found-1',

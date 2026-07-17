@@ -1,27 +1,38 @@
-import { describe, it, expect, vi } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { HomePage } from '@/features/home/HomePage'
+import { recordsApi } from '@/api/records'
+import type { ItemRecordPublic } from '@/api/types'
 
-vi.mock('@/features/auth/hooks', () => ({
-  useAuth: vi.fn(() => ({
-    user: { id: 'u1', username: 'zhangsan', email: 'test@test.com', role: 'USER', created_at: '' },
-    isLoading: false, isAuthenticated: true, isAdmin: false,
-  })),
-  useLogout: vi.fn(() => ({ logout: vi.fn() })),
-}))
-
-vi.mock('@/api/mock', () => ({
-  mockApi: {
-    getMyLostItems: vi.fn().mockResolvedValue([
-      { id: 'lr-001', record_type: 'LOST', publisher_id: 'u1', item_type: 'OTHER', public_item_name: '黑色折叠伞', public_time_range: '7月16日上午', public_location: '教学楼B区3楼', status: 'HAS_CANDIDATES', created_at: '', updated_at: '' },
-    ]),
-    getMyFoundItems: vi.fn().mockResolvedValue([
-      { id: 'fr-001', record_type: 'FOUND', publisher_id: 'u1', item_type: 'OTHER', public_item_name: '黑色折叠伞', public_time_range: '7月16日上午', public_location: '教学楼B区2楼', status: 'PENDING_MATCH', created_at: '', updated_at: '' },
-    ]),
+vi.mock('@/api/records', () => ({
+  recordsApi: {
+    recent: vi.fn(),
+    summary: vi.fn(),
   },
 }))
+
+const recentItem: ItemRecordPublic = {
+  id: 'lost-1',
+  owner_user_id: 'user-1',
+  kind: 'LOST',
+  item_type: 'OTHER',
+  public_category: 'ELECTRONICS',
+  location_area: 'LIBRARY',
+  status: 'PUBLISHED',
+  name_public: '黑色耳机',
+  description_public: '在图书馆二楼遗失',
+  event_time_public: '2026-07-17 09:00',
+  location_public: '图书馆',
+  public_image_asset_id: null,
+  number_masked: null,
+  claim_id: null,
+  version: 1,
+  published_at: '2026-07-17T09:00:00Z',
+  created_at: '2026-07-17T09:00:00Z',
+  updated_at: '2026-07-17T09:00:00Z',
+}
 
 function renderHomePage() {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
@@ -33,47 +44,50 @@ function renderHomePage() {
 }
 
 describe('HomePage', () => {
-  it('renders hero section', async () => {
-    renderHomePage()
-    expect(await screen.findByText(/让丢失的物品/)).toBeInTheDocument()
+  beforeEach(() => {
+    vi.mocked(recordsApi.recent).mockResolvedValue([recentItem])
+    vi.mocked(recordsApi.summary).mockResolvedValue({
+      lost_count: 2,
+      found_count: 3,
+      matched_count: 1,
+      total_count: 5,
+    })
   })
 
-  it('renders two main action buttons', async () => {
+  it('loads recent records and the owner summary from domain APIs', async () => {
     renderHomePage()
-    expect(await screen.findByText('发布招领')).toBeInTheDocument()
-    expect(screen.getByText('发布寻物')).toBeInTheDocument()
+
+    expect(await screen.findByText('黑色耳机')).toBeInTheDocument()
+    await waitFor(() => {
+      expect(recordsApi.recent).toHaveBeenCalledWith(5)
+      expect(recordsApi.summary).toHaveBeenCalledOnce()
+    })
+    expect(screen.getByText('2')).toBeInTheDocument()
+    expect(screen.getByText('3')).toBeInTheDocument()
+    expect(screen.getByText('1')).toBeInTheDocument()
+    expect(screen.getByText('5')).toBeInTheDocument()
   })
 
-  it('found entry links to /found/new', async () => {
+  it('links the two main actions to the real creation routes', () => {
     renderHomePage()
-    const foundLink = (await screen.findByText('发布招领')).closest('a')
-    expect(foundLink).toHaveAttribute('href', '/found/new')
+
+    expect(screen.getAllByText('我要寻物')[0].closest('a')).toHaveAttribute('href', '/lost/new')
+    expect(screen.getAllByText('我要招领')[0].closest('a')).toHaveAttribute('href', '/found/new')
   })
 
-  it('lost entry links to /lost/new', async () => {
+  it('does not present zeroes when the summary request fails', async () => {
+    vi.mocked(recordsApi.summary).mockRejectedValue(new Error('offline'))
     renderHomePage()
-    const lostLink = (await screen.findByText('发布寻物')).closest('a')
-    expect(lostLink).toHaveAttribute('href', '/lost/new')
+
+    expect(await screen.findByText('统计加载失败')).toBeInTheDocument()
+    expect(screen.queryByText('寻物记录')).not.toBeInTheDocument()
   })
 
-  it('renders function cards section', async () => {
+  it('shows a loading state until summary values are available', () => {
+    vi.mocked(recordsApi.summary).mockReturnValue(new Promise(() => {}))
     renderHomePage()
-    expect(await screen.findByText('核心功能')).toBeInTheDocument()
-    expect(screen.getAllByText('我要招领').length).toBeGreaterThanOrEqual(1)
-    expect(screen.getAllByText('我要寻物').length).toBeGreaterThanOrEqual(1)
-    expect(screen.getAllByText('智能匹配').length).toBeGreaterThanOrEqual(1)
-  })
 
-  it('renders latest items section', async () => {
-    renderHomePage()
-    expect(await screen.findByText('最新动态')).toBeInTheDocument()
-  })
-
-  it('renders core capabilities panel', async () => {
-    renderHomePage()
-    expect(await screen.findByText('核心能力')).toBeInTheDocument()
-    expect(screen.getByText('AI 智能识别')).toBeInTheDocument()
-    expect(screen.getByText('语义匹配')).toBeInTheDocument()
-    expect(screen.getByText('人工复核')).toBeInTheDocument()
+    expect(screen.getByText('统计加载中')).toBeInTheDocument()
+    expect(screen.queryByText('寻物记录')).not.toBeInTheDocument()
   })
 })

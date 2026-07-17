@@ -1,20 +1,21 @@
 import { useParams, Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { mockApi } from '@/api/mock'
+import { foundRecordsApi } from '@/api/foundRecords'
+import { publicCategoryLabel } from '@/api/catalog'
 import { StatusBadge } from '@/components/StatusBadge'
-
-const CATEGORY_MAP: Record<string, string> = {
-  'IDENTITY_DOCUMENT': '身份证件',
-  'OTHER': '其他物品',
-}
+import { ErrorState } from '@/components/ErrorState'
+import { useAssetObjectUrl } from '@/hooks/useAssetObjectUrl'
 
 export function FoundItemDetailPage() {
   const { id } = useParams<{ id: string }>()
 
-  const { data: item, isLoading } = useQuery({
-    queryKey: ['item', id],
-    queryFn: () => mockApi.getFoundItemDetail(id || ''),
+  const itemQuery = useQuery({
+    queryKey: ['records', 'found', id],
+    queryFn: () => foundRecordsApi.get(id || ''),
+    enabled: Boolean(id),
   })
+  const { data: item, isLoading } = itemQuery
+  const image = useAssetObjectUrl(item?.public_image_asset_id)
 
   if (isLoading) {
     return (
@@ -22,6 +23,10 @@ export function FoundItemDetailPage() {
         <i className="fas fa-spinner fa-spin text-xl" style={{ color: 'var(--primary)' }}></i>
       </div>
     )
+  }
+
+  if (itemQuery.isError) {
+    return <div className="page-shell"><ErrorState title="物品加载失败" onRetry={() => void itemQuery.refetch()} /></div>
   }
 
   if (!item) {
@@ -58,14 +63,14 @@ export function FoundItemDetailPage() {
                 border: '1.5px dashed rgba(107, 139, 164, 0.3)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: '12px',
               }}>
-                {item.public_image_path ? (
-                  <img src={item.public_image_path} alt={item.name_public}
+                {image.url ? (
+                  <img src={image.url} alt={item.name_public ?? '招领图片'}
                     style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                   />
                 ) : (
                   <>
-                    <i className="fas fa-image" style={{ fontSize: '40px', color: '#b8c8d8' }}></i>
-                    <span style={{ fontSize: '14px', color: '#b8c8d8' }}>暂无图片</span>
+                    <i className={`fas ${image.loading ? 'fa-spinner fa-spin' : 'fa-image'}`} style={{ fontSize: '40px', color: '#b8c8d8' }}></i>
+                    <span style={{ fontSize: '14px', color: '#b8c8d8' }}>{image.error ? '图片加载失败' : image.loading ? '图片加载中' : '暂无图片'}</span>
                   </>
                 )}
               </div>
@@ -83,16 +88,16 @@ export function FoundItemDetailPage() {
                   <StatusBadge status={item.status} />
                 </div>
                 <h1 style={{ fontSize: '28px', fontWeight: 800, color: 'var(--text)', letterSpacing: '-0.02em' }}>
-                  {item.name_public}
+                  {item.name_public ?? '未命名物品'}
                 </h1>
               </div>
 
               {/* 信息列表 */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
                 {[
-                  { icon: 'fa-tag', label: '物品类型', value: CATEGORY_MAP[item.item_type] || item.item_type },
-                  { icon: 'fa-location-dot', label: '捡到地点', value: item.location_public },
-                  { icon: 'fa-clock', label: '捡到时间', value: item.event_time_public },
+                  { icon: 'fa-tag', label: '物品类型', value: publicCategoryLabel(item.public_category) },
+                  { icon: 'fa-location-dot', label: '捡到地点', value: item.location_public ?? '-' },
+                  { icon: 'fa-clock', label: '捡到时间', value: item.event_time_public ?? '-' },
                 ].map((field) => (
                   <div key={field.label} style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                     <div style={{
@@ -125,7 +130,7 @@ export function FoundItemDetailPage() {
               )}
 
               {/* 证件号（仅身份证件） */}
-              {item.masked_document_number && (
+              {item.number_masked && (
                 <div style={{
                   padding: '18px', borderRadius: '16px',
                   background: 'rgba(196,163,90,0.04)', border: '1px solid rgba(196,163,90,0.12)',
@@ -134,7 +139,7 @@ export function FoundItemDetailPage() {
                     <i className="fas fa-shield-halved mr-1"></i> 掩码证件号
                   </p>
                   <p style={{ fontSize: '16px', fontWeight: 700, color: 'var(--text)', fontFamily: 'monospace', letterSpacing: '0.05em' }}>
-                    {item.masked_document_number}
+                    {item.number_masked}
                   </p>
                 </div>
               )}

@@ -1,23 +1,14 @@
 import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { mockApi } from '@/api/mock'
-import { useAuth } from '@/features/auth/hooks'
+import { recordsApi } from '@/api/records'
 import { StatusBadge } from '@/components/StatusBadge'
+import { ErrorState } from '@/components/ErrorState'
 
 export function HomePage() {
-  const { user } = useAuth()
-
-  const { data: recentItems = [] } = useQuery({ queryKey: ['recent-items'], queryFn: () => mockApi.getRecentItems(5) })
-  const { data: lostItems = [] } = useQuery({ queryKey: ['lost-items'], queryFn: () => mockApi.getMyLostItems() })
-  const { data: foundItems = [] } = useQuery({ queryKey: ['found-items'], queryFn: () => mockApi.getMyFoundItems() })
-
-  // 数据概览统计
-  const stats = {
-    lostCount: lostItems.length,
-    foundCount: foundItems.length,
-    matchedCount: [...lostItems, ...foundItems].filter((i) => i.status === 'PUBLISHED').length,
-    totalCount: lostItems.length + foundItems.length,
-  }
+  const recentQuery = useQuery({ queryKey: ['records', 'recent', 5], queryFn: () => recordsApi.recent(5) })
+  const summaryQuery = useQuery({ queryKey: ['records', 'summary'], queryFn: () => recordsApi.summary() })
+  const recentItems = recentQuery.data ?? []
+  const stats = summaryQuery.data
 
   return (
     <div className="page-shell">
@@ -43,11 +34,20 @@ export function HomePage() {
         <div className="hero-panel glass-card">
           <div className="hero-panel-title">数据概览</div>
           <div className="hero-features">
-            {[
-              { icon: 'fa-box-open', title: `${stats.lostCount}`, desc: '寻物记录', bg: 'rgba(107,139,164,0.1)', color: '#4a6b82' },
-              { icon: 'fa-hand-holding-heart', title: `${stats.foundCount}`, desc: '招领记录', bg: 'rgba(107,158,122,0.1)', color: '#4a7a5a' },
-              { icon: 'fa-link', title: `${stats.matchedCount}`, desc: '已匹配', bg: 'rgba(139,123,176,0.1)', color: '#6b5b90' },
-              { icon: 'fa-database', title: `${stats.totalCount}`, desc: '总记录数', bg: 'rgba(196,163,90,0.1)', color: '#8a7040' },
+            {summaryQuery.isLoading ? (
+              <div style={{ fontSize: '13px', color: 'var(--muted)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <i className="fas fa-spinner fa-spin"></i>统计加载中
+              </div>
+            ) : summaryQuery.isError ? (
+              <div className="callout callout-warning" style={{ fontSize: '13px', justifyContent: 'space-between' }}>
+                <span><i className="fas fa-triangle-exclamation mr-1.5"></i>统计加载失败</span>
+                <button type="button" onClick={() => void summaryQuery.refetch()} style={{ border: 'none', background: 'none', color: 'inherit', fontWeight: 700, cursor: 'pointer' }}>重试</button>
+              </div>
+            ) : stats ? [
+              { icon: 'fa-box-open', title: `${stats.lost_count}`, desc: '寻物记录', bg: 'rgba(107,139,164,0.1)', color: '#4a6b82' },
+              { icon: 'fa-hand-holding-heart', title: `${stats.found_count}`, desc: '招领记录', bg: 'rgba(107,158,122,0.1)', color: '#4a7a5a' },
+              { icon: 'fa-link', title: `${stats.matched_count}`, desc: '已匹配', bg: 'rgba(139,123,176,0.1)', color: '#6b5b90' },
+              { icon: 'fa-database', title: `${stats.total_count}`, desc: '总记录数', bg: 'rgba(196,163,90,0.1)', color: '#8a7040' },
             ].map((item) => (
               <div key={item.desc} className="hero-feature-item">
                 <div className="hero-feature-icon" style={{ background: item.bg }}>
@@ -58,7 +58,7 @@ export function HomePage() {
                   <div className="feature-desc">{item.desc}</div>
                 </div>
               </div>
-            ))}
+            )) : null}
           </div>
         </div>
       </section>
@@ -98,7 +98,13 @@ export function HomePage() {
               <h2>最新动态</h2>
             </div>
             <div className="item-list">
-              {recentItems.length === 0 ? (
+              {recentQuery.isLoading ? (
+                <div style={{ textAlign: 'center', padding: '40px 0', color: 'var(--muted)', fontSize: '13px' }}>
+                  <i className="fas fa-spinner fa-spin mr-1.5"></i>最新动态加载中
+                </div>
+              ) : recentQuery.isError ? (
+                <ErrorState message="最新动态加载失败" onRetry={() => void recentQuery.refetch()} />
+              ) : recentItems.length === 0 ? (
                 <div style={{ textAlign: 'center', padding: '40px 0' }}>
                   <i className="fas fa-inbox" style={{ fontSize: '28px', color: '#b8c8d8', marginBottom: '8px', display: 'block' }}></i>
                   <p style={{ fontSize: '13px', color: 'var(--muted)' }}>暂无记录，点击上方卡片开始发布</p>
@@ -107,8 +113,8 @@ export function HomePage() {
                 recentItems.map((item) => (
                   <Link key={item.id} to={item.kind === 'LOST' ? `/lost/${item.id}` : `/found/${item.id}`} className="list-item">
                     <div className="list-item-head">
-                      <span className="list-item-title">{item.name_public}</span>
-                      {item.kind === 'LOST' ? (
+                      <span className="list-item-title">{item.name_public ?? '未命名物品'}</span>
+                      {item.kind === 'LOST' && item.status === 'PUBLISHED' ? (
                         <span style={{
                           display: 'inline-flex', alignItems: 'center', gap: '4px',
                           padding: '2px 10px', borderRadius: '999px', fontSize: '11px', fontWeight: 700,
@@ -122,7 +128,7 @@ export function HomePage() {
                       )}
                     </div>
                     <div className="list-item-meta">
-                      {item.kind === 'LOST' ? '丢失于' : '拾得于'} {item.location_public} · {item.event_time_public}
+                      {item.kind === 'LOST' ? '丢失于' : '拾得于'} {item.location_public ?? '-'} · {item.event_time_public ?? '-'}
                     </div>
                   </Link>
                 ))

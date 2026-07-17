@@ -1,7 +1,7 @@
 import { apiClient, isMockMode } from './client'
 import { locationAreaLabel } from './catalog'
 import { mockApi, toItemRecordPublic } from './mock'
-import type { ItemRecordPublic, LocationArea, PaginatedResponse, RecordKind, TimelineEvent } from './types'
+import type { ItemRecordPublic, LocationArea, PaginatedResponse, RecordKind, RecordSummary, TimelineEvent } from './types'
 
 export const recordsApi = {
   async recent(limit = 5): Promise<ItemRecordPublic[]> {
@@ -28,6 +28,19 @@ export const recordsApi = {
     return (await apiClient.get<PaginatedResponse<ItemRecordPublic>>('/api/records/mine', {
       params: { kind, page, page_size: pageSize },
     })).data
+  },
+
+  async summary(): Promise<RecordSummary> {
+    if (isMockMode) {
+      const items = await mockApi.getMyRecords()
+      return {
+        lost_count: items.filter((record) => record.kind === 'LOST').length,
+        found_count: items.filter((record) => record.kind === 'FOUND').length,
+        matched_count: items.filter((record) => ['PENDING_HANDOFF', 'CLAIMED', 'CLOSED'].includes(record.status)).length,
+        total_count: items.length,
+      }
+    }
+    return (await apiClient.get<RecordSummary>('/api/records/mine/summary')).data
   },
 
   async timeline(recordId: string): Promise<TimelineEvent[]> {

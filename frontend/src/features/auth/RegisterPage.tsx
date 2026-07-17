@@ -3,16 +3,16 @@ import { Link } from 'react-router-dom'
 import { useRegister } from './hooks'
 
 export function RegisterPage() {
-  const [form, setForm] = useState({ username: '', email: '', password: '', confirmPassword: '', phone: '' })
+  const [form, setForm] = useState({ username: '', email: '', password: '', confirmPassword: '' })
   const registerMutation = useRegister()
 
   const handleChange = (field: string, value: string) => setForm((prev) => ({ ...prev, [field]: value }))
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    if (!form.username.trim() || !form.email.trim() || !form.password.trim()) return
+    if (!form.username.trim() || !form.email.trim() || form.password.length < 8) return
     if (form.password !== form.confirmPassword) return
-    registerMutation.mutate({ username: form.username, email: form.email, password: form.password, phone: form.phone || undefined })
+    registerMutation.mutate({ username: form.username, email: form.email, password: form.password })
   }
 
   const passwordsMatch = form.password === form.confirmPassword || form.confirmPassword === ''
@@ -64,8 +64,7 @@ export function RegisterPage() {
             <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
               <div><label className="form-label">用户名 <span style={{ color: 'var(--danger)' }}>*</span></label><input type="text" placeholder="请输入用户名" value={form.username} onChange={(e) => handleChange('username', e.target.value)} className="form-input" required /></div>
               <div><label className="form-label">邮箱 <span style={{ color: 'var(--danger)' }}>*</span></label><input type="email" placeholder="请输入邮箱" value={form.email} onChange={(e) => handleChange('email', e.target.value)} className="form-input" required /></div>
-              <div><label className="form-label">手机号</label><input type="tel" placeholder="请输入手机号（可选）" value={form.phone} onChange={(e) => handleChange('phone', e.target.value)} className="form-input" /></div>
-              <div><label className="form-label">密码 <span style={{ color: 'var(--danger)' }}>*</span></label><input type="password" placeholder="请设置密码（至少6位）" value={form.password} onChange={(e) => handleChange('password', e.target.value)} className="form-input" required minLength={6} /></div>
+              <div><label className="form-label">密码 <span style={{ color: 'var(--danger)' }}>*</span></label><input type="password" placeholder="请设置密码（至少8位）" value={form.password} onChange={(e) => handleChange('password', e.target.value)} className="form-input" required minLength={8} /></div>
               <div>
                 <label className="form-label">确认密码 <span style={{ color: 'var(--danger)' }}>*</span></label>
                 <input type="password" placeholder="请再次输入密码" value={form.confirmPassword} onChange={(e) => handleChange('confirmPassword', e.target.value)} className="form-input" style={!passwordsMatch ? { borderColor: 'var(--danger)' } : undefined} required />
@@ -78,7 +77,7 @@ export function RegisterPage() {
                 </div>
               )}
 
-              <button type="submit" disabled={registerMutation.isPending || !form.username.trim() || !form.email.trim() || !passwordsMatch} className="btn-main primary w-full" style={{ marginTop: '4px' }}>
+              <button type="submit" disabled={registerMutation.isPending || !form.username.trim() || !form.email.trim() || form.password.length < 8 || !passwordsMatch} className="btn-main primary w-full" style={{ marginTop: '4px' }}>
                 {registerMutation.isPending ? <><i className="fas fa-spinner fa-spin text-xs"></i> 注册中...</> : '注册'}
               </button>
             </form>

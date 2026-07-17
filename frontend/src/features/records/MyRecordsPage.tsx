@@ -1,16 +1,13 @@
 import { Link } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { mockApi } from '@/api/mock'
+import { recordsApi } from '@/api/records'
+import { claimsApi } from '@/api/claims'
 import { StatusBadge } from '@/components/StatusBadge'
-import { useState } from 'react'
-import type { ItemRecord } from '@/api/types'
+import { ErrorState } from '@/components/ErrorState'
+import { useRef, useState } from 'react'
+import type { ItemRecordPublic } from '@/api/types'
 
-const CATEGORY_MAP: Record<string, string> = {
-  'IDENTITY_DOCUMENT': '身份证件',
-  'OTHER': '其他物品',
-}
-
-function LostRecordCard({ item }: { item: ItemRecord }) {
+function LostRecordCard({ item }: { item: ItemRecordPublic }) {
   return (
     <Link to={`/lost/${item.id}`} className="list-item">
       <div className="list-item-head">
@@ -19,7 +16,7 @@ function LostRecordCard({ item }: { item: ItemRecord }) {
             padding: '3px 10px', borderRadius: '999px', fontSize: '11px', fontWeight: 700,
             background: 'rgba(107,139,164,0.1)', color: '#4a6b82',
           }}>寻物</span>
-          <span className="list-item-title">{item.name_public}</span>
+          <span className="list-item-title">{item.name_public ?? '未命名物品'}</span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           {item.status === 'PUBLISHED' && (
@@ -85,14 +82,21 @@ function LostRecordCard({ item }: { item: ItemRecord }) {
   )
 }
 
-function FoundRecordCard({ item }: { item: ItemRecord }) {
+function FoundRecordCard({ item }: { item: ItemRecordPublic }) {
   const queryClient = useQueryClient()
   const [confirming, setConfirming] = useState(false)
+  const idempotencyKey = useRef<string | null>(null)
 
   const pickupMutation = useMutation({
-    mutationFn: () => mockApi.confirmPickup(item.id),
+    mutationFn: () => {
+      if (!item.claim_id) throw new Error('交接申请尚未就绪')
+      idempotencyKey.current ??= crypto.randomUUID()
+      return claimsApi.completeHandoff(item.claim_id, idempotencyKey.current)
+    },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['my-records'] })
+      void queryClient.invalidateQueries({ queryKey: ['records', 'mine'] })
+      void queryClient.invalidateQueries({ queryKey: ['records', 'found', item.id] })
+      idempotencyKey.current = null
       setConfirming(false)
     },
   })
@@ -106,7 +110,7 @@ function FoundRecordCard({ item }: { item: ItemRecord }) {
               padding: '3px 10px', borderRadius: '999px', fontSize: '11px', fontWeight: 700,
               background: 'rgba(107,158,122,0.1)', color: '#4a7a5a',
             }}>招领</span>
-            <span className="list-item-title">{item.name_public}</span>
+            <span className="list-item-title">{item.name_public ?? '未命名物品'}</span>
           </div>
           <StatusBadge status={item.status} />
         </div>
@@ -132,7 +136,9 @@ function FoundRecordCard({ item }: { item: ItemRecord }) {
               <p style={{ fontSize: '11px', color: 'var(--muted)', marginTop: '2px' }}>确认物品已被取走后点击右侧按钮</p>
             </div>
           </div>
-          {confirming ? (
+          {!item.claim_id ? (
+            <span style={{ fontSize: '12px', color: 'var(--muted)' }}>交接信息处理中</span>
+          ) : confirming ? (
             <div style={{ display: 'flex', gap: '8px' }}>
               <button
                 onClick={() => pickupMutation.mutate()}
@@ -146,9 +152,13 @@ function FoundRecordCard({ item }: { item: ItemRecord }) {
                 {pickupMutation.isPending ? '确认中...' : '确认已取走'}
               </button>
               <button
-                onClick={() => setConfirming(false)}
+                disabled={pickupMutation.isPending}
+                onClick={() => {
+                  if (pickupMutation.isPending) return
+                  setConfirming(false)
+                }}
                 style={{
-                  padding: '8px 12px', borderRadius: '10px', border: 'none', cursor: 'pointer',
+                  padding: '8px 12px', borderRadius: '10px', border: 'none', cursor: pickupMutation.isPending ? 'not-allowed' : 'pointer',
                   background: 'rgba(148,163,184,0.1)', color: 'var(--muted)', fontSize: '12px',
                 }}
               >
@@ -169,6 +179,10 @@ function FoundRecordCard({ item }: { item: ItemRecord }) {
             </button>
           )}
         </div>
+      )}
+
+      {pickupMutation.isError && (
+        <p style={{ marginTop: '8px', fontSize: '12px', color: 'var(--danger)' }}>确认交接失败，请重试</p>
       )}
 
       {/* 已认领 */}
@@ -192,16 +206,18 @@ export function MyRecordsPage() {
   const [filter, setFilter] = useState<'all' | 'LOST' | 'FOUND'>('all')
   const [page, setPage] = useState(1)
 
-  const { data: records = [], isLoading } = useQuery({
-    queryKey: ['my-records'],
-    queryFn: () => mockApi.getMyRecords(),
+  const kind = filter === 'all' ? undefined : filter
+  const recordsQuery = useQuery({
+    queryKey: ['records', 'mine', kind ?? 'all', page, PAGE_SIZE],
+    queryFn: () => recordsApi.mine(kind, page, PAGE_SIZE),
   })
+  const summaryQuery = useQuery({ queryKey: ['records', 'summary'], queryFn: () => recordsApi.summary() })
+  const records = recordsQuery.data?.items ?? []
+  const isLoading = recordsQuery.isLoading
 
-  const filtered = filter === 'all' ? records : records.filter((r) => r.kind === filter)
-  const totalPages = Math.ceil(filtered.length / PAGE_SIZE)
-  const paged = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
-  const lostCount = records.filter((r) => r.kind === 'LOST').length
-  const foundCount = records.filter((r) => r.kind === 'FOUND').length
+  const total = recordsQuery.data?.total ?? 0
+  const totalPages = Math.ceil(total / PAGE_SIZE)
+  const summary = summaryQuery.data
 
   // 切换筛选时重置到第1页
   const handleFilterChange = (key: 'all' | 'LOST' | 'FOUND') => {
@@ -225,9 +241,9 @@ export function MyRecordsPage() {
       {/* 筛选标签 */}
       <div style={{ maxWidth: '1200px', margin: '20px auto', display: 'flex', gap: '8px' }}>
         {[
-          { key: 'all' as const, label: `全部 (${records.length})` },
-          { key: 'LOST' as const, label: `寻物 (${lostCount})` },
-          { key: 'FOUND' as const, label: `招领 (${foundCount})` },
+          { key: 'all' as const, label: `全部 (${summary?.total_count ?? '-'})` },
+          { key: 'LOST' as const, label: `寻物 (${summary?.lost_count ?? '-'})` },
+          { key: 'FOUND' as const, label: `招领 (${summary?.found_count ?? '-'})` },
         ].map((tab) => (
           <button
             key={tab.key}
@@ -242,6 +258,12 @@ export function MyRecordsPage() {
             {tab.label}
           </button>
         ))}
+        {summaryQuery.isLoading && <span style={{ alignSelf: 'center', fontSize: '12px', color: 'var(--muted)' }}>统计加载中</span>}
+        {summaryQuery.isError && (
+          <button type="button" onClick={() => void summaryQuery.refetch()} style={{ border: 'none', background: 'none', fontSize: '12px', color: 'var(--danger)', cursor: 'pointer' }}>
+            统计加载失败，重试
+          </button>
+        )}
       </div>
 
       {/* 记录列表 */}
@@ -252,13 +274,15 @@ export function MyRecordsPage() {
               <div style={{ textAlign: 'center', padding: '60px 0' }}>
                 <i className="fas fa-spinner fa-spin text-xl" style={{ color: 'var(--primary)' }}></i>
               </div>
-            ) : filtered.length === 0 ? (
+            ) : recordsQuery.isError ? (
+              <ErrorState message="我的记录加载失败" onRetry={() => void recordsQuery.refetch()} />
+            ) : records.length === 0 ? (
               <div style={{ textAlign: 'center', padding: '60px 0' }}>
                 <i className="fas fa-inbox" style={{ fontSize: '32px', color: '#b8c8d8', marginBottom: '12px', display: 'block' }}></i>
                 <p style={{ fontSize: '14px', color: 'var(--muted)' }}>暂无记录</p>
               </div>
             ) : (
-              paged.map((item) =>
+              records.map((item) =>
                 item.kind === 'LOST' ? (
                   <LostRecordCard key={item.id} item={item} />
                 ) : (

@@ -11,10 +11,10 @@ class Settings(BaseSettings):
     jwt_refresh_ttl_days: int = 30
     id_hmac_key_v1: str = "synthetic-development-key"
     ai_mode: Literal["mock", "real"] = "mock"
-    mimo_base_url: str = "http://127.0.0.1:18080"
+    mimo_base_url: str = "https://api.xiaomimimo.com/v1"
     mimo_api_key: str = ""
-    mimo_multimodal_model: str = "MiMo-V2.5"
-    mimo_text_model: str = "mimoV2.5-pro"
+    mimo_multimodal_model: str = "mimo-v2.5"
+    mimo_text_model: str = "mimo-v2.5"
     embedding_mode: Literal["mock", "dashscope"] = "mock"
     dashscope_api_key: str = ""
     embedding_model: str = "qwen3.7-text-embedding"

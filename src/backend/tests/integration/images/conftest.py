@@ -31,8 +31,10 @@ async def image_database() -> AsyncIterator[tuple[AsyncEngine, UUID, UUID]]:
             await connection.execute(text("TRUNCATE TABLE users RESTART IDENTITY CASCADE"))
             await connection.execute(
                 text(
-                    "INSERT INTO users (id, email, password_hash, role) VALUES "
-                    "(:user, 'image-user@example.test', 'hash', 'USER')"
+                    "INSERT INTO users "
+                    "(id, username, email, password_hash, role) VALUES "
+                    "(:user, 'image-user', 'image-user@example.test', "
+                    "'hash', 'USER')"
                 ),
                 {"user": USER_ID},
             )

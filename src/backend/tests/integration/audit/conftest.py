@@ -23,9 +23,12 @@ async def audit_database() -> AsyncIterator[tuple[AsyncEngine, UUID, UUID]]:
             await connection.execute(text("TRUNCATE TABLE users RESTART IDENTITY CASCADE"))
             await connection.execute(
                 text(
-                    "INSERT INTO users (id, email, password_hash, role) VALUES "
-                    "(:actor, 'audit-actor@example.test', 'hash', 'USER'), "
-                    "(:other, 'audit-other@example.test', 'hash', 'USER')"
+                    "INSERT INTO users "
+                    "(id, username, email, password_hash, role) VALUES "
+                    "(:actor, 'audit-actor', 'audit-actor@example.test', "
+                    "'hash', 'USER'), "
+                    "(:other, 'audit-other', 'audit-other@example.test', "
+                    "'hash', 'USER')"
                 ),
                 {"actor": ACTOR_ID, "other": OTHER_ACTOR_ID},
             )

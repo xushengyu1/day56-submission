@@ -42,11 +42,13 @@ async def seeded_records(database_engine: AsyncEngine) -> dict[str, UUID]:
         )
         await connection.execute(
             text(
-                "INSERT INTO users (id, email, password_hash, role) "
-                "VALUES (:id, :email, :password_hash, 'USER')"
+                "INSERT INTO users "
+                "(id, username, email, password_hash, role) "
+                "VALUES (:id, :username, :email, :password_hash, 'USER')"
             ),
             {
                 "id": ids["user"],
+                "username": "database-test",
                 "email": "database-test@example.test",
                 "password_hash": "synthetic-password-hash",
             },

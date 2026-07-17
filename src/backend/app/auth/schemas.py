@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import datetime
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
@@ -15,9 +16,15 @@ def _normalize_email(value: str) -> str:
 
 
 class RegisterRequest(BaseModel):
+    username: str = Field(min_length=2, max_length=64)
     email: str
     password: str = Field(min_length=8, max_length=128)
     phone: str | None = Field(default=None, max_length=32)
+
+    @field_validator("username", mode="before")
+    @classmethod
+    def normalize_username(cls, value: object) -> object:
+        return value.strip() if isinstance(value, str) else value
 
     @field_validator("email")
     @classmethod
@@ -43,12 +50,18 @@ class UserPublic(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: UUID
+    username: str
     email: str
     role: UserRole
+    created_at: datetime
 
 
-class TokenResponse(BaseModel):
+class AuthTokens(BaseModel):
     access_token: str
     refresh_token: str
     token_type: str = "bearer"
+
+
+class TokenResponse(BaseModel):
     user: UserPublic
+    tokens: AuthTokens

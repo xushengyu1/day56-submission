@@ -11,7 +11,11 @@ from app.main import app
 def _register(client: TestClient) -> dict[str, str]:
     response = client.post(
         "/api/auth/register",
-        json={"email": "contract-user@example.test", "password": "password-123"},
+        json={
+            "username": "contract-user",
+            "email": "contract-user@example.test",
+            "password": "password-123",
+        },
     )
     assert response.status_code == 201
     body = response.json()

@@ -7,7 +7,13 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.models import RefreshToken, User
-from app.auth.schemas import LoginRequest, RegisterRequest, TokenResponse, UserPublic
+from app.auth.schemas import (
+    AuthTokens,
+    LoginRequest,
+    RegisterRequest,
+    TokenResponse,
+    UserPublic,
+)
 from app.auth.security import (
     AuthenticationError,
     create_access_token,
@@ -46,9 +52,11 @@ async def _issue_tokens(session: AsyncSession, user: User) -> TokenResponse:
     )
     await session.commit()
     return TokenResponse(
-        access_token=access_token,
-        refresh_token=refresh_token,
         user=UserPublic.model_validate(user),
+        tokens=AuthTokens(
+            access_token=access_token,
+            refresh_token=refresh_token,
+        ),
     )
 
 
@@ -58,6 +66,7 @@ async def register_user(session: AsyncSession, request: RegisterRequest) -> Toke
         raise AuthServiceError("EMAIL_EXISTS")
 
     user = User(
+        username=request.username,
         email=request.email,
         password_hash=hash_password(request.password),
         role=UserRole.USER,

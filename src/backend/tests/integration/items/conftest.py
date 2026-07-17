@@ -30,8 +30,10 @@ async def item_database() -> AsyncIterator[tuple[AsyncEngine, UUID]]:
             await connection.execute(text("TRUNCATE TABLE users RESTART IDENTITY CASCADE"))
             await connection.execute(
                 text(
-                    "INSERT INTO users (id, email, password_hash, role) VALUES "
-                    "(:owner, 'found-owner@example.test', 'hash', 'USER')"
+                    "INSERT INTO users "
+                    "(id, username, email, password_hash, role) VALUES "
+                    "(:owner, 'found-owner', 'found-owner@example.test', "
+                    "'hash', 'USER')"
                 ),
                 {"owner": OWNER_ID},
             )

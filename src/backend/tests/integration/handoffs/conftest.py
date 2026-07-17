@@ -30,11 +30,14 @@ async def handoff_database() -> AsyncIterator[tuple[AsyncEngine, dict[str, UUID]
             await connection.execute(text("TRUNCATE TABLE users RESTART IDENTITY CASCADE"))
             await connection.execute(
                 text(
-                    "INSERT INTO users (id, email, password_hash, role) VALUES "
-                    "(:owner, 'owner-contact@example.test', 'hash', 'USER'), "
-                    "(:finder, 'finder-contact@example.test', 'hash', 'USER'), "
-                    "(:other, 'other@example.test', 'hash', 'USER'), "
-                    "(:admin, 'admin@example.test', 'hash', 'ADMIN')"
+                    "INSERT INTO users "
+                    "(id, username, email, password_hash, role) VALUES "
+                    "(:owner, 'owner-contact', 'owner-contact@example.test', "
+                    "'hash', 'USER'), "
+                    "(:finder, 'finder-contact', 'finder-contact@example.test', "
+                    "'hash', 'USER'), "
+                    "(:other, 'other', 'other@example.test', 'hash', 'USER'), "
+                    "(:admin, 'admin', 'admin@example.test', 'hash', 'ADMIN')"
                 ),
                 {"owner": OWNER_ID, "finder": FINDER_ID, "other": OTHER_ID, "admin": ADMIN_ID},
             )

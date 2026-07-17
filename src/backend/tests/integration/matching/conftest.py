@@ -36,9 +36,11 @@ async def matching_database() -> AsyncIterator[tuple[AsyncEngine, UUID, UUID]]:
             await connection.execute(text("TRUNCATE TABLE users RESTART IDENTITY CASCADE"))
             await connection.execute(
                 text(
-                    "INSERT INTO users (id, email, password_hash, role) VALUES "
-                    "(:owner, 'lost-owner@example.test', 'hash', 'USER'), "
-                    "(:finder, 'finder@example.test', 'hash', 'USER')"
+                    "INSERT INTO users "
+                    "(id, username, email, password_hash, role) VALUES "
+                    "(:owner, 'lost-owner', 'lost-owner@example.test', "
+                    "'hash', 'USER'), "
+                    "(:finder, 'finder', 'finder@example.test', 'hash', 'USER')"
                 ),
                 {"owner": OWNER_ID, "finder": FINDER_ID},
             )

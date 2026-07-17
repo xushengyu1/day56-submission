@@ -9,20 +9,32 @@ def test_register_login_and_refresh_rotate_tokens() -> None:
     with TestClient(app) as client:
         registered = client.post(
             "/api/auth/register",
-            json={"email": "User@Example.com", "password": "password-123"},
+            json={
+                "username": "zhangsan",
+                "email": "User@Example.com",
+                "password": "password-123",
+            },
         )
         assert registered.status_code == 201
         body = registered.json()
+        assert set(body) == {"user", "tokens"}
         assert body["user"] == {
+            "username": "zhangsan",
             "email": "user@example.com",
             "role": "USER",
             "id": body["user"]["id"],
+            "created_at": body["user"]["created_at"],
         }
+        assert set(body["tokens"]) == {"access_token", "refresh_token", "token_type"}
         assert "password_hash" not in body
 
         duplicate = client.post(
             "/api/auth/register",
-            json={"email": "user@example.com", "password": "password-123"},
+            json={
+                "username": "another-name",
+                "email": "user@example.com",
+                "password": "password-123",
+            },
         )
         assert duplicate.status_code == 409
         assert duplicate.json() == {
@@ -35,14 +47,17 @@ def test_register_login_and_refresh_rotate_tokens() -> None:
             json={"email": "USER@example.com", "password": "password-123"},
         )
         assert logged_in.status_code == 200
-        old_refresh = logged_in.json()["refresh_token"]
+        assert set(logged_in.json()) == {"user", "tokens"}
+        assert logged_in.json()["user"] == body["user"]
+        old_refresh = logged_in.json()["tokens"]["refresh_token"]
 
         refreshed = client.post(
             "/api/auth/refresh",
             json={"refresh_token": old_refresh},
         )
         assert refreshed.status_code == 200
-        assert refreshed.json()["refresh_token"] != old_refresh
+        assert set(refreshed.json()) == {"user", "tokens"}
+        assert refreshed.json()["tokens"]["refresh_token"] != old_refresh
 
         reused = client.post(
             "/api/auth/refresh",
@@ -53,6 +68,17 @@ def test_register_login_and_refresh_rotate_tokens() -> None:
             "error_code": "TOKEN_REVOKED",
             "message": "登录状态已失效，请重新登录",
         }
+
+        me = client.get(
+            "/api/auth/me",
+            headers={"Authorization": f"Bearer {body['tokens']['access_token']}"},
+        )
+        assert me.status_code == 200
+        assert me.json() == body["user"]
+
+        unauthenticated_me = client.get("/api/auth/me")
+        assert unauthenticated_me.status_code == 401
+        assert unauthenticated_me.json()["error_code"] == "UNAUTHENTICATED"
 
 
 @pytest.mark.usefixtures("auth_database_engine")

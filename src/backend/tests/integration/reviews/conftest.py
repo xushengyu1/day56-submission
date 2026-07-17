@@ -28,10 +28,14 @@ async def review_database() -> AsyncIterator[tuple[AsyncEngine, dict[str, UUID]]
             await connection.execute(text("TRUNCATE TABLE users RESTART IDENTITY CASCADE"))
             await connection.execute(
                 text(
-                    "INSERT INTO users (id, email, password_hash, role) VALUES "
-                    "(:owner, 'review-owner@example.test', 'hash', 'USER'), "
-                    "(:finder, 'review-finder@example.test', 'hash', 'USER'), "
-                    "(:admin, 'review-admin@example.test', 'hash', 'ADMIN')"
+                    "INSERT INTO users "
+                    "(id, username, email, password_hash, role) VALUES "
+                    "(:owner, 'review-owner', 'review-owner@example.test', "
+                    "'hash', 'USER'), "
+                    "(:finder, 'review-finder', 'review-finder@example.test', "
+                    "'hash', 'USER'), "
+                    "(:admin, 'review-admin', 'review-admin@example.test', "
+                    "'hash', 'ADMIN')"
                 ),
                 {"owner": OWNER_ID, "finder": FINDER_ID, "admin": ADMIN_ID},
             )

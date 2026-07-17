@@ -136,6 +136,18 @@ async def test_migrations_create_core_schema(database_engine: AsyncEngine) -> No
                 )
             ).all()
         )
+        user_columns = dict(
+            (
+                await connection.execute(
+                    text(
+                        "SELECT column_name, is_nullable "
+                        "FROM information_schema.columns "
+                        "WHERE table_schema = current_schema() "
+                        "AND table_name = 'users'"
+                    )
+                )
+            ).all()
+        )
         extension = await connection.scalar(
             text("SELECT extname FROM pg_extension WHERE extname = 'vector'")
         )
@@ -159,6 +171,7 @@ async def test_migrations_create_core_schema(database_engine: AsyncEngine) -> No
     assert embedding_type == "vector"
     assert item_columns["public_category"] == "NO"
     assert item_columns["location_area"] == "NO"
+    assert user_columns["username"] == "NO"
     assert {
         "ix_item_records_match_taxonomy",
         "ix_candidate_matches_top5",
@@ -272,6 +285,40 @@ async def test_matching_taxonomy_migration_rejects_unknown_location() -> None:
         finally:
             await cleanup_engine.dispose()
         await asyncio.to_thread(command.upgrade, config, "head")
+
+
+@pytest.mark.asyncio
+async def test_auth_contract_migration_backfills_username_from_email() -> None:
+    config = _alembic_config()
+    await asyncio.to_thread(command.downgrade, config, "20260717_0007")
+
+    user_id = uuid4()
+    old_engine = create_async_engine(settings.database_url)
+    try:
+        async with old_engine.begin() as connection:
+            await connection.execute(text("TRUNCATE users RESTART IDENTITY CASCADE"))
+            await connection.execute(
+                text(
+                    "INSERT INTO users (id, email, password_hash, role) "
+                    "VALUES (:id, 'legacy.user@example.test', 'hash', 'USER')"
+                ),
+                {"id": user_id},
+            )
+    finally:
+        await old_engine.dispose()
+
+    await asyncio.to_thread(command.upgrade, config, "head")
+
+    upgraded_engine = create_async_engine(settings.database_url)
+    try:
+        async with upgraded_engine.connect() as connection:
+            username = await connection.scalar(
+                text("SELECT username FROM users WHERE id = :id"), {"id": user_id}
+            )
+    finally:
+        await upgraded_engine.dispose()
+
+    assert username == "legacy.user"
 
 
 def test_migrations_do_not_contain_identity_number_literals() -> None:

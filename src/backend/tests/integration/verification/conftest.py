@@ -34,9 +34,12 @@ async def identity_claim_database() -> AsyncIterator[tuple[AsyncEngine, dict[str
             await connection.execute(text("TRUNCATE TABLE users RESTART IDENTITY CASCADE"))
             await connection.execute(
                 text(
-                    "INSERT INTO users (id, email, password_hash, role) VALUES "
-                    "(:owner, 'identity-owner@example.test', 'hash', 'USER'), "
-                    "(:finder, 'identity-finder@example.test', 'hash', 'USER')"
+                    "INSERT INTO users "
+                    "(id, username, email, password_hash, role) VALUES "
+                    "(:owner, 'identity-owner', 'identity-owner@example.test', "
+                    "'hash', 'USER'), "
+                    "(:finder, 'identity-finder', 'identity-finder@example.test', "
+                    "'hash', 'USER')"
                 ),
                 {"owner": OWNER_ID, "finder": FINDER_ID},
             )
@@ -99,9 +102,12 @@ async def other_claim_database() -> AsyncIterator[tuple[AsyncEngine, dict[str, o
             await connection.execute(text("TRUNCATE TABLE users RESTART IDENTITY CASCADE"))
             await connection.execute(
                 text(
-                    "INSERT INTO users (id, email, password_hash, role) VALUES "
-                    "(:owner, 'other-owner@example.test', 'hash', 'USER'), "
-                    "(:finder, 'other-finder@example.test', 'hash', 'USER')"
+                    "INSERT INTO users "
+                    "(id, username, email, password_hash, role) VALUES "
+                    "(:owner, 'other-owner', 'other-owner@example.test', "
+                    "'hash', 'USER'), "
+                    "(:finder, 'other-finder', 'other-finder@example.test', "
+                    "'hash', 'USER')"
                 ),
                 {"owner": OWNER_ID, "finder": FINDER_ID},
             )

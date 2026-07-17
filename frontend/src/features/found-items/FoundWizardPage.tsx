@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { locationAreaOptions, publicCategoryOptions } from '@/api/catalog'
+import { isApiError } from '@/api/errors'
 import { foundRecordsApi } from '@/api/foundRecords'
 import { uploadsApi } from '@/api/uploads'
 import type { LocationArea, PublicCategory, RedactionRegion } from '@/api/types'
@@ -138,12 +139,36 @@ export function FoundWizardPage() {
     return null
   }
 
+  const reconcileUncertainMutation = async (id: string, requestError: unknown) => {
+    if (isApiError(requestError) && requestError.status > 0) {
+      setError(errorMessage(requestError))
+      setState('confirming')
+      return
+    }
+    try {
+      const serverRecord = await foundRecordsApi.get(id)
+      setVersion(serverRecord.version)
+      if (serverRecord.status === 'PUBLISHED') {
+        setState('published')
+        navigate(`/found/${encodeURIComponent(id)}`)
+        return
+      }
+      setError(serverRecord.status === 'DRAFT'
+        ? `${errorMessage(requestError)}，已同步服务端状态，请重试`
+        : `记录状态已变更为 ${serverRecord.status}，无法继续发布`)
+    } catch {
+      setError(errorMessage(requestError))
+    }
+    setState('confirming')
+  }
+
   const publish = async () => {
     const validation = validateConfirmation()
     if (validation) { setError(validation); return }
     const id = recordId as string
     setState('publishing')
     setError(null)
+    let confirmedVersion: number
     try {
       const confirmed = await foundRecordsApi.confirm(id, {
         expected_version: version as number,
@@ -153,7 +178,13 @@ export function FoundWizardPage() {
         event_time: new Date(form.eventTime).toISOString(),
         location_area: form.location as LocationArea,
       })
-      setVersion(confirmed.version)
+      confirmedVersion = confirmed.version
+      setVersion(confirmedVersion)
+    } catch (requestError) {
+      await reconcileUncertainMutation(id, requestError)
+      return
+    }
+    try {
       if (form.category === 'IDENTITY_CARD') {
         if (!identityConfirmed) {
           await foundRecordsApi.confirmIdentity(id, fullNumber.trim(), digitsConfirmed)
@@ -168,13 +199,18 @@ export function FoundWizardPage() {
         await foundRecordsApi.confirmQuestions(id, hiddenDescription.trim())
         setQuestionsConfirmed(true)
       }
-      const result = await foundRecordsApi.publish(id, confirmed.version)
-      setVersion(result.version ?? confirmed.version)
-      setState('published')
-      navigate(`/found/${encodeURIComponent(id)}`)
     } catch (requestError) {
       setError(errorMessage(requestError))
       setState('confirming')
+      return
+    }
+    try {
+      const result = await foundRecordsApi.publish(id, confirmedVersion)
+      setVersion(result.version ?? confirmedVersion)
+      setState('published')
+      navigate(`/found/${encodeURIComponent(id)}`)
+    } catch (requestError) {
+      await reconcileUncertainMutation(id, requestError)
     }
   }
 

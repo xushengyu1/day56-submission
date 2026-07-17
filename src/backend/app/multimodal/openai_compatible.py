@@ -3,6 +3,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 import json
 import re
+import unicodedata
 
 from openai import (
     APIConnectionError,
@@ -38,6 +39,17 @@ def _json_object(content: str) -> dict[str, object]:
     return parsed
 
 
+def _normalized_text(value: str) -> str:
+    normalized = unicodedata.normalize("NFKC", value)
+    return re.sub(r"\s+", "", normalized).casefold()
+
+
+def _string(value: object) -> str:
+    if not isinstance(value, str):
+        raise TypeError
+    return value
+
+
 class OpenAICompatibleAdapter:
     provider = "xiaomi-mimo"
 
@@ -71,6 +83,7 @@ class OpenAICompatibleAdapter:
                 model=model,
                 messages=messages,
                 max_completion_tokens=1024,
+                extra_body={"thinking": {"type": "disabled"}},
             )
         except (APITimeoutError, APIConnectionError, RateLimitError):
             raise ModelAdapterError("MODEL_UNAVAILABLE") from None
@@ -92,7 +105,7 @@ class OpenAICompatibleAdapter:
 
     @staticmethod
     def _float(value: object) -> float:
-        if not isinstance(value, (str, int, float)):
+        if isinstance(value, bool) or not isinstance(value, (str, int, float)):
             raise TypeError
         return float(value)
 
@@ -129,8 +142,8 @@ class OpenAICompatibleAdapter:
         try:
             return ExtractionDraft(
                 item_type=ItemType(parsed["item_type"]),
-                name_public=str(parsed["name_public"]),
-                description_public=str(parsed["description_public"]),
+                name_public=_string(parsed["name_public"]),
+                description_public=_string(parsed["description_public"]),
                 confidence=self._float(parsed["confidence"]),
                 provider=self.provider,
                 model=self.multimodal_model,
@@ -148,9 +161,8 @@ class OpenAICompatibleAdapter:
                 "content": (
                     "You are Xiaomi MiMo. Return only one JSON object with a "
                     "questions array containing 2 or 3 open-ended ownership-"
-                    "verification questions. Each item must contain question_text, "
-                    "answer_key, dimension, and is_open_ended. Never include an "
-                    "answer in its question text."
+                    "verification questions. Each item must contain question_text "
+                    "and answer_key. Never include an answer in its question text."
                 ),
             },
             {
@@ -165,19 +177,28 @@ class OpenAICompatibleAdapter:
             raw_questions = parsed["questions"]
             if not isinstance(raw_questions, list):
                 raise TypeError
-            questions = tuple(
-                QuestionDraft(
-                    question_text=str(item["question_text"]),
-                    answer_key=str(item["answer_key"]),
-                    dimension=str(item["dimension"]),
-                    is_open_ended=bool(item.get("is_open_ended", True)),
+            questions_list: list[QuestionDraft] = []
+            for index, item in enumerate(raw_questions):
+                if not isinstance(item, Mapping):
+                    raise TypeError
+                question_text = _string(item["question_text"])
+                answer_key = _string(item["answer_key"])
+                normalized_answer = _normalized_text(answer_key)
+                if normalized_answer and normalized_answer in _normalized_text(
+                    question_text
+                ):
+                    question_text = (
+                        f"请描述只有物主知道的第{index + 1}项隐蔽特征。"
+                    )
+                questions_list.append(
+                    QuestionDraft(
+                        question_text=question_text,
+                        answer_key=answer_key,
+                        dimension=f"question_{index + 1}",
+                        is_open_ended=True,
+                    )
                 )
-                for item in raw_questions
-                if isinstance(item, Mapping)
-            )
-            if len(questions) != len(raw_questions):
-                raise TypeError
-            draft = QuestionSetDraft(questions=questions)
+            draft = QuestionSetDraft(questions=tuple(questions_list))
         except (KeyError, TypeError, ValueError):
             raise ModelAdapterError("MODEL_RESPONSE_INVALID") from None
         if not validate_question_set(draft).valid:
@@ -218,7 +239,7 @@ class OpenAICompatibleAdapter:
             result = VerificationResult(
                 result=QuestionResult(parsed["result"]),
                 confidence=self._float(parsed["confidence"]),
-                reason_code=str(parsed["reason_code"]),
+                reason_code=_string(parsed["reason_code"]),
                 provider=self.provider,
                 model=self.text_model,
                 version=self.version,

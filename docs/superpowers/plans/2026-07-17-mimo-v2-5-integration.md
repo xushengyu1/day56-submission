@@ -20,6 +20,10 @@
 - Only `jpg`, `jpeg`, `png`, and `webp` image suffixes are accepted.
 - User-owned untracked `images/` and `images.zip` remain untouched.
 
+## Live Verification Adjustment
+
+真实 API 联调确认 `mimo-v2.5` 默认思考模式会让推理内容计入 `max_completion_tokens`，可能导致结构化 JSON 被截断，因此所有调用固定发送 `thinking.type=disabled`。问题生成只让模型返回 `question_text` 和 `answer_key`；服务端确定性地分配内部维度、标记开放题，并替换任何包含参考答案的问题文本。该归一化不发起额外模型请求，题目数量和必填文本仍执行严格校验。
+
 ---
 
 ### Task 1: Make the multimodal contract and business callers asynchronous

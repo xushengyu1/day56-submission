@@ -78,6 +78,7 @@ async def test_extract_sends_openai_multimodal_messages_and_redacts_raw_data() -
 
     assert requests[0]["model"] == "mimo-v2.5"
     assert requests[0]["max_completion_tokens"] == 1024
+    assert requests[0]["thinking"] == {"type": "disabled"}
     messages = requests[0]["messages"]
     assert isinstance(messages, list)
     user_content = messages[1]["content"]
@@ -137,6 +138,169 @@ async def test_text_operations_send_reference_answers_and_parse_fenced_json() ->
     assert "一道裂纹" in verification_text
     assert "字母A" in verification_text
     assert result.result is QuestionResult.MATCH
+
+
+@pytest.mark.asyncio
+async def test_question_generation_assigns_internal_dimensions() -> None:
+    def handler(_request: httpx.Request) -> httpx.Response:
+        return _completion(
+            json.dumps(
+                {
+                    "questions": [
+                        {
+                            "question_text": "请描述伞柄底部细节。",
+                            "answer_key": "一道裂纹",
+                            "dimension": "handle",
+                            "is_open_ended": True,
+                        },
+                        {
+                            "question_text": "请描述伞套内侧标记。",
+                            "answer_key": "字母A",
+                            "is_open_ended": True,
+                        },
+                    ]
+                }
+            )
+        )
+
+    adapter = _adapter(handler)
+    try:
+        questions = await adapter.generate_questions("合成隐藏描述")
+    finally:
+        await adapter.client.close()
+
+    assert [question.dimension for question in questions.questions] == [
+        "question_1",
+        "question_2",
+    ]
+
+
+@pytest.mark.asyncio
+async def test_question_generation_normalizes_unsafe_model_fields() -> None:
+    def handler(_request: httpx.Request) -> httpx.Response:
+        return _completion(
+            json.dumps(
+                {
+                    "questions": [
+                        {
+                            "question_text": "请描述伞柄底部特征。",
+                            "answer_key": "一道裂纹",
+                            "dimension": "duplicate",
+                            "is_open_ended": False,
+                        },
+                        {
+                            "question_text": "伞套内侧是否写有字母A？",
+                            "answer_key": "字母A",
+                            "dimension": "duplicate",
+                            "is_open_ended": False,
+                        },
+                    ]
+                }
+            )
+        )
+
+    adapter = _adapter(handler)
+    try:
+        questions = await adapter.generate_questions("合成隐藏描述")
+    finally:
+        await adapter.client.close()
+
+    assert [question.dimension for question in questions.questions] == [
+        "question_1",
+        "question_2",
+    ]
+    assert all(question.is_open_ended for question in questions.questions)
+    assert questions.questions[1].question_text == "请描述只有物主知道的第2项隐蔽特征。"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "payload",
+    [
+        {
+            "item_type": "OTHER",
+            "name_public": None,
+            "description_public": "外观完整",
+            "confidence": 0.9,
+        },
+        {
+            "item_type": "OTHER",
+            "name_public": "黑色折叠伞",
+            "description_public": [],
+            "confidence": 0.9,
+        },
+        {
+            "item_type": "OTHER",
+            "name_public": "黑色折叠伞",
+            "description_public": "外观完整",
+            "confidence": True,
+        },
+    ],
+)
+async def test_extraction_rejects_coercible_provider_fields(
+    payload: dict[str, object],
+) -> None:
+    def handler(_request: httpx.Request) -> httpx.Response:
+        return _completion(json.dumps(payload))
+
+    adapter = _adapter(handler)
+    try:
+        with pytest.raises(ModelAdapterError, match="MODEL_RESPONSE_INVALID"):
+            await adapter.extract_found_item(
+                "data:image/png;base64,c3ludGhldGlj", {}
+            )
+    finally:
+        await adapter.client.close()
+
+
+@pytest.mark.asyncio
+async def test_question_generation_rejects_non_string_text_fields() -> None:
+    def handler(_request: httpx.Request) -> httpx.Response:
+        return _completion(
+            json.dumps(
+                {
+                    "questions": [
+                        {"question_text": None, "answer_key": "一道裂纹"},
+                        {"question_text": "请描述伞套标记。", "answer_key": ["A"]},
+                    ]
+                }
+            )
+        )
+
+    adapter = _adapter(handler)
+    try:
+        with pytest.raises(ModelAdapterError, match="MODEL_RESPONSE_INVALID"):
+            await adapter.generate_questions("合成隐藏描述")
+    finally:
+        await adapter.client.close()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "payload",
+    [
+        {"result": "MATCH", "confidence": True, "reason_code": "MATCHED"},
+        {"result": "MATCH", "confidence": 0.9, "reason_code": None},
+    ],
+)
+async def test_verification_rejects_coercible_provider_fields(
+    payload: dict[str, object],
+) -> None:
+    def handler(_request: httpx.Request) -> httpx.Response:
+        return _completion(json.dumps(payload))
+
+    adapter = _adapter(handler)
+    questions = QuestionSetDraft(
+        questions=(
+            QuestionDraft("请描述伞柄底部细节。", "一道裂纹", "question_1"),
+            QuestionDraft("请描述伞套内侧标记。", "字母A", "question_2"),
+        )
+    )
+    try:
+        with pytest.raises(ModelAdapterError, match="MODEL_RESPONSE_INVALID"):
+            await adapter.verify_answers(questions, {})
+    finally:
+        await adapter.client.close()
 
 
 @pytest.mark.asyncio

@@ -28,8 +28,8 @@ from app.items.policies import validate_common_publish_fields
 from app.matching.embedding import EmbeddingError, EmbeddingPort
 from app.matching.embedding_factory import build_embedding_adapter
 from app.matching.models import CandidateMatch
-from app.multimodal.ports import MultimodalPort
 from app.multimodal.models import AIExtraction
+from app.multimodal.ports import ModelAdapterError, MultimodalPort
 from app.multimodal.schemas import ExtractionDraft
 from app.reviews.models import Claim
 from app.verification.identity import compute_id_hmac, mask_cn_id, normalize_cn_id
@@ -188,7 +188,10 @@ async def confirm_other_questions(
     record = await _owned_record(session, record_id, actor_id)
     if record.item_type is not ItemType.OTHER or not hidden_description.strip():
         raise DomainError("HIDDEN_INFO_INSUFFICIENT")
-    draft = await adapter.generate_questions(hidden_description)
+    try:
+        draft = await adapter.generate_questions(hidden_description)
+    except ModelAdapterError:
+        raise DomainError("QUESTION_GENERATION_FAILED") from None
     if not validate_question_set(draft).valid:
         raise DomainError("QUESTION_GENERATION_FAILED")
     verification_set = VerificationSet(

@@ -17,6 +17,7 @@ from app.items.service import (
 )
 from app.matching.embedding import EmbeddingError
 from app.multimodal.mock import MockMultimodalAdapter
+from app.multimodal.ports import ModelAdapterError
 from app.verification.models import VerificationQuestion
 
 from .conftest import sample_png
@@ -36,6 +37,14 @@ class FailingEmbeddingAdapter:
 
     async def embed(self, texts: list[str]) -> list[list[float]]:
         raise EmbeddingError("EMBEDDING_UNAVAILABLE")
+
+
+class FailingQuestionAdapter(MockMultimodalAdapter):
+    def __init__(self, code: str) -> None:
+        self.code = code
+
+    async def generate_questions(self, hidden_description: str):
+        raise ModelAdapterError(self.code)
 
 
 async def _ready_other_record(session, owner_id, tmp_path):
@@ -94,6 +103,48 @@ async def test_other_publish_requires_confirmed_valid_questions(item_database, t
     assert record.status is RecordStatus.PUBLISHED
     assert record.embedding_model == "qwen3.7-text-embedding"
     assert record.embedding_dimensions == 1024
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "model_error",
+    ["MODEL_UNAVAILABLE", "MODEL_HTTP_ERROR", "MODEL_RESPONSE_INVALID"],
+)
+async def test_question_generation_maps_model_errors_to_domain_error(
+    item_database, model_error: str
+) -> None:
+    engine, owner_id = item_database
+    async with AsyncSession(engine) as session:
+        record = await create_found_draft(
+            session,
+            owner_user_id=owner_id,
+            event_time=datetime.now(timezone.utc),
+            location_public="教学楼",
+        )
+        await session.flush()
+        await confirm_found_draft(
+            session,
+            record_id=record.id,
+            actor_id=owner_id,
+            expected_version=1,
+            item_type=ItemType.OTHER,
+            name_public="黑色折叠伞",
+            description_public="外观完整",
+        )
+
+        with pytest.raises(DomainError, match="^QUESTION_GENERATION_FAILED$"):
+            await confirm_other_questions(
+                session,
+                record_id=record.id,
+                actor_id=owner_id,
+                hidden_description="伞柄底部有裂纹，伞套有字母标记",
+                adapter=FailingQuestionAdapter(model_error),
+            )
+
+        question_count = await session.scalar(
+            select(func.count(VerificationQuestion.id))
+        )
+        assert question_count == 0
 
 
 @pytest.mark.asyncio

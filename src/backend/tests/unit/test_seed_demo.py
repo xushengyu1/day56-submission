@@ -1,5 +1,19 @@
+import importlib.util
+import sys
+from pathlib import Path
+
 from app.db.enums import LocationArea, RecordKind
-from scripts.seed_demo import DEMO_CASES, demo_id
+
+
+SCRIPT_PATH = Path(__file__).resolve().parents[2] / "scripts" / "seed_demo.py"
+SPEC = importlib.util.spec_from_file_location("seed_demo_under_test", SCRIPT_PATH)
+assert SPEC is not None and SPEC.loader is not None
+seed_demo = importlib.util.module_from_spec(SPEC)
+sys.modules[SPEC.name] = seed_demo
+SPEC.loader.exec_module(seed_demo)
+
+DEMO_CASES = seed_demo.DEMO_CASES
+demo_id = seed_demo.demo_id
 
 
 def test_every_repository_image_has_a_lost_and_found_demo_case() -> None:

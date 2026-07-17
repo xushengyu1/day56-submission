@@ -5,6 +5,7 @@ import {
   clearTokens,
   getAccessToken,
   isMockMode,
+  authorizedFetch,
   setTokens,
   setUnauthorizedHandler,
 } from '@/api/client'
@@ -15,6 +16,8 @@ import { lostRecordsApi } from '@/api/lostRecords'
 import { foundRecordsApi } from '@/api/foundRecords'
 import { claimsApi } from '@/api/claims'
 import { adminApi } from '@/api/admin'
+import { candidatesApi } from '@/api/candidates'
+import { uploadsApi } from '@/api/uploads'
 
 function responseError(
   config: InternalAxiosRequestConfig,
@@ -82,6 +85,45 @@ describe('api client', () => {
     expect(redirect).toHaveBeenCalledOnce()
   })
 
+  it('clears memory and redirects when the retried Axios request is still unauthorized', async () => {
+    setTokens({ access_token: 'expired', refresh_token: 'refresh', token_type: 'bearer' })
+    const redirect = vi.fn()
+    setUnauthorizedHandler(redirect)
+    const refresh = vi.spyOn(axios, 'post').mockResolvedValue({
+      data: { tokens: { access_token: 'renewed', refresh_token: 'next-refresh', token_type: 'bearer' } },
+    })
+    let attempts = 0
+    apiClient.defaults.adapter = async (config) => {
+      attempts += 1
+      throw responseError(config, 401)
+    }
+
+    await expect(apiClient.get('/api/protected')).rejects.toBeInstanceOf(ApiError)
+    expect(refresh).toHaveBeenCalledOnce()
+    expect(attempts).toBe(2)
+    expect(getAccessToken()).toBeNull()
+    expect(redirect).toHaveBeenCalledOnce()
+  })
+
+  it('clears memory and redirects when the retried fetch is still unauthorized', async () => {
+    setTokens({ access_token: 'expired', refresh_token: 'refresh', token_type: 'bearer' })
+    const redirect = vi.fn()
+    setUnauthorizedHandler(redirect)
+    const refresh = vi.spyOn(axios, 'post').mockResolvedValue({
+      data: { tokens: { access_token: 'renewed', refresh_token: 'next-refresh', token_type: 'bearer' } },
+    })
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(new Response(null, { status: 401 }))
+      .mockResolvedValueOnce(new Response(null, { status: 401 }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    await expect(authorizedFetch('/api/protected')).resolves.toMatchObject({ status: 401 })
+    expect(refresh).toHaveBeenCalledOnce()
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    expect(getAccessToken()).toBeNull()
+    expect(redirect).toHaveBeenCalledOnce()
+  })
+
   it.each([403, 409, 422, 423])('normalizes %i responses to ApiError', async (status) => {
     apiClient.defaults.adapter = async (config) => {
       throw responseError(config, status, { error_code: `ERROR_${status}`, message: `message ${status}` })
@@ -106,16 +148,22 @@ describe('api client', () => {
     await recordsApi.recent()
     await lostRecordsApi.get('lost-1')
     await foundRecordsApi.get('found-1')
+    await foundRecordsApi.redact('found-1', 'asset-1', { x: 1, y: 2, width: 3, height: 4 })
+    await candidatesApi.get('candidate-1')
     await claimsApi.get('claim-1')
     await adminApi.reviews()
+    await uploadsApi.upload('found-1', 'FINDER_ORIGINAL', new File(['image'], 'image.png', { type: 'image/png' }))
 
     expect(paths).toEqual([
       '/api/auth/me',
       '/api/records/recent',
       '/api/lost-records/lost-1',
       '/api/found-records/found-1',
+      '/api/found-records/found-1/redaction',
+      '/api/candidates/candidate-1',
       '/api/claims/claim-1',
       '/api/admin/reviews',
+      '/api/uploads',
     ])
   })
 })

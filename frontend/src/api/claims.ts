@@ -1,6 +1,6 @@
 import { apiClient, isMockMode } from './client'
 import { mockApi } from './mock'
-import type { ClaimDetail, ClaimOutcome, QuestionPublic } from './types'
+import type { ClaimDetail, ClaimOutcome, ContactInfo, QuestionPublic } from './types'
 
 export const claimsApi = {
   async get(claimId: string): Promise<ClaimDetail> {
@@ -28,9 +28,9 @@ export const claimsApi = {
     return (await apiClient.post<{ id: string; status: string }>(`/api/claims/${claimId}/review-requests`, { reason })).data
   },
 
-  async contact(claimId: string): Promise<{ finder_phone: string; finder_email: string }> {
+  async contact(claimId: string): Promise<ContactInfo> {
     if (isMockMode) return mockApi.unsupported('交接联系方式')
-    return (await apiClient.get<{ finder_phone: string; finder_email: string }>(`/api/claims/${claimId}/contact`)).data
+    return (await apiClient.get<ContactInfo>(`/api/claims/${claimId}/contact`)).data
   },
 
   async completeHandoff(claimId: string, idempotencyKey: string): Promise<{ claim_id: string; status: string }> {

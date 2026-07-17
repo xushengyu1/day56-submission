@@ -8,7 +8,7 @@ describe('streamMatch', () => {
     const fetchMock = vi.fn().mockResolvedValue(new Response(
       'event: progress\ndata: {"stage":"searching","progress":15}\n\n' +
       'event: done\ndata: {"stage":"done","progress":100}\n\n' +
-      'event: error\ndata: {"error_code":"MATCHING_FAILED","message":"failed"}\n\n',
+      'event: error\ndata: {"stage":"failed","progress":100,"error_code":"MATCHING_FAILED"}\n\n',
       { status: 200, headers: { 'Content-Type': 'text/event-stream' } },
     ))
     vi.stubGlobal('fetch', fetchMock)
@@ -22,9 +22,13 @@ describe('streamMatch', () => {
       headers: expect.objectContaining({ Authorization: 'Bearer access-token' }),
     }))
     expect(String(fetchMock.mock.calls[0][0])).not.toContain('access-token')
-    expect(onProgress).toHaveBeenCalledWith({ stage: 'searching', progress: 15 })
+    expect(onProgress).toHaveBeenCalledWith({
+      stage: 'searching', progress: 15, step: 'searching', label: '正在检索招领记录...',
+    })
     expect(onDone).toHaveBeenCalledWith({ stage: 'done', progress: 100 })
-    expect(onError).toHaveBeenCalledWith({ error_code: 'MATCHING_FAILED', message: 'failed' })
+    expect(onError).toHaveBeenCalledWith({
+      stage: 'failed', progress: 100, error_code: 'MATCHING_FAILED', message: '匹配失败，请重试',
+    })
   })
 
   it('returns without fetching when the signal is already aborted', async () => {

@@ -1,4 +1,14 @@
-import type { User, AuthTokens, ItemRecord, MatchCandidate, ReviewRecord } from './types'
+import type {
+  AuthTokens,
+  CandidatePublic,
+  ItemRecordPublic,
+  LegacyItemRecord,
+  LegacyMatchCandidate,
+  LocationArea,
+  PublicCategory,
+  ReviewRecord,
+  User,
+} from './types'
 
 const MOCK_USER: User = {
   id: 'u-001',
@@ -23,8 +33,59 @@ const MOCK_TOKENS: AuthTokens = {
   token_type: 'bearer',
 }
 
+const locationAreas: Record<string, LocationArea> = {
+  宿舍区: 'DORMITORY',
+  食堂: 'CANTEEN',
+  教学楼: 'TEACHING_BUILDING',
+  科教楼: 'SCIENCE_BUILDING',
+  图书馆: 'LIBRARY',
+}
+
+function publicCategoryFor(record: LegacyItemRecord): PublicCategory {
+  return record.item_type === 'IDENTITY_DOCUMENT' ? 'IDENTITY_CARD' : 'OTHER_CATEGORY'
+}
+
+/** 将旧演示数据显式投影为真实 API 的公开 DTO。 */
+export function toItemRecordPublic(record: LegacyItemRecord): ItemRecordPublic {
+  return {
+    id: record.id,
+    owner_user_id: record.owner_user_id,
+    kind: record.kind,
+    item_type: record.item_type,
+    public_category: publicCategoryFor(record),
+    location_area: locationAreas[record.location_public],
+    status: record.status,
+    name_public: record.name_public,
+    description_public: record.description_public ?? null,
+    event_time_public: record.event_time_public,
+    location_public: record.location_public,
+    public_image_asset_id: null,
+    number_masked: record.masked_document_number ?? null,
+    claim_id: null,
+    version: record.version ?? 1,
+    published_at: record.published_at ?? null,
+    created_at: record.created_at,
+    updated_at: record.updated_at,
+  }
+}
+
+/** 将旧候选展示数据显式投影为真实 API 的候选 DTO。 */
+export function toCandidatePublic(candidate: LegacyMatchCandidate): CandidatePublic {
+  return {
+    id: candidate.id,
+    lost_record_id: candidate.lost_record_id,
+    found_record_id: candidate.found_record_id,
+    total_score: candidate.total_score,
+    level: candidate.total_score >= 80 ? 'HIGH' : candidate.total_score >= 60 ? 'MEDIUM' : 'LOW',
+    reason_codes: [],
+    conflict_codes: [],
+    found_record: toItemRecordPublic(candidate.found_record),
+    created_at: candidate.created_at,
+  }
+}
+
 // ===== 当前用户(u-001)的寻物记录 =====
-export const MOCK_LOST_ITEMS: ItemRecord[] = [
+export const MOCK_LOST_ITEMS: LegacyItemRecord[] = [
   // --- 自己的 ---
   {
     id: 'lr-001',
@@ -186,7 +247,7 @@ export const MOCK_LOST_ITEMS: ItemRecord[] = [
 ]
 
 // ===== 当前用户(u-001)的招领记录 =====
-export const MOCK_FOUND_ITEMS: ItemRecord[] = [
+export const MOCK_FOUND_ITEMS: LegacyItemRecord[] = [
   // --- 自己的 ---
   {
     id: 'fr-001',
@@ -349,7 +410,7 @@ export const MOCK_FOUND_ITEMS: ItemRecord[] = [
 ]
 
 // ===== 候选匹配 =====
-export const MOCK_CANDIDATES: MatchCandidate[] = [
+export const MOCK_CANDIDATES: LegacyMatchCandidate[] = [
   {
     id: 'c-001',
     lost_record_id: 'lr-001',
@@ -464,38 +525,38 @@ export const mockApi = {
     return currentUser
   },
 
-  async getMyLostItems(): Promise<ItemRecord[]> {
+  async getMyLostItems(): Promise<LegacyItemRecord[]> {
     await delay(300)
     return MOCK_LOST_ITEMS.filter((i) => i.owner_user_id === currentUser.id)
   },
 
-  async getMyFoundItems(): Promise<ItemRecord[]> {
+  async getMyFoundItems(): Promise<LegacyItemRecord[]> {
     await delay(300)
     return MOCK_FOUND_ITEMS.filter((i) => i.owner_user_id === currentUser.id)
   },
 
   /** 获取我的所有记录（寻物+招领），按更新时间倒序 */
   /** 获取全系统最新动态（寻物+招领），按创建时间倒序 */
-  async getRecentItems(limit: number = 5): Promise<ItemRecord[]> {
+  async getRecentItems(limit: number = 5): Promise<LegacyItemRecord[]> {
     await delay(300)
     const all = [...MOCK_LOST_ITEMS, ...MOCK_FOUND_ITEMS]
       .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
     return all.slice(0, limit)
   },
 
-  async getMyRecords(): Promise<ItemRecord[]> {
+  async getMyRecords(): Promise<LegacyItemRecord[]> {
     await delay(300)
     const lost = MOCK_LOST_ITEMS.filter((i) => i.owner_user_id === currentUser.id)
     const found = MOCK_FOUND_ITEMS.filter((i) => i.owner_user_id === currentUser.id)
     return [...lost, ...found].sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())
   },
 
-  async getCandidates(_lostId: string): Promise<MatchCandidate[]> {
+  async getCandidates(_lostId: string): Promise<LegacyMatchCandidate[]> {
     await delay(400)
     return MOCK_CANDIDATES.filter((c) => c.lost_record_id === _lostId)
   },
 
-  async getCandidateDetail(id: string): Promise<MatchCandidate | undefined> {
+  async getCandidateDetail(id: string): Promise<LegacyMatchCandidate | undefined> {
     await delay(200)
     return MOCK_CANDIDATES.find((c) => c.id === id)
   },
@@ -510,7 +571,7 @@ export const mockApi = {
     return MOCK_REVIEWS.find((r) => r.id === id)
   },
 
-  async getItemsByLocation(location: string, page: number = 1, pageSize: number = 5): Promise<{ items: ItemRecord[]; total: number }> {
+  async getItemsByLocation(location: string, page: number = 1, pageSize: number = 5): Promise<{ items: LegacyItemRecord[]; total: number }> {
     await delay(300)
     const lost = MOCK_LOST_ITEMS.filter((i) => i.location_public === location)
     const found = MOCK_FOUND_ITEMS.filter((i) => i.location_public === location)
@@ -519,18 +580,18 @@ export const mockApi = {
     return { items: all.slice(start, start + pageSize), total: all.length }
   },
 
-  async getFoundItemDetail(id: string): Promise<ItemRecord | undefined> {
+  async getFoundItemDetail(id: string): Promise<LegacyItemRecord | undefined> {
     await delay(200)
     return MOCK_FOUND_ITEMS.find((i) => i.id === id)
   },
 
-  async getItemDetail(id: string): Promise<ItemRecord | undefined> {
+  async getItemDetail(id: string): Promise<LegacyItemRecord | undefined> {
     await delay(200)
     return [...MOCK_LOST_ITEMS, ...MOCK_FOUND_ITEMS].find((i) => i.id === id)
   },
 
   /** 拾得者确认物品已被取走 */
-  async confirmPickup(foundItemId: string): Promise<ItemRecord> {
+  async confirmPickup(foundItemId: string): Promise<LegacyItemRecord> {
     await delay(500)
     const item = MOCK_FOUND_ITEMS.find((i) => i.id === foundItemId)
     if (!item) throw new Error('Item not found')

@@ -34,10 +34,15 @@ apiClient.interceptors.response.use(
         })
         setTokens(data.tokens)
         originalRequest.headers.Authorization = `Bearer ${data.tokens.access_token}`
-        return apiClient(originalRequest)
       } catch {
-        clearTokens()
-        unauthorizedHandler()
+        invalidateSession()
+        return Promise.reject(toApiError(error))
+      }
+      try {
+        return await apiClient(originalRequest)
+      } catch (retryError) {
+        if (retryError instanceof ApiError && retryError.status === 401) invalidateSession()
+        return Promise.reject(retryError)
       }
     }
     return Promise.reject(toApiError(error))
@@ -52,6 +57,11 @@ export function setTokens(tokens: AuthTokens) {
 export function clearTokens() {
   accessToken = null
   refreshToken = null
+}
+
+function invalidateSession() {
+  clearTokens()
+  unauthorizedHandler()
 }
 
 export function getAccessToken() {
@@ -81,10 +91,10 @@ export async function authorizedFetch(path: string, init: RequestInit = {}) {
     const { data } = await axios.post<{ tokens: AuthTokens }>(`${API_BASE}/api/auth/refresh`, { refresh_token: refreshToken })
     setTokens(data.tokens)
     response = await request()
+    if (response.status === 401) invalidateSession()
     return response
   } catch {
-    clearTokens()
-    unauthorizedHandler()
+    invalidateSession()
     throw new ApiError(401, 'UNAUTHORIZED', '登录已过期，请重新登录')
   }
 }

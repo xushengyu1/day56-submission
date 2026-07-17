@@ -1,6 +1,6 @@
 import { apiClient, isMockMode } from './client'
-import { mockApi } from './mock'
-import type { CreatedRecord, ItemRecord, LostRecordCreate, MatchCandidate } from './types'
+import { mockApi, toCandidatePublic, toItemRecordPublic } from './mock'
+import type { CandidatePublic, CreatedRecord, ItemRecordPublic, LostRecordCreate } from './types'
 
 export const lostRecordsApi = {
   async create(request: LostRecordCreate): Promise<CreatedRecord> {
@@ -8,14 +8,14 @@ export const lostRecordsApi = {
     return (await apiClient.post<CreatedRecord>('/api/lost-records', request)).data
   },
 
-  async get(recordId: string): Promise<ItemRecord> {
-    if (isMockMode) return mockApi.getItemDetail(recordId).then((record) => record ?? mockApi.unsupported('寻物详情'))
-    return (await apiClient.get<ItemRecord>(`/api/lost-records/${recordId}`)).data
+  async get(recordId: string): Promise<ItemRecordPublic> {
+    if (isMockMode) return mockApi.getItemDetail(recordId).then((record) => record ? toItemRecordPublic(record) : mockApi.unsupported('寻物详情'))
+    return (await apiClient.get<ItemRecordPublic>(`/api/lost-records/${recordId}`)).data
   },
 
-  async candidates(recordId: string): Promise<MatchCandidate[]> {
-    if (isMockMode) return mockApi.getCandidates(recordId)
-    return (await apiClient.get<MatchCandidate[]>(`/api/lost-records/${recordId}/candidates`)).data
+  async candidates(recordId: string): Promise<CandidatePublic[]> {
+    if (isMockMode) return (await mockApi.getCandidates(recordId)).map(toCandidatePublic)
+    return (await apiClient.get<CandidatePublic[]>(`/api/lost-records/${recordId}/candidates`)).data
   },
 
   async createReview(recordId: string, reason: string): Promise<{ id: string; status: string }> {

@@ -1,31 +1,31 @@
 import { apiClient, isMockMode } from './client'
 import { locationAreaLabel } from './catalog'
-import { mockApi } from './mock'
-import type { ItemRecord, LocationArea, PaginatedResponse, RecordKind, TimelineEvent } from './types'
+import { mockApi, toItemRecordPublic } from './mock'
+import type { ItemRecordPublic, LocationArea, PaginatedResponse, RecordKind, TimelineEvent } from './types'
 
 export const recordsApi = {
-  async recent(limit = 5): Promise<ItemRecord[]> {
+  async recent(limit = 5): Promise<ItemRecordPublic[]> {
     return isMockMode
-      ? mockApi.getRecentItems(limit)
-      : (await apiClient.get<ItemRecord[]>('/api/records/recent', { params: { limit } })).data
+      ? (await mockApi.getRecentItems(limit)).map(toItemRecordPublic)
+      : (await apiClient.get<ItemRecordPublic[]>('/api/records/recent', { params: { limit } })).data
   },
 
-  async list(locationArea?: LocationArea, page = 1, pageSize = 20): Promise<PaginatedResponse<ItemRecord>> {
+  async list(locationArea?: LocationArea, page = 1, pageSize = 20): Promise<PaginatedResponse<ItemRecordPublic>> {
     if (isMockMode) {
       const result = await mockApi.getItemsByLocation(locationArea ? locationAreaLabel(locationArea) : '', page, pageSize)
-      return { ...result, page, page_size: pageSize }
+      return { items: result.items.map(toItemRecordPublic), total: result.total, page, page_size: pageSize }
     }
-    return (await apiClient.get<PaginatedResponse<ItemRecord>>('/api/records', {
+    return (await apiClient.get<PaginatedResponse<ItemRecordPublic>>('/api/records', {
       params: { location_area: locationArea, page, page_size: pageSize },
     })).data
   },
 
-  async mine(kind?: RecordKind, page = 1, pageSize = 20): Promise<PaginatedResponse<ItemRecord>> {
+  async mine(kind?: RecordKind, page = 1, pageSize = 20): Promise<PaginatedResponse<ItemRecordPublic>> {
     if (isMockMode) {
       const items = (await mockApi.getMyRecords()).filter((record) => !kind || record.kind === kind)
-      return { items, total: items.length, page, page_size: pageSize }
+      return { items: items.map(toItemRecordPublic), total: items.length, page, page_size: pageSize }
     }
-    return (await apiClient.get<PaginatedResponse<ItemRecord>>('/api/records/mine', {
+    return (await apiClient.get<PaginatedResponse<ItemRecordPublic>>('/api/records/mine', {
       params: { kind, page, page_size: pageSize },
     })).data
   },

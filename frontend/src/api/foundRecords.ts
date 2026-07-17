@@ -1,6 +1,14 @@
 import { apiClient, isMockMode } from './client'
-import { mockApi } from './mock'
-import type { CreatedRecord, FoundConfirmation, FoundDraftCreate, FoundExtraction, ItemRecord } from './types'
+import { mockApi, toItemRecordPublic } from './mock'
+import type {
+  CreatedRecord,
+  FoundConfirmation,
+  FoundDraftCreate,
+  FoundExtraction,
+  FoundRedactionResponse,
+  ItemRecordPublic,
+  RedactionRegion,
+} from './types'
 
 export const foundRecordsApi = {
   async createDraft(request: FoundDraftCreate): Promise<CreatedRecord> {
@@ -8,9 +16,9 @@ export const foundRecordsApi = {
     return (await apiClient.post<CreatedRecord>('/api/found-records', request)).data
   },
 
-  async get(recordId: string): Promise<ItemRecord> {
-    if (isMockMode) return mockApi.getFoundItemDetail(recordId).then((record) => record ?? mockApi.unsupported('招领详情'))
-    return (await apiClient.get<ItemRecord>(`/api/found-records/${recordId}`)).data
+  async get(recordId: string): Promise<ItemRecordPublic> {
+    if (isMockMode) return mockApi.getFoundItemDetail(recordId).then((record) => record ? toItemRecordPublic(record) : mockApi.unsupported('招领详情'))
+    return (await apiClient.get<ItemRecordPublic>(`/api/found-records/${recordId}`)).data
   },
 
   async extract(recordId: string, imageAssetId: string): Promise<FoundExtraction> {
@@ -28,6 +36,14 @@ export const foundRecordsApi = {
     return (await apiClient.post<{ number_masked: string }>(`/api/found-records/${recordId}/identity-confirmation`, {
       full_number: fullNumber,
       digits_confirmed: digitsConfirmed,
+    })).data
+  },
+
+  async redact(recordId: string, originalAssetId: string, region: RedactionRegion): Promise<FoundRedactionResponse> {
+    if (isMockMode) return mockApi.unsupported('图片脱敏确认')
+    return (await apiClient.post<FoundRedactionResponse>(`/api/found-records/${recordId}/redaction`, {
+      original_asset_id: originalAssetId,
+      region,
     })).data
   },
 

@@ -1,21 +1,53 @@
 import { ApiError } from './errors'
 import { authorizedFetch } from './client'
 
-export interface MatchProgressEvent {
+/** 后端 SSE `progress` 事件。 */
+export interface MatchProgressDto {
   stage: string
   progress: number
+}
+
+/** 后端 SSE `done` 事件。 */
+export interface MatchDoneDto {
+  stage: string
+  progress: number
+}
+
+/** 后端 SSE `error` 事件。 */
+export interface MatchErrorDto {
+  stage: string
+  progress: number
+  error_code: string
+}
+
+/** 仅供旧 UI 展示的安全映射，不是后端 DTO。 */
+export interface MatchProgressEvent extends MatchProgressDto {
   step: string
   label: string
 }
 
-export interface MatchDoneEvent {
-  stage: string
-  progress: number
+export type MatchDoneEvent = MatchDoneDto
+
+/** 仅供 UI 展示的安全映射，不是后端 DTO。 */
+export interface MatchErrorEvent extends MatchErrorDto {
+  message: string
 }
 
-export interface MatchErrorEvent {
-  error_code: string
-  message: string
+const stageLabels: Record<string, string> = {
+  searching: '正在检索招领记录...',
+  filtering: '正在筛选同类记录...',
+  embedding: '正在生成公开信息向量...',
+  matching: '正在计算匹配结果...',
+  scoring: '正在整理候选结果...',
+  finalizing: '正在完成匹配...',
+}
+
+function toProgressEvent(event: MatchProgressDto): MatchProgressEvent {
+  return { ...event, step: event.stage, label: stageLabels[event.stage] ?? '正在处理匹配...' }
+}
+
+function toErrorEvent(event: MatchErrorDto): MatchErrorEvent {
+  return { ...event, message: event.error_code === 'MATCHING_FAILED' ? '匹配失败，请重试' : '匹配进度连接失败' }
 }
 
 export async function streamMatch(
@@ -30,11 +62,11 @@ export async function streamMatch(
   if (signal?.aborted) return
   const response = await authorizedFetch(`/api/lost-records/${lostId}/match`, { signal })
   if (!response.ok) {
-    handlers.onError({ error_code: `HTTP_${response.status}`, message: '匹配进度连接失败' })
+    handlers.onError({ stage: 'failed', progress: 0, error_code: `HTTP_${response.status}`, message: '匹配进度连接失败' })
     throw new ApiError(response.status, `HTTP_${response.status}`, '匹配进度连接失败')
   }
   if (!response.body) {
-    handlers.onError({ error_code: 'EMPTY_STREAM', message: '匹配进度连接失败' })
+    handlers.onError({ stage: 'failed', progress: 0, error_code: 'EMPTY_STREAM', message: '匹配进度连接失败' })
     return
   }
 
@@ -54,10 +86,10 @@ export async function streamMatch(
         const event = message.match(/^event:\s*(.+)$/m)?.[1]
         const data = message.match(/^data:\s*(.+)$/m)?.[1]
         if (!event || !data) continue
-        const payload = JSON.parse(data)
-        if (event === 'progress') handlers.onProgress(payload)
-        if (event === 'done') handlers.onDone(payload)
-        if (event === 'error') handlers.onError(payload)
+        const payload = JSON.parse(data) as unknown
+        if (event === 'progress') handlers.onProgress(toProgressEvent(payload as MatchProgressDto))
+        if (event === 'done') handlers.onDone(payload as MatchDoneDto)
+        if (event === 'error') handlers.onError(toErrorEvent(payload as MatchErrorDto))
       }
     }
   } finally {

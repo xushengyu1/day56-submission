@@ -41,7 +41,7 @@ export type VerificationMode = 'DOCUMENT_NUMBER' | 'HIDDEN_FEATURE'
 export type ReviewRequestType = 'MULTI_CLAIM' | 'VERIFICATION_FAILED' | 'IDENTITY_ANOMALY' | 'UNMATCHED' | 'CLAIM_REVIEW'
 
 /** 管理员决定 */
-export type AdminDecision = 'APPROVE_TO_HANDOFF' | 'REJECT'
+export type AdminDecision = 'APPROVE_TO_HANDOFF' | 'REJECT' | 'RECOMMEND_CANDIDATE'
 
 /** OTHER 单题核验结果 */
 export type QuestionResult = 'MATCH' | 'PARTIAL_MATCH' | 'UNDETERMINED' | 'CONFLICT'
@@ -125,62 +125,78 @@ export interface FoundExtraction {
   status: ExtractionStatus
 }
 
-// ===== 物品记录 =====
+// ===== 后端公开 DTO =====
 
-export interface ItemRecord {
+export interface ItemRecordPublic {
   id: string
   owner_user_id: string
   kind: RecordKind
   item_type: ItemType
-  public_category?: PublicCategory
-  location_area?: LocationArea
+  public_category: PublicCategory
+  location_area: LocationArea
   status: RecordStatus
+  name_public: string | null
+  description_public: string | null
+  event_time_public: string | null
+  location_public: string | null
+  public_image_asset_id: string | null
+  number_masked: string | null
+  claim_id: string | null
+  version: number
+  published_at: string | null
+  created_at: string
+  updated_at: string
+}
 
-  // PUBLIC 字段
+export interface CandidatePublic {
+  id: string
+  lost_record_id: string
+  found_record_id: string
+  total_score: number
+  level: string
+  reason_codes: string[]
+  conflict_codes: string[]
+  found_record: ItemRecordPublic
+  created_at: string
+}
+
+// ===== 旧 mock / 页面展示模型 =====
+
+export interface LegacyItemRecord {
+  id: string
+  owner_user_id: string
+  kind: RecordKind
+  item_type: ItemType
+  status: RecordStatus
   name_public: string
   description_public?: string
-  event_time_public: string       // 模糊时间，如"7月16日上午"
-  location_public: string         // 公开地点
-
-  // MATCH_ONLY 字段（前端通常不直接展示）
-  event_time_exact?: string       // 精确时间 ISO 8601
-  location_normalized?: Record<string, unknown>
-
-  // 图片
-  public_image_asset_id?: string
-  number_masked?: string
-  claim_id?: string
+  event_time_public: string
+  location_public: string
   public_image_path?: string
   masked_document_number?: string
-
-  // 元数据
   published_at?: string
   version?: number
   created_at: string
   updated_at: string
 }
 
-// ===== 候选匹配 =====
+/** @deprecated 仅供尚未迁移的旧页面使用；真实 API 使用 ItemRecordPublic。 */
+export type ItemRecord = LegacyItemRecord
 
-export interface MatchCandidate {
+export interface LegacyMatchCandidate {
   id: string
   lost_record_id: string
   found_record_id: string
-
-  // 总分（满分100）+ 文本解释
   total_score: number
-  level?: string
-  reason_codes?: string[]
-  conflict_codes?: string[]
   reason_texts: string[]
   conflict_texts: string[]
   retention_reason: string
-
-  // 关联的招领记录 PUBLIC 投影
-  found_record: ItemRecord
-
+  found_record: LegacyItemRecord
   created_at: string
 }
+
+/** @deprecated 仅供尚未迁移的旧页面使用；真实 API 使用 CandidatePublic。 */
+export type MatchCandidate = LegacyMatchCandidate
 
 // ===== 认领申请 =====
 
@@ -274,8 +290,8 @@ export interface ReviewQueueItem {
 export interface ReviewDetail extends ReviewQueueItem {
   requester_user_id: string
   reason: string | null
-  lost_record: ItemRecord | null
-  candidate: MatchCandidate | null
+  lost_record: ItemRecordPublic | null
+  candidate: ReviewCandidatePublic | null
   evidence: Array<{
     attempt_no: number
     result_code: string
@@ -283,6 +299,17 @@ export interface ReviewDetail extends ReviewQueueItem {
     risk_flag: string | null
     created_at: string
   }>
+}
+
+export interface ReviewCandidatePublic {
+  id: string
+  lost_record_id: string
+  found_record_id: string
+  total_score: number
+  reason_codes: string[]
+  conflict_codes: string[]
+  found_record: ItemRecordPublic
+  created_at: string
 }
 
 export interface ClaimDetail {
@@ -308,15 +335,13 @@ export interface AdminDecisionRequest {
 // ===== 审计 =====
 
 export interface AuditEvent {
-  id: string
+  event_id: string
   event_type: string
-  actor_type: string
-  actor_id: string
   aggregate_type: string
   aggregate_id: string
-  request_id?: string
-  safe_payload: Record<string, unknown>
-  occurred_at: string
+  result_code: string
+  metadata_redacted: Record<string, unknown>
+  created_at: string
 }
 
 // ===== 时间线 =====
@@ -347,12 +372,22 @@ export interface UploadResponse {
   purpose: ImagePurpose
 }
 
+export interface RedactionRegion {
+  x: number
+  y: number
+  width: number
+  height: number
+}
+
+export interface FoundRedactionResponse {
+  asset_id: string
+  status: RedactionStatus
+}
+
 // ===== 交接 =====
 
 export interface ContactInfo {
-  finder_phone?: string
-  finder_email?: string
-  authorized_at: string
+  email: string
 }
 
 // ===== 通用 =====

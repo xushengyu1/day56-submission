@@ -87,4 +87,5 @@ class ReviewDetail(BaseModel):
     created_at: datetime
     lost_record: ItemRecordPublic | None
     candidate: ReviewCandidatePublic | None
+    candidates: list[ReviewCandidatePublic] = Field(default_factory=list)
     evidence: list[ReviewEvidence]

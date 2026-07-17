@@ -21,6 +21,7 @@ from app.db.enums import (
     AdminDecision,
     ClaimStatus,
     DataClass,
+    RecordKind,
     RecordStatus,
     ReviewRequestType,
     UserRole,
@@ -205,6 +206,33 @@ async def get_claim_detail(
     )
 
 
+async def _valid_unmatched_candidate_rows(
+    session: AsyncSession, *, lost_record_id: UUID
+) -> list[tuple[CandidateMatch, ItemRecord]]:
+    lost = await session.get(ItemRecord, lost_record_id)
+    if (
+        lost is None
+        or lost.kind is not RecordKind.LOST
+        or lost.status is not RecordStatus.PUBLISHED
+    ):
+        return []
+    rows = await session.execute(
+        select(CandidateMatch, ItemRecord)
+        .join(ItemRecord, ItemRecord.id == CandidateMatch.found_record_id)
+        .where(
+            CandidateMatch.lost_record_id == lost_record_id,
+            ItemRecord.kind == RecordKind.FOUND,
+            ItemRecord.status == RecordStatus.PUBLISHED,
+            ItemRecord.item_type == lost.item_type,
+            ItemRecord.public_category == lost.public_category,
+            ItemRecord.location_area == lost.location_area,
+        )
+        .order_by(CandidateMatch.total_score.desc(), CandidateMatch.id)
+        .limit(5)
+    )
+    return [(candidate, found) for candidate, found in rows.all()]
+
+
 async def get_admin_review_detail(
     session: AsyncSession,
     *,
@@ -237,7 +265,23 @@ async def get_admin_review_detail(
     elif request is not None and request.lost_record_id is not None:
         lost = await session.get(ItemRecord, request.lost_record_id)
 
-    records = [record for record in (lost, found) if record is not None]
+    candidate_rows: list[tuple[CandidateMatch, ItemRecord]] = []
+    if (
+        request is not None
+        and request.request_type is ReviewRequestType.UNMATCHED
+        and request.active
+        and request.lost_record_id is not None
+    ):
+        candidate_rows = await _valid_unmatched_candidate_rows(
+            session, lost_record_id=request.lost_record_id
+        )
+
+    records_by_id = {
+        record.id: record
+        for record in (lost, found, *(row[1] for row in candidate_rows))
+        if record is not None
+    }
+    records = list(records_by_id.values())
     projected = await project_records(session, records, actor_id=actor_id)
     projections = {
         record.id: projection for record, projection in zip(records, projected)
@@ -286,6 +330,19 @@ async def get_admin_review_detail(
         created_at=created_at,
         lost_record=projections.get(lost.id) if lost is not None else None,
         candidate=candidate_public,
+        candidates=[
+            ReviewCandidatePublic(
+                id=candidate.id,
+                lost_record_id=candidate.lost_record_id,
+                found_record_id=found_record.id,
+                total_score=float(candidate.total_score),
+                reason_codes=tuple(candidate.reason_codes),
+                conflict_codes=tuple(candidate.conflict_codes),
+                found_record=projections[found_record.id],
+                created_at=candidate.created_at,
+            )
+            for candidate, found_record in candidate_rows
+        ],
         evidence=[
             ReviewEvidence(
                 attempt_no=attempt.attempt_no,
@@ -354,11 +411,18 @@ async def decide_review(
         if decision is AdminDecision.RECOMMEND_CANDIDATE:
             if candidate_id is None:
                 raise DomainError("CANDIDATE_REQUIRED")
-            recommended_candidate = await session.get(CandidateMatch, candidate_id)
-            if (
-                recommended_candidate is None
-                or recommended_candidate.lost_record_id != request.lost_record_id
-            ):
+            candidate_rows = await _valid_unmatched_candidate_rows(
+                session, lost_record_id=request.lost_record_id
+            )
+            recommended_candidate = next(
+                (
+                    candidate
+                    for candidate, _ in candidate_rows
+                    if candidate.id == candidate_id
+                ),
+                None,
+            )
+            if recommended_candidate is None:
                 raise DomainError("CANDIDATE_INVALID")
             request.candidate_snapshot_id = candidate_id
         elif candidate_id is not None:

@@ -2,9 +2,11 @@ import pytest
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.auth.rbac import AuthorizationError
 from app.db.enums import AdminDecision, RecordStatus, ReviewRequestType, UserRole
 from app.items.models import ItemRecord
 from app.items.service import DomainError
+from app.matching.models import CandidateMatch
 from app.reviews.models import AdminReview, ClaimAttempt, ReviewRequest
 from app.reviews.service import (
     create_claim_review_request,
@@ -134,6 +136,13 @@ async def test_review_queue_and_detail_project_safe_source_specific_context(
         )
         await session.flush()
         queue = await list_admin_review_queue(session, actor_role=UserRole.ADMIN)
+        with pytest.raises(AuthorizationError):
+            await get_admin_review_detail(
+                session,
+                review_id=unmatched.id,
+                actor_id=ids["owner"],
+                actor_role=UserRole.USER,
+            )
         claim_detail = await get_admin_review_detail(
             session,
             review_id=ids["claim"],
@@ -152,10 +161,90 @@ async def test_review_queue_and_detail_project_safe_source_specific_context(
         ReviewRequestType.UNMATCHED.value,
     }
     assert claim_detail.candidate is not None
+    assert claim_detail.candidates == []
     assert claim_detail.evidence[0].result_code == "MODEL_UNAVAILABLE"
     assert unmatched_detail.lost_record is not None
+    assert [candidate.id for candidate in unmatched_detail.candidates] == [
+        ids["candidate"]
+    ]
+    assert unmatched_detail.candidates[0].found_record.id == ids["found"]
     serialized = str(
         [claim_detail.model_dump(mode="json"), unmatched_detail.model_dump(mode="json")]
     ).casefold()
     for forbidden in ("submitted_hmac", "secret_submitted_hmac", "answer_key", "object_key"):
         assert forbidden not in serialized
+
+
+@pytest.mark.asyncio
+async def test_unmatched_review_rejects_unrelated_or_stale_candidates(
+    review_database,
+) -> None:
+    engine, ids = review_database
+    async with AsyncSession(engine, expire_on_commit=False) as session:
+        request = await create_unmatched_review_request(
+            session,
+            lost_record_id=ids["lost"],
+            requester_id=ids["owner"],
+            reason="没有合适候选",
+        )
+        fixture_lost = await session.get(ItemRecord, ids["lost"])
+        assert fixture_lost is not None
+        unrelated_lost = ItemRecord(
+            owner_user_id=ids["owner"],
+            kind=fixture_lost.kind,
+            item_type=fixture_lost.item_type,
+            public_category=fixture_lost.public_category,
+            location_area=fixture_lost.location_area,
+            status=RecordStatus.PUBLISHED,
+            name_public="另一把伞",
+        )
+        session.add(unrelated_lost)
+        await session.flush()
+        unrelated_candidate = CandidateMatch(
+            lost_record_id=unrelated_lost.id,
+            found_record_id=ids["found"],
+            semantic_score=40,
+            time_score=20,
+            location_score=20,
+            completeness_score=10,
+            total_score=90,
+            reason_codes=[],
+            conflict_codes=[],
+            rule_version="v1",
+            model_version="mock",
+        )
+        session.add(unrelated_candidate)
+        await session.flush()
+
+        with pytest.raises(DomainError, match="CANDIDATE_INVALID"):
+            await decide_review(
+                session,
+                review_id=request.id,
+                admin_id=ids["admin"],
+                decision=AdminDecision.RECOMMEND_CANDIDATE,
+                candidate_id=unrelated_candidate.id,
+                reason="错误候选",
+                idempotency_key="unmatched-unrelated",
+            )
+
+        found = await session.get(ItemRecord, ids["found"])
+        assert found is not None
+        found.status = RecordStatus.CLAIMED
+        await session.flush()
+        detail = await get_admin_review_detail(
+            session,
+            review_id=request.id,
+            actor_id=ids["admin"],
+            actor_role=UserRole.ADMIN,
+        )
+        assert detail.candidates == []
+        with pytest.raises(DomainError, match="CANDIDATE_INVALID"):
+            await decide_review(
+                session,
+                review_id=request.id,
+                admin_id=ids["admin"],
+                decision=AdminDecision.RECOMMEND_CANDIDATE,
+                candidate_id=ids["candidate"],
+                reason="候选已失效",
+                idempotency_key="unmatched-stale",
+            )

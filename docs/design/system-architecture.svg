@@ -1,0 +1,278 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 920" width="1200" height="920" font-family="Microsoft YaHei, PingFang SC, -apple-system, sans-serif">
+  <defs>
+    <linearGradient id="gUser" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#e8f0f8"/>
+      <stop offset="100%" stop-color="#dce6f0"/>
+    </linearGradient>
+    <linearGradient id="gCore" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#e0eee4"/>
+      <stop offset="100%" stop-color="#d4e8dc"/>
+    </linearGradient>
+    <linearGradient id="gAI" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#e8e4f0"/>
+      <stop offset="100%" stop-color="#dcd6ea"/>
+    </linearGradient>
+    <linearGradient id="gSys" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#f4f7fa"/>
+      <stop offset="100%" stop-color="#e8edf2"/>
+    </linearGradient>
+    <linearGradient id="gSec" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#f0ece4"/>
+      <stop offset="100%" stop-color="#e8e0d4"/>
+    </linearGradient>
+    <linearGradient id="gAudit" x1="1" y1="0" x2="0" y2="0">
+      <stop offset="0%" stop-color="#f4f0f8"/>
+      <stop offset="100%" stop-color="#ece4f2"/>
+    </linearGradient>
+    <filter id="ds">
+      <feDropShadow dx="0" dy="2" stdDeviation="3" flood-opacity="0.07"/>
+    </filter>
+    <filter id="ds2">
+      <feDropShadow dx="0" dy="1" stdDeviation="2" flood-opacity="0.05"/>
+    </filter>
+  </defs>
+
+  <!-- 背景 -->
+  <rect width="1200" height="920" rx="12" fill="#f4f7fa"/>
+
+  <!-- 标题 -->
+  <text x="600" y="34" text-anchor="middle" font-size="18" font-weight="800" fill="#2c3e50" letter-spacing="2">AI 失物招领系统 · 功能架构图</text>
+
+  <!-- ============================================================ -->
+  <!-- 用户角色层 -->
+  <!-- ============================================================ -->
+  <rect x="190" y="54" width="820" height="68" rx="12" fill="url(#gUser)" stroke="#b8cce0" stroke-width="1" filter="url(#ds)"/>
+  <rect x="190" y="54" width="820" height="22" rx="12" fill="rgba(107,139,164,0.08)"/>
+  <text x="204" y="70" font-size="11" font-weight="700" fill="#4a6b82">用户角色层</text>
+
+  <rect x="260" y="82" width="180" height="30" rx="8" fill="#6b8ba4" filter="url(#ds2)"/>
+  <text x="350" y="102" text-anchor="middle" font-size="13" font-weight="700" fill="#fff">失主</text>
+
+  <rect x="510" y="82" width="180" height="30" rx="8" fill="#6b9e7a" filter="url(#ds2)"/>
+  <text x="600" y="102" text-anchor="middle" font-size="13" font-weight="700" fill="#fff">拾得者</text>
+
+  <rect x="760" y="82" width="180" height="30" rx="8" fill="#8b7bb0" filter="url(#ds2)"/>
+  <text x="850" y="102" text-anchor="middle" font-size="13" font-weight="700" fill="#fff">管理员</text>
+
+  <!-- 箭头 -->
+  <line x1="600" y1="122" x2="600" y2="140" stroke="#b8cce0" stroke-width="1.2"/>
+  <polygon points="600,144 596,137 604,137" fill="#b8cce0"/>
+
+  <!-- ============================================================ -->
+  <!-- 安全与防冒领层（左侧栏） -->
+  <!-- ============================================================ -->
+  <rect x="20" y="148" width="160" height="560" rx="12" fill="url(#gSec)" stroke="#d4c8a8" stroke-width="1" filter="url(#ds)"/>
+  <rect x="20" y="148" width="160" height="22" rx="12" fill="rgba(196,163,90,0.08)"/>
+  <text x="100" y="164" text-anchor="middle" font-size="11" font-weight="700" fill="#6a5a2a">安全与防冒领</text>
+
+  <!-- 数据分级 -->
+  <rect x="32" y="178" width="136" height="155" rx="10" fill="#fff" stroke="#e8e0d4" stroke-width="1" filter="url(#ds2)"/>
+  <text x="100" y="198" text-anchor="middle" font-size="11" font-weight="800" fill="#6a5a2a">数据分级保护</text>
+  <line x1="42" y1="206" x2="158" y2="206" stroke="#f0ece4" stroke-width="1"/>
+  <text x="42" y="224" font-size="10" fill="#5a6e7e">四级数据分类</text>
+  <text x="52" y="240" font-size="9" fill="#94a3b8">· PUBLIC（公开）</text>
+  <text x="52" y="254" font-size="9" fill="#94a3b8">· MATCH_ONLY（匹配专用）</text>
+  <text x="52" y="268" font-size="9" fill="#94a3b8">· VERIFICATION（核验专用）</text>
+  <text x="52" y="282" font-size="9" fill="#94a3b8">· PRIVATE（私密）</text>
+  <text x="42" y="300" font-size="10" fill="#5a6e7e">按角色控制可见范围</text>
+  <text x="42" y="316" font-size="10" fill="#5a6e7e">响应模型字段隔离</text>
+
+  <!-- 核验机制 -->
+  <rect x="32" y="343" width="136" height="130" rx="10" fill="#fff" stroke="#e8e0d4" stroke-width="1" filter="url(#ds2)"/>
+  <text x="100" y="363" text-anchor="middle" font-size="11" font-weight="800" fill="#6a5a2a">核验机制</text>
+  <line x1="42" y1="371" x2="158" y2="371" stroke="#f0ece4" stroke-width="1"/>
+  <text x="42" y="389" font-size="10" fill="#5a6e7e">身份证件 HMAC</text>
+  <text x="52" y="405" font-size="9" fill="#94a3b8">精确核验（限 2 次）</text>
+  <text x="42" y="423" font-size="10" fill="#5a6e7e">隐藏特征问答核验</text>
+  <text x="42" y="441" font-size="10" fill="#5a6e7e">AI 语义核验</text>
+  <text x="52" y="457" font-size="9" fill="#94a3b8">+ 人工复核双重保障</text>
+
+  <!-- 防泄露 -->
+  <rect x="32" y="483" width="136" height="115" rx="10" fill="#fff" stroke="#e8e0d4" stroke-width="1" filter="url(#ds2)"/>
+  <text x="100" y="503" text-anchor="middle" font-size="11" font-weight="800" fill="#6a5a2a">防泄露机制</text>
+  <line x1="42" y1="511" x2="158" y2="511" stroke="#f0ece4" stroke-width="1"/>
+  <text x="42" y="529" font-size="10" fill="#5a6e7e">证件号码 HMAC 存储</text>
+  <text x="52" y="545" font-size="9" fill="#94a3b8">不落明文日志</text>
+  <text x="42" y="563" font-size="10" fill="#5a6e7e">隐藏答案键不返回</text>
+  <text x="42" y="581" font-size="10" fill="#5a6e7e">联系方式授权展示</text>
+
+  <!-- ============================================================ -->
+  <!-- 审计与追溯层（右侧栏） -->
+  <!-- ============================================================ -->
+  <rect x="1020" y="148" width="160" height="560" rx="12" fill="url(#gAudit)" stroke="#c4b8d8" stroke-width="1" filter="url(#ds)"/>
+  <rect x="1020" y="148" width="160" height="22" rx="12" fill="rgba(139,123,176,0.08)"/>
+  <text x="1100" y="164" text-anchor="middle" font-size="11" font-weight="700" fill="#5a4a80">审计与追溯</text>
+
+  <rect x="1032" y="178" width="136" height="518" rx="10" fill="#fff" stroke="#dcd6ea" stroke-width="1" filter="url(#ds2)"/>
+  <text x="1100" y="198" text-anchor="middle" font-size="11" font-weight="800" fill="#5a4a80">审计日志</text>
+  <line x1="1042" y1="206" x2="1158" y2="206" stroke="#e8e4f0" stroke-width="1"/>
+
+  <text x="1042" y="226" font-size="10" fill="#5a6e7e">操作日志记录</text>
+  <text x="1052" y="242" font-size="9" fill="#94a3b8">actor + action + target</text>
+  <text x="1052" y="258" font-size="9" fill="#94a3b8">+ 时间戳</text>
+
+  <text x="1042" y="280" font-size="10" fill="#5a6e7e">AI 草稿快照</text>
+  <text x="1052" y="296" font-size="9" fill="#94a3b8">原始输出与人工修改</text>
+  <text x="1052" y="312" font-size="9" fill="#94a3b8">差异对比</text>
+
+  <text x="1042" y="334" font-size="10" fill="#5a6e7e">核验结果快照</text>
+  <text x="1052" y="350" font-size="9" fill="#94a3b8">每题结果 + 置信度</text>
+  <text x="1052" y="366" font-size="9" fill="#94a3b8">+ 管理员审核理由</text>
+
+  <text x="1042" y="388" font-size="10" fill="#5a6e7e">状态变更日志</text>
+  <text x="1052" y="404" font-size="9" fill="#94a3b8">每次流转记录</text>
+  <text x="1052" y="420" font-size="9" fill="#94a3b8">操作人与时间</text>
+
+  <text x="1042" y="442" font-size="10" fill="#5a6e7e">熔断事件记录</text>
+  <text x="1052" y="458" font-size="9" fill="#94a3b8">触发条件与恢复</text>
+  <text x="1052" y="474" font-size="9" fill="#94a3b8">时间记录</text>
+
+  <text x="1042" y="496" font-size="10" fill="#5a6e7e">联系方式授权日志</text>
+  <text x="1052" y="512" font-size="9" fill="#94a3b8">授权 / 撤销 / 查看</text>
+
+  <text x="1042" y="534" font-size="10" fill="#5a6e7e">完整证据链追溯</text>
+  <text x="1052" y="550" font-size="9" fill="#94a3b8">发布 → 匹配 → 核验</text>
+  <text x="1052" y="566" font-size="9" fill="#94a3b8">→ 审核 → 交接</text>
+
+  <!-- ============================================================ -->
+  <!-- 核心功能层 -->
+  <!-- ============================================================ -->
+  <rect x="190" y="148" width="820" height="220" rx="12" fill="url(#gCore)" stroke="#a8d4b8" stroke-width="1" filter="url(#ds)"/>
+  <rect x="190" y="148" width="820" height="22" rx="12" fill="rgba(107,158,122,0.08)"/>
+  <text x="204" y="164" font-size="11" font-weight="700" fill="#3a6a4a">核心功能层</text>
+
+  <!-- 用户管理 -->
+  <rect x="204" y="178" width="188" height="178" rx="10" fill="#fff" stroke="#d4e8dc" stroke-width="1" filter="url(#ds2)"/>
+  <text x="298" y="198" text-anchor="middle" font-size="11" font-weight="800" fill="#3a6a4a">用户管理</text>
+  <line x1="214" y1="206" x2="382" y2="206" stroke="#e0eee4" stroke-width="1"/>
+  <text x="214" y="224" font-size="10" fill="#5a6e7e">注册与登录</text>
+  <text x="214" y="242" font-size="10" fill="#5a6e7e">角色权限管理</text>
+  <text x="214" y="260" font-size="10" fill="#5a6e7e">同一账号兼任</text>
+  <text x="224" y="276" font-size="9" fill="#94a3b8">失主 / 拾得者</text>
+  <text x="214" y="294" font-size="10" fill="#5a6e7e">联系方式授权管理</text>
+  <text x="214" y="312" font-size="10" fill="#5a6e7e">会话与 Token 管理</text>
+
+  <!-- 拾得者模块 -->
+  <rect x="404" y="178" width="188" height="178" rx="10" fill="#fff" stroke="#d4e8dc" stroke-width="1" filter="url(#ds2)"/>
+  <text x="498" y="198" text-anchor="middle" font-size="11" font-weight="800" fill="#3a6a4a">拾得者模块</text>
+  <line x1="414" y1="206" x2="582" y2="206" stroke="#e0eee4" stroke-width="1"/>
+  <text x="414" y="224" font-size="10" fill="#5a6e7e">招领信息发布</text>
+  <text x="414" y="242" font-size="10" fill="#5a6e7e">图片上传与 AI 提取</text>
+  <text x="414" y="260" font-size="10" fill="#5a6e7e">草稿修改与确认发布</text>
+  <text x="414" y="278" font-size="10" fill="#5a6e7e">身份证件号码逐位确认</text>
+  <text x="414" y="296" font-size="10" fill="#5a6e7e">隐藏特征填写</text>
+  <text x="414" y="314" font-size="10" fill="#5a6e7e">线下交接确认</text>
+
+  <!-- 失主模块 -->
+  <rect x="604" y="178" width="188" height="178" rx="10" fill="#fff" stroke="#d4e8dc" stroke-width="1" filter="url(#ds2)"/>
+  <text x="698" y="198" text-anchor="middle" font-size="11" font-weight="800" fill="#3a6a4a">失主模块</text>
+  <line x1="614" y1="206" x2="782" y2="206" stroke="#e0eee4" stroke-width="1"/>
+  <text x="614" y="224" font-size="10" fill="#5a6e7e">失物信息发布</text>
+  <text x="614" y="242" font-size="10" fill="#5a6e7e">查看 Top 5 候选</text>
+  <text x="614" y="260" font-size="10" fill="#5a6e7e">身份证件号码核验</text>
+  <text x="614" y="278" font-size="10" fill="#5a6e7e">隐藏问题回答核验</text>
+  <text x="614" y="296" font-size="10" fill="#5a6e7e">未匹配 / 认领复核</text>
+  <text x="614" y="314" font-size="10" fill="#5a6e7e">联系方式获取与交接</text>
+
+  <!-- 管理员模块 -->
+  <rect x="804" y="178" width="194" height="178" rx="10" fill="#fff" stroke="#d4e8dc" stroke-width="1" filter="url(#ds2)"/>
+  <text x="901" y="198" text-anchor="middle" font-size="11" font-weight="800" fill="#3a6a4a">管理员模块</text>
+  <line x1="814" y1="206" x2="988" y2="206" stroke="#e0eee4" stroke-width="1"/>
+  <text x="814" y="224" font-size="10" fill="#5a6e7e">复核异常队列</text>
+  <text x="814" y="242" font-size="10" fill="#5a6e7e">多人认领仲裁</text>
+  <text x="814" y="260" font-size="10" fill="#5a6e7e">核验未通过 / 证件异常</text>
+  <text x="814" y="278" font-size="10" fill="#5a6e7e">未匹配复核推荐候选</text>
+  <text x="814" y="296" font-size="10" fill="#5a6e7e">确认待交接或驳回</text>
+  <text x="814" y="314" font-size="10" fill="#5a6e7e">审计日志查看</text>
+
+  <!-- 箭头 -->
+  <line x1="600" y1="368" x2="600" y2="386" stroke="#a8d4b8" stroke-width="1.2"/>
+  <polygon points="600,390 596,383 604,383" fill="#a8d4b8"/>
+
+  <!-- ============================================================ -->
+  <!-- AI 能力层 -->
+  <!-- ============================================================ -->
+  <rect x="190" y="394" width="820" height="145" rx="12" fill="url(#gAI)" stroke="#c4b8d8" stroke-width="1" filter="url(#ds)"/>
+  <rect x="190" y="394" width="820" height="22" rx="12" fill="rgba(139,123,176,0.08)"/>
+  <text x="204" y="410" font-size="11" font-weight="700" fill="#5a4a80">AI 能力层</text>
+
+  <!-- 图片识别 -->
+  <rect x="204" y="424" width="256" height="102" rx="10" fill="#fff" stroke="#dcd6ea" stroke-width="1" filter="url(#ds2)"/>
+  <text x="332" y="444" text-anchor="middle" font-size="11" font-weight="800" fill="#5a4a80">图片识别</text>
+  <line x1="214" y1="452" x2="450" y2="452" stroke="#e8e4f0" stroke-width="1"/>
+  <text x="214" y="470" font-size="10" fill="#5a6e7e">多模态物品特征提取</text>
+  <text x="224" y="486" font-size="9" fill="#94a3b8">名称、类别、描述草稿</text>
+  <text x="214" y="504" font-size="10" fill="#5a6e7e">证件号码识别与脱敏</text>
+  <text x="214" y="520" font-size="10" fill="#5a6e7e">超时降级为手工填写</text>
+
+  <!-- 语义匹配 -->
+  <rect x="472" y="424" width="256" height="102" rx="10" fill="#fff" stroke="#dcd6ea" stroke-width="1" filter="url(#ds2)"/>
+  <text x="600" y="444" text-anchor="middle" font-size="11" font-weight="800" fill="#5a4a80">语义匹配</text>
+  <line x1="482" y1="452" x2="718" y2="452" stroke="#e8e4f0" stroke-width="1"/>
+  <text x="482" y="470" font-size="10" fill="#5a6e7e">公开描述文本向量化</text>
+  <text x="482" y="488" font-size="10" fill="#5a6e7e">语义相似度计算</text>
+  <text x="482" y="506" font-size="10" fill="#5a6e7e">综合评分</text>
+  <text x="492" y="522" font-size="9" fill="#94a3b8">语义 + 时间 + 地点 + 完整度</text>
+
+  <!-- 核验 AI -->
+  <rect x="740" y="424" width="258" height="102" rx="10" fill="#fff" stroke="#dcd6ea" stroke-width="1" filter="url(#ds2)"/>
+  <text x="869" y="444" text-anchor="middle" font-size="11" font-weight="800" fill="#5a4a80">核验 AI</text>
+  <line x1="750" y1="452" x2="988" y2="452" stroke="#e8e4f0" stroke-width="1"/>
+  <text x="750" y="470" font-size="10" fill="#5a6e7e">隐藏问题生成与质量检查</text>
+  <text x="750" y="488" font-size="10" fill="#5a6e7e">回答语义核验与置信度评估</text>
+  <text x="750" y="506" font-size="10" fill="#5a6e7e">自动路由</text>
+  <text x="760" y="522" font-size="9" fill="#94a3b8">通过 / 转管理员复核</text>
+
+  <!-- 箭头 -->
+  <line x1="600" y1="539" x2="600" y2="557" stroke="#c4b8d8" stroke-width="1.2"/>
+  <polygon points="600,561 596,554 604,554" fill="#c4b8d8"/>
+
+  <!-- ============================================================ -->
+  <!-- 系统支撑层 -->
+  <!-- ============================================================ -->
+  <rect x="190" y="565" width="820" height="143" rx="12" fill="url(#gSys)" stroke="#c0c8d0" stroke-width="1" filter="url(#ds)"/>
+  <rect x="190" y="565" width="820" height="22" rx="12" fill="rgba(74,85,104,0.06)"/>
+  <text x="204" y="581" font-size="11" font-weight="700" fill="#4a5568">系统支撑层</text>
+
+  <!-- 数据存储 -->
+  <rect x="204" y="595" width="256" height="100" rx="10" fill="#fff" stroke="#dce2e8" stroke-width="1" filter="url(#ds2)"/>
+  <text x="332" y="615" text-anchor="middle" font-size="11" font-weight="800" fill="#4a5568">数据存储</text>
+  <line x1="214" y1="623" x2="450" y2="623" stroke="#e8edf2" stroke-width="1"/>
+  <text x="214" y="641" font-size="10" fill="#5a6e7e">关系型数据库存储结构化数据</text>
+  <text x="214" y="659" font-size="10" fill="#5a6e7e">向量存储支持语义检索</text>
+  <text x="214" y="677" font-size="10" fill="#5a6e7e">文件存储（原图 + 脱敏副本）</text>
+
+  <!-- 状态管理 -->
+  <rect x="472" y="595" width="256" height="100" rx="10" fill="#fff" stroke="#dce2e8" stroke-width="1" filter="url(#ds2)"/>
+  <text x="600" y="615" text-anchor="middle" font-size="11" font-weight="800" fill="#4a5568">状态管理</text>
+  <line x1="482" y1="623" x2="718" y2="623" stroke="#e8edf2" stroke-width="1"/>
+  <text x="482" y="641" font-size="10" fill="#5a6e7e">记录状态机</text>
+  <text x="492" y="657" font-size="9" fill="#94a3b8">草稿 → 已发布 → 待交接 → 已认领</text>
+  <text x="482" y="675" font-size="10" fill="#5a6e7e">认领与复核状态机</text>
+  <text x="482" y="693" font-size="10" fill="#5a6e7e">幂等防重复提交</text>
+
+  <!-- 熔断与降级 -->
+  <rect x="740" y="595" width="258" height="100" rx="10" fill="#fff" stroke="#dce2e8" stroke-width="1" filter="url(#ds2)"/>
+  <text x="869" y="615" text-anchor="middle" font-size="11" font-weight="800" fill="#4a5568">熔断与降级</text>
+  <line x1="750" y1="623" x2="988" y2="623" stroke="#e8edf2" stroke-width="1"/>
+  <text x="750" y="641" font-size="10" fill="#5a6e7e">AI 服务熔断（连续失败自动降级）</text>
+  <text x="750" y="659" font-size="10" fill="#5a6e7e">超时重试与指数退避</text>
+  <text x="750" y="677" font-size="10" fill="#5a6e7e">状态不丢失，后台自动恢复</text>
+  <text x="750" y="693" font-size="10" fill="#5a6e7e">熔断事件写入审计日志</text>
+
+  <!-- ============================================================ -->
+  <!-- 技术栈 -->
+  <!-- ============================================================ -->
+  <rect x="190" y="738" width="820" height="52" rx="10" fill="#fff" stroke="#dce2e8" stroke-width="1" filter="url(#ds2)"/>
+  <text x="204" y="758" font-size="11" font-weight="700" fill="#4a5568">技术栈</text>
+  <text x="204" y="776" font-size="10" fill="#94a3b8">Python + FastAPI  ·  PostgreSQL + pgvector  ·  React + TypeScript + Vite  ·  JWT  ·  Docker Compose</text>
+  <text x="204" y="790" font-size="10" fill="#94a3b8">MiMo-V2.5 多模态  ·  text-embedding-v4  ·  mimoV2.5-pro</text>
+
+  <!-- ============================================================ -->
+  <!-- 左右栏底部标注 -->
+  <!-- ============================================================ -->
+  <text x="100" y="722" text-anchor="middle" font-size="9" fill="#c4a35a" letter-spacing="0.5">↕ 横切关注点</text>
+  <text x="100" y="734" text-anchor="middle" font-size="9" fill="#c4a35a">贯穿各层</text>
+  <text x="1100" y="722" text-anchor="middle" font-size="9" fill="#8b7bb0" letter-spacing="0.5">↕ 横切关注点</text>
+  <text x="1100" y="734" text-anchor="middle" font-size="9" fill="#8b7bb0">贯穿各层</text>
+</svg>

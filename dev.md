@@ -244,6 +244,56 @@ docker compose exec backend python -m app.db.seed_demo
 
 每个迁移都必须通过空库 upgrade、完整 downgrade/upgrade 和模型 metadata 对齐检查。完整身份证号码和隐藏答案不得出现在迁移、seed 或 SQL 日志中。
 
+### 6.1 业务枚举值
+
+以下枚举值是前端下拉框与后端字段之间的稳定契约，seed 数据和接口响应必须使用相同值。
+
+#### 地点枚举（`location_public`）
+
+| 枚举值 | 标准化代码（`location_normalized`） | 说明 |
+|---|---|---|
+| `宿舍区` | `DORMITORY_AREA` | 学生宿舍楼区域 |
+| `食堂` | `CANTEEN_AREA` | 校园食堂 |
+| `教学楼` | `TEACHING_BUILDING` | 日常上课教学楼 |
+| `科教楼` | `RESEARCH_BUILDING` | 科研/实验楼 |
+| `图书馆` | `LIBRARY` | 校园图书馆 |
+
+前端下拉框展示枚举值原样保存到 `location_public`（PUBLIC），同时后端生成标准化代码保存到 `location_normalized`（MATCH_ONLY）用于匹配评分。不支持自由输入。
+
+#### 物品类别枚举（`public_category`）
+
+| 枚举值 | 对应 `item_type` | 说明 |
+|---|---|---|
+| `电子产品` | `OTHER` | 手机、耳机、充电宝等电子设备 |
+| `证件卡片` | `IDENTITY_DOCUMENT` | 居民身份证、校园卡、学生证等证件类 |
+| `服饰配饰` | `OTHER` | 衣物、包袋、手表、眼镜等 |
+| `学习用品` | `OTHER` | 书本、文具、U 盘等 |
+| `其他` | `OTHER` | 以上分类未涵盖的物品 |
+
+`public_category` 是 PUBLIC 字段（5 种），同时用于**候选匹配硬过滤**和前端展示。`item_type` 是决定认领核验流程的二分类（2 种）。当 `public_category` 为 `证件卡片` 时，`item_type` 强制为 `IDENTITY_DOCUMENT`；其余均为 `OTHER`。
+
+**匹配规则：** 候选匹配以 `public_category` 精确匹配为硬门槛（5 种类别各自独立匹配），不同类别之间不能成为候选。`item_type` 决定认领核验分支（身份证件用 HMAC，其他物品用隐藏问题），不影响候选匹配范围。
+
+**后端存储要求：** `item_records` 表必须同时存储 `item_type` 和 `public_category` 两个字段。`item_type` 用于核验流程分支，`public_category` 用于候选匹配过滤。两个字段独立存储，不能只存 `item_type` 然后靠代码推断 `public_category`（因为 `OTHER` 对应 4 种不同类别，推断不回来）。
+
+#### 地点接近度评分映射
+
+| 关系 | 得分 | 地点对 |
+|---|---:|---|
+| 同一地点 | 20 | 任意地点与自身 |
+| 相邻建筑 | 14 | 教学楼 ↔ 科教楼；食堂 ↔ 宿舍区 |
+| 同校园邻近 | 8 | 教学楼 ↔ 图书馆；食堂 ↔ 教学楼；宿舍区 ↔ 图书馆 |
+| 明显无关 | 0 | 宿舍区 ↔ 科教楼；食堂 ↔ 科教楼；食堂 ↔ 图书馆 |
+
+#### 时间接近度评分映射
+
+| 条件 | 得分 |
+|---|---:|
+| 时间差 ≤ 1 小时 | 20 |
+| 时间差 1～4 小时 | 12 |
+| 同一天（时间差 ≤ 24 小时） | 6 |
+| 跨日且无合理解释 | 0，标记冲突 |
+
 ---
 
 ## 7. 模块实现规则
@@ -257,7 +307,8 @@ docker compose exec backend python -m app.db.seed_demo
 ### 7.2 M2 失物、Top 5 与未匹配复核
 
 - 创建 LOST 后异步/同步生成公开描述 embedding；失主可选图片仅保存为 `OWNER_SUPPORT + PRIVATE`。
-- 候选 SQL 硬过滤：`FOUND`、同 `item_type`、`PUBLISHED`、活动状态，方向必须与 LOST 相反。
+- 候选 SQL 硬过滤：`FOUND`、同 `public_category`、`PUBLISHED`、活动状态，方向必须与 LOST 相反。`public_category` 精确匹配（5 种），确保电子产品不会匹配到学习用品等跨类别物品。`item_type` 决定认领核验分支，不决定候选范围。
+- 地点评分分两层：下拉框粗匹配（同值 20 / 相邻 14 / 邻近 8 / 无关 0）+ 详细描述语义相似度（在 50 分语义分中体现）。即使失主记错楼层或具体位置，只要详细描述语义接近仍可匹配。
 - 评分固定：语义 50、时间 20、地点 20、完整度 10；返回 Top 5 安全解释，不返回内部距离与向量。
 - Top 5 无合适候选时，记录创建者可提交一条活动 `UNMATCHED` 复核；请求保存理由和候选快照，不自动修改评分或创建 claim。
 

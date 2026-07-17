@@ -750,6 +750,39 @@ sequenceDiagram
 | `IDENTITY_DOCUMENT` | 身份证件类 | MVP 中仅指居民身份证；认领时使用完整号码的 HMAC 精确核验，不生成隐藏问题。 |
 | `OTHER` | 其他物品 | 身份证以外的物品；通过公开信息生成候选，再使用 2～3 个隐藏问题核验。 |
 
+#### 6.1.2.1 `PublicCategory`：物品展示类别（PUBLIC 字段）
+
+| 枚举值 | 中文名称 | 对应 `ItemType` | 文字解释 |
+|---|---|---|---|
+| `ELECTRONICS` | 电子产品 | `OTHER` | 手机、耳机、充电宝等电子设备。 |
+| `IDENTITY_CARD` | 证件卡片 | `IDENTITY_DOCUMENT` | 居民身份证、校园卡、学生证等证件类。 |
+| `CLOTHING` | 服饰配饰 | `OTHER` | 衣物、包袋、手表、眼镜等。 |
+| `STATIONERY` | 学习用品 | `OTHER` | 书本、文具、U 盘等。 |
+| `OTHER` | 其他 | `OTHER` | 以上分类未涵盖的物品。 |
+
+前端下拉框展示中文名称，后端保存英文枚举值到 `public_category`。当 `public_category` 为 `IDENTITY_CARD` 时，`item_type` 强制为 `IDENTITY_DOCUMENT`；其余均为 `OTHER`。`public_category` 用于**候选匹配硬过滤**（5 种类别各自独立匹配）和前端展示；`item_type` 决定认领核验分支，不影响候选匹配范围。
+
+#### 6.1.2.2 `LocationEnum`：公开地点枚举
+
+| 枚举值 | 中文名称 | 标准化代码（MATCH_ONLY） | 说明 |
+|---|---|---|---|
+| `DORMITORY` | 宿舍区 | `DORMITORY_AREA` | 学生宿舍楼区域。 |
+| `CANTEEN` | 食堂 | `CANTEEN_AREA` | 校园食堂。 |
+| `TEACHING_BUILDING` | 教学楼 | `TEACHING_BUILDING` | 日常上课教学楼。 |
+| `RESEARCH_BUILDING` | 科教楼 | `RESEARCH_BUILDING` | 科研/实验楼。 |
+| `LIBRARY` | 图书馆 | `LIBRARY` | 校园图书馆。 |
+
+前端下拉框展示中文名称，后端保存中文枚举值到 `location_public`（PUBLIC），同时保存标准化代码到 `location_normalized`（MATCH_ONLY）用于匹配评分。
+
+**地点接近度映射表：**
+
+| 关系 | 得分 | 地点对 |
+|---|---:|---|
+| 同一地点 | 20 | 任意地点与自身 |
+| 相邻建筑 | 14 | 教学楼 ↔ 科教楼；食堂 ↔ 宿舍区 |
+| 同校园邻近 | 8 | 教学楼 ↔ 图书馆；食堂 ↔ 教学楼；宿舍区 ↔ 图书馆 |
+| 明显无关 | 0 | 宿舍区 ↔ 科教楼；食堂 ↔ 科教楼；食堂 ↔ 图书馆 |
+
 #### 6.1.3 `RecordKind`：记录方向
 
 | 枚举值 | 中文名称 | 文字解释 |
@@ -866,7 +899,8 @@ sequenceDiagram
 | `id` | UUID | 主键 |
 | `owner_user_id` | UUID | 记录创建者 |
 | `kind` | enum | LOST / FOUND |
-| `item_type` | enum | IDENTITY_DOCUMENT / OTHER |
+| `item_type` | enum | IDENTITY_DOCUMENT / OTHER（决定核验分支） |
+| `public_category` | enum | 电子产品/证件卡片/服饰配饰/学习用品/其他（决定候选匹配过滤） |
 | `status` | enum | 状态机控制 |
 | `name_public` | text | 人工确认后的名称 |
 | `description_public` | text | 人工确认后的公开描述 |
@@ -970,7 +1004,7 @@ CREATE EXTENSION IF NOT EXISTS vector;
 
 设计索引：
 
-- `item_records(kind, item_type, status, published_at)`：候选硬过滤。
+- `item_records(kind, public_category, status, published_at)`：候选硬过滤，`public_category` 精确匹配。
 - `candidate_matches(lost_record_id, total_score DESC)`：Top 5。
 - `identity_document_secrets(number_hmac)`：匹配成功后的重复记录检查；不加唯一约束。
 - `claim_attempts(user_id, candidate_id, created_at)`：尝试次数与审计。
@@ -1029,9 +1063,10 @@ verify_answers(question_set, answers) -> VerificationResult
 
 ### 8.5 Candidate Matching
 
-- 类型一致为硬门槛。
+- `public_category`（5 种）一致为硬门槛。不同类别（如电子产品与学习用品）之间不能成为候选。`item_type`（`IDENTITY_DOCUMENT` / `OTHER`）决定认领核验分支，不决定候选范围。
 - 只处理活动、已发布、方向相反的记录。
 - 对每个失物记录返回 Top 5；低于最低展示阈值不展示。
+- 地点评分分两层：下拉框粗匹配（同值 20 / 相邻 14 / 邻近 8 / 无关 0）+ 详细描述语义相似度（在 50 分语义分中体现）。即使失主记错楼层或具体位置，只要详细描述语义接近仍可匹配。
 - 候选理由使用固定代码映射为安全文案，不把 MATCH_ONLY 原值拼进前端解释。
 - Top 5 无合适候选时允许记录创建者提交 `UNMATCHED` 复核；该操作不改变评分、不自动扩大候选范围。
 
@@ -1084,7 +1119,7 @@ verify_answers(question_set, answers) -> VerificationResult
 
 ### 9.2 召回与评分
 
-1. SQL 硬过滤：方向相反、类型相同、状态为 PUBLISHED、时间在允许窗口内。
+1. SQL 硬过滤：方向相反、`public_category` 相同、状态为 PUBLISHED、时间在允许窗口内。
 2. 对过滤结果执行 pgvector 精确余弦距离，得到 `semantic_similarity`。
 3. 计算 100 分：
 
@@ -1303,6 +1338,43 @@ digest = HMAC-SHA256(secret[key_version], normalized UTF-8)
 | 前端网络失败 | 使用幂等键重发创建/决定 | 恢复当前服务端状态 | 防止重复申请/决定 |
 
 未知异常统一映射 `INTERNAL_ERROR`，通过 `request_id` 排查；响应和普通日志不包含号码、隐藏答案、token、联系方式或原图 URL。
+
+### 15.1 熔断兜底策略
+
+当外部 AI 服务（图片理解、embedding、问题生成、回答核验）连续失败时，系统应主动熔断，避免无意义的等待和资源浪费。
+
+#### 熔断状态机
+
+```text
+CLOSED（正常）
+  │ 连续失败 ≥ 3 次
+  ▼
+OPEN（熔断）
+  │ 等待 60 秒
+  ▼
+HALF_OPEN（试探）
+  │ 放行 1 次请求
+  ├─ 成功 → CLOSED
+  └─ 失败 → OPEN（重置等待时间）
+```
+
+#### 各场景熔断行为
+
+| 场景 | 熔断触发条件 | 熔断后行为 | 用户感知 |
+|---|---|---|---|
+| 图片理解 API | 连续 3 次超时/5xx | 跳过 AI 提取，直接进入手工填写模式 | "AI 识别暂不可用，请手动填写" |
+| embedding API | 连续 3 次超时/5xx | 标记记录为 `MATCHING_FAILED`，后台排队重试 | "匹配暂时不可用，稍后自动重试" |
+| 问题生成 API | 连续 3 次超时/5xx | 保持草稿状态，允许拾得者稍后重试 | "AI 问题生成暂不可用，请稍后重试" |
+| 回答核验 API | 连续 3 次超时/5xx | 直接转管理员复核，不等待 AI 结果 | "已提交人工复核" |
+| 向量入库 | 连续 3 次失败 | 记录正常发布，候选标记为待重试 | 用户无感知，后台自动补算 |
+
+#### 关键原则
+
+1. **熔断不阻断主流程**：AI 是辅助能力，熔断后系统仍可手工填写、手动发布、管理员复核。
+2. **状态不丢失**：熔断时已上传的图片、已填写的表单数据不丢弃，仅跳过 AI 步骤。
+3. **自动恢复**：熔断 60 秒后进入半开状态，试探一次；成功则恢复，失败则继续熔断。
+4. **熔断事件写审计日志**：记录熔断时间、触发原因、恢复时间，用于运维排查。
+5. **前端配合**：前端 SSE 进度条在收到后端 `error` 事件时显示"AI 暂不可用"提示，不阻塞用户操作。
 
 ## 16. 可观测性与证据链
 

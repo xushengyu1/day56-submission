@@ -25,6 +25,7 @@ export function FoundWizardPage() {
     date: '2026-07-16',
     time: '10:30',
     description: '',
+    hiddenInfo: '',
   })
 
   const handleChange = (field: string, value: string) => setForm((prev) => ({ ...prev, [field]: value }))
@@ -180,6 +181,26 @@ export function FoundWizardPage() {
 
           <textarea placeholder="物品描述（备注）" className="form-textarea"
             value={form.description} onChange={(e) => handleChange('description', e.target.value)} />
+
+          <div style={{ gridColumn: '1 / -1' }}>
+            <textarea
+              placeholder="请填写物品的隐藏特征，例如：物品内部标记、磨损位置、特殊贴纸、手写文字等。这些信息不会公开展示，仅用于认领时核验失主身份。"
+              className="form-textarea"
+              style={{ minHeight: '100px', borderColor: form.hiddenInfo ? 'rgba(107,158,122,0.4)' : undefined }}
+              value={form.hiddenInfo}
+              onChange={(e) => handleChange('hiddenInfo', e.target.value)}
+            />
+            <div style={{
+              marginTop: '6px', padding: '8px 12px', borderRadius: '10px',
+              background: 'rgba(107,158,122,0.06)', border: '1px solid rgba(107,158,122,0.12)',
+              fontSize: '12px', color: '#4a7a5a', lineHeight: 1.6, display: 'flex', gap: '8px',
+            }}>
+              <i className="fas fa-shield-halved mt-0.5 text-xs" style={{ color: '#6b9e7a' }}></i>
+              <span>
+                <strong>什么是隐藏信息？</strong> 填写只有物品持有者才知道的细节特征。认领时，系统会根据这些信息生成验证问题，回答正确才能认领。填写越详细，防冒领效果越好。
+              </span>
+            </div>
+          </div>
 
           <button type="submit" className="submit-btn">
             <i className="fas fa-paper-plane"></i>

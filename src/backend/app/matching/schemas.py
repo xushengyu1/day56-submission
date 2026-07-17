@@ -3,7 +3,8 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field
 
-from app.db.enums import ItemType, LocationArea, PublicCategory
+from app.db.enums import LocationArea, PublicCategory
+from app.items.schemas import ItemRecordPublic
 
 
 class LostRecordCreate(BaseModel):
@@ -16,15 +17,11 @@ class LostRecordCreate(BaseModel):
 
 class CandidatePublic(BaseModel):
     id: UUID
+    lost_record_id: UUID
     found_record_id: UUID
-    item_type: ItemType
-    public_category: PublicCategory
-    location_area: LocationArea
-    name_public: str
-    description_public: str
-    event_time_public: str | None
-    location_public: str
     total_score: float
     level: str
     reason_codes: tuple[str, ...]
     conflict_codes: tuple[str, ...]
+    found_record: ItemRecordPublic
+    created_at: datetime

@@ -25,8 +25,13 @@ async def test_candidate_dto_contains_public_fields_only(matching_database) -> N
         await session.commit()
         body = [item.model_dump(mode="json") for item in await list_candidates(session, lost.id, owner_id)]
 
-    assert {item["public_category"] for item in body} == {"OTHER_CATEGORY"}
-    assert {item["location_area"] for item in body} == {"LIBRARY"}
+    assert all(item["lost_record_id"] == str(lost.id) for item in body)
+    assert {item["found_record"]["public_category"] for item in body} == {
+        "OTHER_CATEGORY"
+    }
+    assert {item["found_record"]["location_area"] for item in body} == {"LIBRARY"}
+    assert all(item["found_record"]["id"] == item["found_record_id"] for item in body)
+    assert all(item["created_at"] for item in body)
     serialized = str(body).casefold()
     for forbidden in ("embedding", "event_time_exact", "location_normalized", "answer_key", "hmac", "object_key", "contact"):
         assert forbidden not in serialized

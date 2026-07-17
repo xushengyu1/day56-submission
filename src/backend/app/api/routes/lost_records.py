@@ -1,12 +1,17 @@
+from collections.abc import AsyncIterator
+import json
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, status
+from fastapi.responses import StreamingResponse
+from sqlalchemy import update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user
 from app.auth.models import User
 from app.database import get_database_session
-from app.db.enums import RecordKind
+from app.db.enums import RecordKind, RecordStatus
+from app.items.models import ItemRecord
 from app.items.query_service import get_record_detail
 from app.items.schemas import ItemRecordPublic
 from app.items.service import DomainError
@@ -43,8 +48,6 @@ async def create_lost(
         record = await create_lost_record(
             session, owner_user_id=user.id, **payload.model_dump()
         )
-        await session.flush()
-        candidates = await generate_candidates(session, lost_record=record)
         await session.commit()
     except DomainError:
         await session.rollback()
@@ -52,8 +55,67 @@ async def create_lost(
     return {
         "id": str(record.id),
         "status": record.status.value,
-        "candidate_count": len(candidates),
     }
+
+
+def sse_event(event: str, data: dict[str, object]) -> str:
+    payload = json.dumps(data, ensure_ascii=False, separators=(",", ":"))
+    return f"event: {event}\ndata: {payload}\n\n"
+
+
+@router.get("/{record_id}/match")
+async def match_lost_record(
+    record_id: UUID,
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_database_session),
+) -> StreamingResponse:
+    record = await session.get(ItemRecord, record_id)
+    if record is None or record.kind is not RecordKind.LOST:
+        raise DomainError("NOT_FOUND")
+    if record.owner_user_id != user.id:
+        raise DomainError("NOT_OWNER")
+
+    async def stream() -> AsyncIterator[str]:
+        for stage_name, progress in (
+            ("searching", 15),
+            ("filtering", 30),
+            ("embedding", 50),
+            ("matching", 70),
+        ):
+            yield sse_event(
+                "progress", {"stage": stage_name, "progress": progress}
+            )
+        try:
+            await generate_candidates(session, lost_record=record)
+            await session.commit()
+        except DomainError:
+            await session.rollback()
+            await session.execute(
+                update(ItemRecord)
+                .where(ItemRecord.id == record_id)
+                .values(status=RecordStatus.MATCHING_FAILED)
+            )
+            await session.commit()
+            yield sse_event(
+                "error",
+                {
+                    "stage": "failed",
+                    "progress": 100,
+                    "error_code": "MATCHING_FAILED",
+                },
+            )
+            return
+        for stage_name, progress in (("scoring", 85), ("finalizing", 100)):
+            yield sse_event(
+                "progress", {"stage": stage_name, "progress": progress}
+            )
+        yield sse_event("done", {"stage": "done", "progress": 100})
+
+    return StreamingResponse(
+        stream(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache"},
+    )
 
 
 @router.get("/{record_id}/candidates", response_model=list[CandidatePublic])

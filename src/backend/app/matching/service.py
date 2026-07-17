@@ -16,6 +16,7 @@ from app.items.catalog import (
     location_public_for,
 )
 from app.items.models import ItemRecord
+from app.items.projections import project_records
 from app.items.service import DomainError
 from app.matching.embedding import EmbeddingError, EmbeddingPort
 from app.matching.embedding_factory import build_embedding_adapter
@@ -201,23 +202,23 @@ async def list_candidates(
             .limit(5)
         )
     ).all()
+    found_records = [found for _, found in rows]
+    found_projections = await project_records(
+        session, found_records, actor_id=actor_id
+    )
     return [
         CandidatePublic(
             id=candidate.id,
+            lost_record_id=candidate.lost_record_id,
             found_record_id=found.id,
-            item_type=found.item_type,
-            public_category=found.public_category,
-            location_area=found.location_area,
-            name_public=found.name_public or "",
-            description_public=found.description_public or "",
-            event_time_public=found.event_time_public,
-            location_public=found.location_public or "",
             total_score=float(candidate.total_score),
             level=_level(float(candidate.total_score)),
             reason_codes=tuple(candidate.reason_codes),
             conflict_codes=tuple(candidate.conflict_codes),
+            found_record=found_projection,
+            created_at=candidate.created_at,
         )
-        for candidate, found in rows
+        for (candidate, found), found_projection in zip(rows, found_projections)
     ]
 
 

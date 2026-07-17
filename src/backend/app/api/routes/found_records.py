@@ -60,7 +60,7 @@ async def create_record(
             session,
             owner_user_id=user.id,
             event_time=payload.event_time,
-            location_public=payload.location_public,
+            location_area=payload.location_area,
         )
         await session.commit()
     except DomainError as error:

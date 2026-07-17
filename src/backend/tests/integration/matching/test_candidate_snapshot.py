@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.enums import ClaimStatus, ItemType
+from app.db.enums import ClaimStatus, ItemType, LocationArea, PublicCategory
 from app.items.models import ItemRecord
 from app.matching.models import CandidateMatch
 from app.matching.service import create_lost_record, generate_candidates
@@ -19,9 +19,9 @@ async def test_recalculation_preserves_candidate_referenced_by_claim(
         lost = await create_lost_record(
             session,
             owner_user_id=owner_id,
-            item_type=ItemType.OTHER,
+            public_category=PublicCategory.OTHER_CATEGORY,
+            location_area=LocationArea.LIBRARY,
             event_time=datetime(2026, 7, 16, 10, 0, tzinfo=timezone.utc),
-            location_public="图书馆",
             name_public="黑色折叠伞",
             description_public="外观完整",
         )

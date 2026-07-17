@@ -17,11 +17,18 @@ from app.db.enums import (
     DocumentType,
     ImagePurpose,
     ItemType,
+    LocationArea,
+    PublicCategory,
     RecordKind,
     RecordStatus,
     RedactionStatus,
 )
 from app.images.models import ImageAsset
+from app.items.catalog import (
+    build_public_embedding_text,
+    item_type_for,
+    location_public_for,
+)
 from app.items.models import ItemRecord
 from app.items.schemas import HandoffResult
 from app.items.policies import validate_common_publish_fields
@@ -63,18 +70,18 @@ async def create_found_draft(
     *,
     owner_user_id: UUID,
     event_time: datetime,
-    location_public: str,
+    location_area: LocationArea,
 ) -> ItemRecord:
-    if not location_public.strip():
-        raise DomainError("FIELD_INVALID")
     record = ItemRecord(
         owner_user_id=owner_user_id,
         kind=RecordKind.FOUND,
         item_type=ItemType.OTHER,
+        public_category=PublicCategory.OTHER_CATEGORY,
+        location_area=location_area,
         status=RecordStatus.DRAFT,
         event_time_exact=event_time,
         event_time_public=event_time.astimezone(timezone.utc).strftime("%Y-%m-%d %H:%M"),
-        location_public=location_public.strip(),
+        location_public=location_public_for(location_area),
         version=1,
     )
     session.add(record)
@@ -87,9 +94,11 @@ async def confirm_found_draft(
     record_id: UUID,
     actor_id: UUID,
     expected_version: int,
-    item_type: ItemType,
+    public_category: PublicCategory,
     name_public: str,
     description_public: str,
+    event_time: datetime,
+    location_area: LocationArea,
 ) -> ItemRecord:
     record = await _owned_record(session, record_id, actor_id)
     if record.status is not RecordStatus.DRAFT:
@@ -98,9 +107,16 @@ async def confirm_found_draft(
         raise DomainError("VERSION_CONFLICT")
     if not name_public.strip() or not description_public.strip():
         raise DomainError("FIELD_INVALID")
-    record.item_type = item_type
+    record.item_type = item_type_for(public_category)
+    record.public_category = public_category
+    record.location_area = location_area
     record.name_public = name_public.strip()
     record.description_public = description_public.strip()
+    record.event_time_exact = event_time
+    record.event_time_public = event_time.astimezone(timezone.utc).strftime(
+        "%Y-%m-%d %H:%M"
+    )
+    record.location_public = location_public_for(location_area)
     record.version += 1
     return record
 
@@ -263,7 +279,11 @@ async def publish_found_record(
         if verification_set is None or verification_set.confirmed_at is None:
             raise DomainError("PUBLISH_GUARD_FAILED")
 
-    text = f"{record.name_public}\n{record.description_public}\n{record.location_public}"
+    text = build_public_embedding_text(
+        name_public=record.name_public or "",
+        description_public=record.description_public or "",
+        location_public=record.location_public or "",
+    )
     try:
         adapter = embedding_adapter or build_embedding_adapter()
         embedding = (await adapter.embed([text]))[0]

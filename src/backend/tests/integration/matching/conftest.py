@@ -8,7 +8,13 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, create_async_engine
 
 from app.auth.models import User  # noqa: F401
-from app.db.enums import ItemType, RecordKind, RecordStatus
+from app.db.enums import (
+    ItemType,
+    LocationArea,
+    PublicCategory,
+    RecordKind,
+    RecordStatus,
+)
 from app.items.models import ItemRecord
 from app.matching.embedding import embed_public_text
 from app.settings import settings
@@ -45,6 +51,8 @@ async def matching_database() -> AsyncIterator[tuple[AsyncEngine, UUID, UUID]]:
                         owner_user_id=FINDER_ID,
                         kind=RecordKind.FOUND,
                         item_type=ItemType.OTHER,
+                        public_category=PublicCategory.OTHER_CATEGORY,
+                        location_area=LocationArea.LIBRARY,
                         status=RecordStatus.PUBLISHED,
                         name_public="黑色折叠伞",
                         description_public=f"外观完整 {index}",

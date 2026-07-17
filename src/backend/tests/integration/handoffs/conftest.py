@@ -45,8 +45,10 @@ async def handoff_database() -> AsyncIterator[tuple[AsyncEngine, dict[str, UUID]
                 await connection.execute(
                     text(
                         "INSERT INTO item_records "
-                        "(id, owner_user_id, kind, item_type, status, name_public, description_public, version) "
-                        "VALUES (:id, :owner, :kind, 'OTHER', 'PENDING_HANDOFF', '黑色折叠伞', '外观完整', 1)"
+                        "(id, owner_user_id, kind, item_type, public_category, "
+                        "location_area, status, name_public, description_public, version) "
+                        "VALUES (:id, :owner, :kind, 'OTHER', 'OTHER_CATEGORY', "
+                        "'LIBRARY', 'PENDING_HANDOFF', '黑色折叠伞', '外观完整', 1)"
                     ),
                     {"id": record_id, "owner": owner_id, "kind": kind},
                 )

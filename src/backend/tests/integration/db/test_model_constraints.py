@@ -7,6 +7,25 @@ from sqlalchemy.ext.asyncio import AsyncEngine
 
 
 @pytest.mark.asyncio
+async def test_identity_category_rejects_other_item_type(
+    database_engine: AsyncEngine,
+    seeded_records: dict[str, object],
+) -> None:
+    with pytest.raises(IntegrityError):
+        async with database_engine.begin() as connection:
+            await connection.execute(
+                text(
+                    "INSERT INTO item_records "
+                    "(id, owner_user_id, kind, item_type, public_category, "
+                    "location_area, status, version) "
+                    "VALUES (:id, :owner, 'LOST', 'OTHER', 'IDENTITY_CARD', "
+                    "'LIBRARY', 'DRAFT', 1)"
+                ),
+                {"id": uuid4(), "owner": seeded_records["user"]},
+            )
+
+
+@pytest.mark.asyncio
 async def test_identity_record_rejects_other_verification_set(
     database_engine: AsyncEngine,
     seeded_records: dict[str, object],

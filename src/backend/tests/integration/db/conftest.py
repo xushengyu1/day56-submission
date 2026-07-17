@@ -51,23 +51,38 @@ async def seeded_records(database_engine: AsyncEngine) -> dict[str, UUID]:
                 "password_hash": "synthetic-password-hash",
             },
         )
-        for record_id, kind, item_type in (
-            (ids["lost"], "LOST", "OTHER"),
-            (ids["identity_found"], "FOUND", "IDENTITY_DOCUMENT"),
-            (ids["other_found"], "FOUND", "OTHER"),
+        for record_id, kind, item_type, public_category, location_area in (
+            (ids["lost"], "LOST", "OTHER", "OTHER_CATEGORY", "LIBRARY"),
+            (
+                ids["identity_found"],
+                "FOUND",
+                "IDENTITY_DOCUMENT",
+                "IDENTITY_CARD",
+                "LIBRARY",
+            ),
+            (
+                ids["other_found"],
+                "FOUND",
+                "OTHER",
+                "OTHER_CATEGORY",
+                "LIBRARY",
+            ),
         ):
             await connection.execute(
                 text(
                     "INSERT INTO item_records "
-                    "(id, owner_user_id, kind, item_type, status, version) "
+                    "(id, owner_user_id, kind, item_type, public_category, "
+                    "location_area, status, version) "
                     "VALUES (:id, :owner_user_id, :kind, :item_type, "
-                    "'DRAFT', 1)"
+                    ":public_category, :location_area, 'DRAFT', 1)"
                 ),
                 {
                     "id": record_id,
                     "owner_user_id": ids["user"],
                     "kind": kind,
                     "item_type": item_type,
+                    "public_category": public_category,
+                    "location_area": location_area,
                 },
             )
         await connection.execute(

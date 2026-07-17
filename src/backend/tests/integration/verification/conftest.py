@@ -47,10 +47,12 @@ async def identity_claim_database() -> AsyncIterator[tuple[AsyncEngine, dict[str
                 await connection.execute(
                     text(
                         "INSERT INTO item_records "
-                        "(id, owner_user_id, kind, item_type, status, name_public, "
-                        "description_public, location_public, version) "
-                        "VALUES (:id, :owner, :kind, 'IDENTITY_DOCUMENT', 'PUBLISHED', "
-                        "'居民身份证', '拾获证件', '图书馆', 1)"
+                        "(id, owner_user_id, kind, item_type, public_category, "
+                        "location_area, status, name_public, description_public, "
+                        "location_public, version) "
+                        "VALUES (:id, :owner, :kind, 'IDENTITY_DOCUMENT', "
+                        "'IDENTITY_CARD', 'LIBRARY', 'PUBLISHED', '居民身份证', "
+                        "'拾获证件', '图书馆', 1)"
                     ),
                     {"id": record_id, "owner": owner_id, "kind": kind},
                 )
@@ -110,8 +112,12 @@ async def other_claim_database() -> AsyncIterator[tuple[AsyncEngine, dict[str, o
                 await connection.execute(
                     text(
                         "INSERT INTO item_records "
-                        "(id, owner_user_id, kind, item_type, status, name_public, description_public, location_public, version) "
-                        "VALUES (:id, :owner, :kind, 'OTHER', 'PUBLISHED', '黑色折叠伞', '外观完整', '图书馆', 1)"
+                        "(id, owner_user_id, kind, item_type, public_category, "
+                        "location_area, status, name_public, description_public, "
+                        "location_public, version) "
+                        "VALUES (:id, :owner, :kind, 'OTHER', 'OTHER_CATEGORY', "
+                        "'LIBRARY', 'PUBLISHED', '黑色折叠伞', '外观完整', "
+                        "'图书馆', 1)"
                     ),
                     {"id": record_id, "owner": owner_id, "kind": kind},
                 )

@@ -4,7 +4,7 @@ import pytest
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.enums import ItemType, RecordStatus
+from app.db.enums import LocationArea, PublicCategory, RecordStatus
 from app.db.enums import ImagePurpose
 from app.images.schemas import RedactionRegion
 from app.images.service import create_confirmed_redaction, store_private_asset
@@ -26,12 +26,13 @@ VALID_ID = "110101200001010010"
 @pytest.mark.asyncio
 async def test_identity_publish_persists_only_hmac_and_mask(item_database, tmp_path) -> None:
     engine, owner_id = item_database
+    event_time = datetime.now(timezone.utc)
     async with AsyncSession(engine, expire_on_commit=False) as session:
         record = await create_found_draft(
             session,
             owner_user_id=owner_id,
-            event_time=datetime.now(timezone.utc),
-            location_public="图书馆",
+            event_time=event_time,
+            location_area=LocationArea.LIBRARY,
         )
         await session.flush()
         storage = LocalStorage(tmp_path)
@@ -55,9 +56,11 @@ async def test_identity_publish_persists_only_hmac_and_mask(item_database, tmp_p
             record_id=record.id,
             actor_id=owner_id,
             expected_version=1,
-            item_type=ItemType.IDENTITY_DOCUMENT,
+            public_category=PublicCategory.IDENTITY_CARD,
             name_public="居民身份证",
             description_public="拾获证件",
+            event_time=event_time,
+            location_area=LocationArea.LIBRARY,
         )
         await confirm_identity_document(
             session,

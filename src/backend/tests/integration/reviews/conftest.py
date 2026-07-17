@@ -42,8 +42,12 @@ async def review_database() -> AsyncIterator[tuple[AsyncEngine, dict[str, UUID]]
                 await connection.execute(
                     text(
                         "INSERT INTO item_records "
-                        "(id, owner_user_id, kind, item_type, status, name_public, description_public, location_public, version) "
-                        "VALUES (:id, :owner, :kind, 'OTHER', 'PUBLISHED', '黑色折叠伞', '外观完整', '图书馆', 1)"
+                        "(id, owner_user_id, kind, item_type, public_category, "
+                        "location_area, status, name_public, description_public, "
+                        "location_public, version) "
+                        "VALUES (:id, :owner, :kind, 'OTHER', 'OTHER_CATEGORY', "
+                        "'LIBRARY', 'PUBLISHED', '黑色折叠伞', '外观完整', "
+                        "'图书馆', 1)"
                     ),
                     {"id": record_id, "owner": owner_id, "kind": kind},
                 )

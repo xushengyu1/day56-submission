@@ -9,7 +9,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.models import User  # noqa: F401 - register FK target metadata
 from app.core.idempotency import hash_request
-from app.db.enums import ItemType, RecordKind, RecordStatus
+from app.db.enums import LocationArea, PublicCategory, RecordKind, RecordStatus
+from app.items.catalog import (
+    build_public_embedding_text,
+    item_type_for,
+    location_public_for,
+)
 from app.items.models import ItemRecord
 from app.items.service import DomainError
 from app.matching.embedding import EmbeddingError, EmbeddingPort
@@ -41,16 +46,21 @@ async def create_lost_record(
     session: AsyncSession,
     *,
     owner_user_id: UUID,
-    item_type: ItemType,
+    public_category: PublicCategory,
+    location_area: LocationArea,
     event_time: datetime,
-    location_public: str,
     name_public: str,
     description_public: str,
     embedding_adapter: EmbeddingPort | None = None,
 ) -> ItemRecord:
-    if not all(value.strip() for value in (location_public, name_public, description_public)):
+    if not all(value.strip() for value in (name_public, description_public)):
         raise DomainError("FIELD_INVALID")
-    public_text = f"{name_public}\n{description_public}\n{location_public}"
+    location_public = location_public_for(location_area)
+    public_text = build_public_embedding_text(
+        name_public=name_public,
+        description_public=description_public,
+        location_public=location_public,
+    )
     try:
         adapter = embedding_adapter or build_embedding_adapter()
         embedding = (await adapter.embed([public_text]))[0]
@@ -59,7 +69,9 @@ async def create_lost_record(
     record = ItemRecord(
         owner_user_id=owner_user_id,
         kind=RecordKind.LOST,
-        item_type=item_type,
+        item_type=item_type_for(public_category),
+        public_category=public_category,
+        location_area=location_area,
         status=RecordStatus.PUBLISHED,
         name_public=name_public.strip(),
         description_public=description_public.strip(),
@@ -85,6 +97,8 @@ async def generate_candidates(
             select(ItemRecord).where(
                 ItemRecord.kind == RecordKind.FOUND,
                 ItemRecord.status == RecordStatus.PUBLISHED,
+                ItemRecord.public_category == lost_record.public_category,
+                ItemRecord.location_area == lost_record.location_area,
                 ItemRecord.item_type == lost_record.item_type,
                 ItemRecord.embedding.is_not(None),
                 ItemRecord.embedding_model == lost_record.embedding_model,
@@ -102,14 +116,7 @@ async def generate_candidates(
             time_delta = abs(
                 (lost_record.event_time_exact - found.event_time_exact).total_seconds()
             ) / 60
-        location = (
-            LocationRelation.SAME_LOCATION
-            if lost_record.location_public
-            and found.location_public
-            and lost_record.location_public.strip().casefold()
-            == found.location_public.strip().casefold()
-            else LocationRelation.UNKNOWN
-        )
+        location = LocationRelation.SAME_LOCATION
         complete = sum(
             value is not None and (not isinstance(value, str) or bool(value.strip()))
             for value in (
@@ -126,8 +133,8 @@ async def generate_candidates(
                 right_kind=found.kind,
                 left_item_type=lost_record.item_type,
                 right_item_type=found.item_type,
-                left_category=lost_record.item_type.value,
-                right_category=found.item_type.value,
+                left_category=lost_record.public_category.value,
+                right_category=found.public_category.value,
                 semantic_similarity=semantic_similarity,
                 time_delta_minutes=time_delta,
                 location_relation=location,
@@ -199,6 +206,8 @@ async def list_candidates(
             id=candidate.id,
             found_record_id=found.id,
             item_type=found.item_type,
+            public_category=found.public_category,
+            location_area=found.location_area,
             name_public=found.name_public or "",
             description_public=found.description_public or "",
             event_time_public=found.event_time_public,

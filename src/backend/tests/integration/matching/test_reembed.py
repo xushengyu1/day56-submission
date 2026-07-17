@@ -4,7 +4,13 @@ import pytest
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.enums import ItemType, RecordKind, RecordStatus
+from app.db.enums import (
+    ItemType,
+    LocationArea,
+    PublicCategory,
+    RecordKind,
+    RecordStatus,
+)
 from app.items.models import ItemRecord
 from app.matching.reembed import reembed_published_records
 
@@ -43,6 +49,8 @@ async def test_reembed_updates_published_records_in_batches_and_is_idempotent(
                     owner_user_id=finder_id,
                     kind=RecordKind.FOUND,
                     item_type=ItemType.OTHER,
+                    public_category=PublicCategory.OTHER_CATEGORY,
+                    location_area=LocationArea.TEACHING_BUILDING,
                     status=RecordStatus.PUBLISHED,
                     name_public=f"旧记录 {index}",
                     description_public="等待重算",
@@ -59,6 +67,8 @@ async def test_reembed_updates_published_records_in_batches_and_is_idempotent(
             owner_user_id=finder_id,
             kind=RecordKind.FOUND,
             item_type=ItemType.OTHER,
+            public_category=PublicCategory.OTHER_CATEGORY,
+            location_area=LocationArea.TEACHING_BUILDING,
             status=RecordStatus.DRAFT,
             name_public="草稿",
             description_public="不重算",
@@ -71,6 +81,8 @@ async def test_reembed_updates_published_records_in_batches_and_is_idempotent(
             owner_user_id=finder_id,
             kind=RecordKind.FOUND,
             item_type=ItemType.OTHER,
+            public_category=PublicCategory.OTHER_CATEGORY,
+            location_area=LocationArea.TEACHING_BUILDING,
             status=RecordStatus.CLAIMED,
             name_public="已领取",
             description_public="不重算",

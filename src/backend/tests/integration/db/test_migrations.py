@@ -1,11 +1,16 @@
+import asyncio
 from enum import Enum
 from pathlib import Path
 import re
 from typing import cast
+from uuid import uuid4
 
+from alembic import command
+from alembic.config import Config
 import pytest
 from sqlalchemy import inspect, select, text, update
-from sqlalchemy.ext.asyncio import AsyncEngine
+from sqlalchemy.exc import DBAPIError
+from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
 
 from app.db.enums import (
     ActorType,
@@ -27,6 +32,7 @@ from app.db.enums import (
 )
 from app.db.models import Base
 from app.items.models import ItemRecord
+from app.settings import settings
 
 
 EXPECTED_TABLES = {
@@ -46,6 +52,13 @@ EXPECTED_TABLES = {
     "audit_events",
     "idempotency_results",
 }
+
+
+def _alembic_config() -> Config:
+    backend_root = Path(__file__).parents[3]
+    config = Config(str(backend_root / "alembic.ini"))
+    config.set_main_option("path_separator", "os")
+    return config
 
 
 def test_database_enum_values_are_stable() -> None:
@@ -111,6 +124,18 @@ async def test_migrations_create_core_schema(database_engine: AsyncEngine) -> No
         tables = await connection.run_sync(
             lambda sync_connection: set(inspect(sync_connection).get_table_names())
         )
+        item_columns = dict(
+            (
+                await connection.execute(
+                    text(
+                        "SELECT column_name, is_nullable "
+                        "FROM information_schema.columns "
+                        "WHERE table_schema = current_schema() "
+                        "AND table_name = 'item_records'"
+                    )
+                )
+            ).all()
+        )
         extension = await connection.scalar(
             text("SELECT extname FROM pg_extension WHERE extname = 'vector'")
         )
@@ -132,8 +157,10 @@ async def test_migrations_create_core_schema(database_engine: AsyncEngine) -> No
     assert EXPECTED_TABLES <= tables
     assert extension == "vector"
     assert embedding_type == "vector"
+    assert item_columns["public_category"] == "NO"
+    assert item_columns["location_area"] == "NO"
     assert {
-        "ix_item_records_match_filter",
+        "ix_item_records_match_taxonomy",
         "ix_candidate_matches_top5",
         "ix_identity_document_secrets_hmac",
         "ix_claim_attempts_lookup",
@@ -141,6 +168,110 @@ async def test_migrations_create_core_schema(database_engine: AsyncEngine) -> No
         "uq_review_requests_active_unmatched",
         "uq_review_requests_active_claim",
     } <= index_names
+    assert "ix_item_records_match_filter" not in index_names
+
+
+@pytest.mark.asyncio
+async def test_matching_taxonomy_migration_backfills_existing_record() -> None:
+    config = _alembic_config()
+    await asyncio.to_thread(command.downgrade, config, "20260716_0006")
+
+    user_id = uuid4()
+    record_id = uuid4()
+    old_engine = create_async_engine(settings.database_url)
+    try:
+        async with old_engine.begin() as connection:
+            await connection.execute(text("TRUNCATE users RESTART IDENTITY CASCADE"))
+            await connection.execute(
+                text(
+                    "INSERT INTO users (id, email, password_hash, role) "
+                    "VALUES (:id, :email, :password_hash, 'USER')"
+                ),
+                {
+                    "id": user_id,
+                    "email": "migration-backfill@example.test",
+                    "password_hash": "synthetic-password-hash",
+                },
+            )
+            await connection.execute(
+                text(
+                    "INSERT INTO item_records "
+                    "(id, owner_user_id, kind, item_type, status, "
+                    "location_public, version) "
+                    "VALUES (:id, :owner, 'FOUND', 'IDENTITY_DOCUMENT', "
+                    "'DRAFT', '图书馆', 1)"
+                ),
+                {"id": record_id, "owner": user_id},
+            )
+    finally:
+        await old_engine.dispose()
+
+    await asyncio.to_thread(command.upgrade, config, "head")
+
+    upgraded_engine = create_async_engine(settings.database_url)
+    try:
+        async with upgraded_engine.connect() as connection:
+            migrated = (
+                await connection.execute(
+                    text(
+                        "SELECT public_category::text, location_area::text "
+                        "FROM item_records WHERE id = :id"
+                    ),
+                    {"id": record_id},
+                )
+            ).one()
+    finally:
+        await upgraded_engine.dispose()
+
+    assert migrated == ("IDENTITY_CARD", "LIBRARY")
+
+
+@pytest.mark.asyncio
+async def test_matching_taxonomy_migration_rejects_unknown_location() -> None:
+    config = _alembic_config()
+    await asyncio.to_thread(command.downgrade, config, "20260716_0006")
+
+    user_id = uuid4()
+    record_id = uuid4()
+    old_engine = create_async_engine(settings.database_url)
+    try:
+        async with old_engine.begin() as connection:
+            await connection.execute(text("TRUNCATE users RESTART IDENTITY CASCADE"))
+            await connection.execute(
+                text(
+                    "INSERT INTO users (id, email, password_hash, role) "
+                    "VALUES (:id, :email, :password_hash, 'USER')"
+                ),
+                {
+                    "id": user_id,
+                    "email": "migration-rejection@example.test",
+                    "password_hash": "synthetic-password-hash",
+                },
+            )
+            await connection.execute(
+                text(
+                    "INSERT INTO item_records "
+                    "(id, owner_user_id, kind, item_type, status, "
+                    "location_public, version) "
+                    "VALUES (:id, :owner, 'FOUND', 'OTHER', 'DRAFT', "
+                    "'操场', 1)"
+                ),
+                {"id": record_id, "owner": user_id},
+            )
+    finally:
+        await old_engine.dispose()
+
+    try:
+        with pytest.raises(DBAPIError, match="UNMAPPABLE_LOCATION_PUBLIC"):
+            await asyncio.to_thread(command.upgrade, config, "head")
+    finally:
+        cleanup_engine = create_async_engine(settings.database_url)
+        try:
+            async with cleanup_engine.begin() as connection:
+                await connection.execute(text("TRUNCATE users RESTART IDENTITY CASCADE"))
+        finally:
+            await cleanup_engine.dispose()
+        await asyncio.to_thread(command.upgrade, config, "head")
 
 
 def test_migrations_do_not_contain_identity_number_literals() -> None:

@@ -15,8 +15,11 @@ async def test_duplicate_published_identity_routes_to_admin(identity_claim_datab
     async with engine.begin() as connection:
         await connection.execute(
             text(
-                "INSERT INTO item_records (id, owner_user_id, kind, item_type, status, version) "
-                "VALUES (:id, :finder, 'FOUND', 'IDENTITY_DOCUMENT', 'PUBLISHED', 1)"
+                "INSERT INTO item_records "
+                "(id, owner_user_id, kind, item_type, public_category, "
+                "location_area, status, version) "
+                "VALUES (:id, :finder, 'FOUND', 'IDENTITY_DOCUMENT', "
+                "'IDENTITY_CARD', 'LIBRARY', 'PUBLISHED', 1)"
             ),
             {"id": duplicate_id, "finder": ids["finder"]},
         )

@@ -38,8 +38,11 @@ async def image_database() -> AsyncIterator[tuple[AsyncEngine, UUID, UUID]]:
             )
             await connection.execute(
                 text(
-                    "INSERT INTO item_records (id, owner_user_id, kind, item_type, status, version) "
-                    "VALUES (:record, :user, 'FOUND', 'OTHER', 'DRAFT', 1)"
+                    "INSERT INTO item_records "
+                    "(id, owner_user_id, kind, item_type, public_category, "
+                    "location_area, status, version) "
+                    "VALUES (:record, :user, 'FOUND', 'OTHER', "
+                    "'OTHER_CATEGORY', 'LIBRARY', 'DRAFT', 1)"
                 ),
                 {"record": RECORD_ID, "user": USER_ID},
             )

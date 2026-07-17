@@ -4,15 +4,16 @@ from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.enums import RecordStatus
+from app.items.catalog import build_public_embedding_text
 from app.items.models import ItemRecord
 from app.matching.embedding import EmbeddingError, EmbeddingPort
 
 
 def _public_text(record: ItemRecord) -> str:
-    return (
-        f"{record.name_public or ''}\n"
-        f"{record.description_public or ''}\n"
-        f"{record.location_public or ''}"
+    return build_public_embedding_text(
+        name_public=record.name_public or "",
+        description_public=record.description_public or "",
+        location_public=record.location_public or "",
     )
 
 

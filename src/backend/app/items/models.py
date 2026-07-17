@@ -17,7 +17,13 @@ from sqlalchemy.dialects.postgresql import JSONB, UUID as PostgresUUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base
-from app.db.enums import ItemType, RecordKind, RecordStatus
+from app.db.enums import (
+    ItemType,
+    LocationArea,
+    PublicCategory,
+    RecordKind,
+    RecordStatus,
+)
 from app.db.types import VectorType
 
 
@@ -26,12 +32,21 @@ class ItemRecord(Base):
     __table_args__ = (
         UniqueConstraint("id", "item_type", name="uq_item_records_id_item_type"),
         CheckConstraint("version >= 1", name="version_positive"),
+        CheckConstraint(
+            "(item_type = 'IDENTITY_DOCUMENT' AND "
+            "public_category = 'IDENTITY_CARD') OR "
+            "(item_type = 'OTHER' AND public_category IN "
+            "('ELECTRONICS', 'CLOTHING', 'STATIONERY', 'OTHER_CATEGORY'))",
+            name="category_item_type",
+        ),
         Index(
-            "ix_item_records_match_filter",
+            "ix_item_records_match_taxonomy",
             "kind",
-            "item_type",
+            "public_category",
+            "location_area",
             "status",
-            "published_at",
+            "embedding_model",
+            "embedding_dimensions",
         ),
     )
 
@@ -49,6 +64,12 @@ class ItemRecord(Base):
     )
     item_type: Mapped[ItemType] = mapped_column(
         SqlEnum(ItemType, name="item_type"), nullable=False
+    )
+    public_category: Mapped[PublicCategory] = mapped_column(
+        SqlEnum(PublicCategory, name="public_category"), nullable=False
+    )
+    location_area: Mapped[LocationArea] = mapped_column(
+        SqlEnum(LocationArea, name="location_area"), nullable=False
     )
     status: Mapped[RecordStatus] = mapped_column(
         SqlEnum(RecordStatus, name="record_status"),

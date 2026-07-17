@@ -416,6 +416,8 @@ async def decide_review(
         if decision is AdminDecision.RECOMMEND_CANDIDATE:
             if candidate_id is None:
                 raise DomainError("CANDIDATE_REQUIRED")
+            if request.lost_record_id is None:
+                raise DomainError("REVIEW_STATE_INVALID")
             candidate_rows = await _valid_unmatched_candidate_rows(
                 session, lost_record_id=request.lost_record_id
             )
@@ -480,8 +482,15 @@ async def decide_review(
             evidence_data_class=DataClass.VERIFICATION,
         )
     )
-    aggregate_type = "claim" if claim is not None else "review_request"
-    aggregate_id = claim.id if claim is not None else request.id
+    if claim is not None:
+        aggregate_type = "claim"
+        aggregate_id = claim.id
+        result_status = claim.status.value
+    else:
+        assert request is not None
+        aggregate_type = "review_request"
+        aggregate_id = request.id
+        result_status = request.status
     append_audit_event(
         session,
         AuditEventInput(
@@ -500,7 +509,7 @@ async def decide_review(
         candidate_id=(
             recommended_candidate.id if recommended_candidate is not None else None
         ),
-        status=claim.status.value if claim is not None else request.status,
+        status=result_status,
         decision=decision,
     )
     store_idempotent_result(

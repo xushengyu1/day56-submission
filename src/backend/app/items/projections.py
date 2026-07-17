@@ -43,7 +43,9 @@ async def project_records(
             IdentityDocumentSecret.number_masked,
         ).where(IdentityDocumentSecret.found_record_id.in_(record_ids))
     )
-    masked_numbers = dict(identity_rows.all())
+    masked_numbers: dict[UUID, str] = {}
+    for record_id, number_masked in identity_rows:
+        masked_numbers[record_id] = number_masked
 
     claim_rows = await session.execute(
         select(

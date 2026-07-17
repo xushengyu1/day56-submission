@@ -307,7 +307,7 @@ git push origin feature/backend
 - Produces: `reembed_published_records(session: AsyncSession, adapter: EmbeddingPort, batch_size: int = 20) -> int`.
 - Produces CLI: `python -m scripts.reembed_records` printing only `reembedded=<count>`.
 
-- [ ] **Step 1: Write failing re-embedding tests**
+- [x] **Step 1: Write failing re-embedding tests**
 
 Seed 21 published records marked `mock-hash-v1`/8 and use a counting Qwen adapter. Assert:
 
@@ -325,7 +325,7 @@ assert adapter.batch_sizes == [20, 1]
 
 Also assert DRAFT and CLAIMED records remain unchanged because the command targets only `RecordStatus.PUBLISHED`.
 
-- [ ] **Step 2: Run Red test**
+- [x] **Step 2: Run Red test**
 
 Run:
 
@@ -335,13 +335,13 @@ Run:
 
 Expected: collection fails because `app.matching.reembed` does not exist.
 
-- [ ] **Step 3: Implement batch selection and update**
+- [x] **Step 3: Implement batch selection and update**
 
 Select published records where embedding is null, model differs, or dimension differs. Order by `ItemRecord.id` for deterministic batches. For each batch, build the same public text used by LOST/FOUND services, await one adapter call, validate returned count, then update all three snapshot fields. Reject `batch_size < 1` and `batch_size > 20` with `ValueError("batch_size must be between 1 and 20")`.
 
 The function does not commit; transaction ownership belongs to its caller.
 
-- [ ] **Step 4: Implement the explicit CLI transaction**
+- [x] **Step 4: Implement the explicit CLI transaction**
 
 ```python
 async def main() -> None:
@@ -358,7 +358,7 @@ if __name__ == "__main__":
 
 The CLI must not print model responses, record text, or credentials.
 
-- [ ] **Step 5: Run Green and idempotency tests**
+- [x] **Step 5: Run Green and idempotency tests**
 
 Run:
 
@@ -370,7 +370,7 @@ Run:
 
 Expected: all commands exit 0; re-embedding calls are exactly `[20, 1]` across both runs.
 
-- [ ] **Step 6: Commit and push Task 3**
+- [x] **Step 6: Commit and push Task 3**
 
 ```bash
 git add src/backend/app/matching/reembed.py src/backend/scripts src/backend/tests/integration/matching/test_reembed.py

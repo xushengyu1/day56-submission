@@ -251,17 +251,14 @@ async def publish_found_record(
     if validate_common_publish_fields(record):
         raise DomainError("PUBLISH_GUARD_FAILED")
 
-    original_count = await session.scalar(
-        select(func.count(ImageAsset.id)).where(
-            ImageAsset.record_id == record_id,
-            ImageAsset.purpose == ImagePurpose.FINDER_ORIGINAL,
-            ImageAsset.data_class == DataClass.PRIVATE,
-        )
-    )
-    if not original_count:
-        raise DomainError("PUBLISH_GUARD_FAILED")
-
     if record.item_type is ItemType.IDENTITY_DOCUMENT:
+        original_count = await session.scalar(
+            select(func.count(ImageAsset.id)).where(
+                ImageAsset.record_id == record_id,
+                ImageAsset.purpose == ImagePurpose.FINDER_ORIGINAL,
+                ImageAsset.data_class == DataClass.PRIVATE,
+            )
+        )
         secret = await session.get(IdentityDocumentSecret, record_id)
         public_count = await session.scalar(
             select(func.count(ImageAsset.id)).where(
@@ -270,7 +267,12 @@ async def publish_found_record(
                 ImageAsset.redaction_status == RedactionStatus.CONFIRMED,
             )
         )
-        if secret is None or secret.finder_confirmed_at is None or not public_count:
+        if (
+            not original_count
+            or secret is None
+            or secret.finder_confirmed_at is None
+            or not public_count
+        ):
             raise DomainError("PUBLISH_GUARD_FAILED")
     else:
         verification_set = await session.scalar(

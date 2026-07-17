@@ -51,7 +51,15 @@ class FailingQuestionAdapter(MockMultimodalAdapter):
         raise ModelAdapterError(self.code)
 
 
-async def _ready_other_record(session, owner_id, tmp_path):
+async def _ready_other_record(
+    session,
+    owner_id,
+    tmp_path,
+    *,
+    public_category=PublicCategory.OTHER_CATEGORY,
+    include_original=True,
+    include_verification=True,
+):
     event_time = datetime.now(timezone.utc)
     record = await create_found_draft(
         session,
@@ -60,34 +68,96 @@ async def _ready_other_record(session, owner_id, tmp_path):
         location_area=LocationArea.TEACHING_BUILDING,
     )
     await session.flush()
-    await store_private_asset(
-        session,
-        LocalStorage(tmp_path),
-        record_id=record.id,
-        uploader_user_id=owner_id,
-        data=sample_png(),
-        declared_mime="image/png",
-        purpose=ImagePurpose.FINDER_ORIGINAL,
-    )
+    if include_original:
+        await store_private_asset(
+            session,
+            LocalStorage(tmp_path),
+            record_id=record.id,
+            uploader_user_id=owner_id,
+            data=sample_png(),
+            declared_mime="image/png",
+            purpose=ImagePurpose.FINDER_ORIGINAL,
+        )
     await confirm_found_draft(
         session,
         record_id=record.id,
         actor_id=owner_id,
         expected_version=1,
-        public_category=PublicCategory.OTHER_CATEGORY,
+        public_category=public_category,
         name_public="黑色折叠伞",
         description_public="教学楼 B 区 302 教室，伞柄有公开划痕",
         event_time=event_time,
         location_area=LocationArea.TEACHING_BUILDING,
     )
-    await confirm_other_questions(
-        session,
-        record_id=record.id,
-        actor_id=owner_id,
-        hidden_description="伞套内侧字母A",
-        adapter=MockMultimodalAdapter(),
-    )
+    if include_verification:
+        await confirm_other_questions(
+            session,
+            record_id=record.id,
+            actor_id=owner_id,
+            hidden_description="伞套内侧字母A",
+            adapter=MockMultimodalAdapter(),
+        )
     return record
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "public_category",
+    [
+        PublicCategory.ELECTRONICS,
+        PublicCategory.CLOTHING,
+        PublicCategory.STATIONERY,
+        PublicCategory.OTHER_CATEGORY,
+    ],
+)
+async def test_other_categories_publish_without_original_image(
+    item_database, tmp_path, public_category
+) -> None:
+    engine, owner_id = item_database
+    async with AsyncSession(engine, expire_on_commit=False) as session:
+        record = await _ready_other_record(
+            session,
+            owner_id,
+            tmp_path,
+            public_category=public_category,
+            include_original=False,
+        )
+        await publish_found_record(
+            session,
+            record_id=record.id,
+            actor_id=owner_id,
+            expected_version=2,
+            embedding_adapter=StaticEmbeddingAdapter(),
+        )
+        await session.commit()
+
+    assert record.status is RecordStatus.PUBLISHED
+
+
+@pytest.mark.asyncio
+async def test_other_publish_without_image_still_requires_verification(
+    item_database, tmp_path
+) -> None:
+    engine, owner_id = item_database
+    async with AsyncSession(engine, expire_on_commit=False) as session:
+        record = await _ready_other_record(
+            session,
+            owner_id,
+            tmp_path,
+            include_original=False,
+            include_verification=False,
+        )
+
+        with pytest.raises(DomainError, match="^PUBLISH_GUARD_FAILED$"):
+            await publish_found_record(
+                session,
+                record_id=record.id,
+                actor_id=owner_id,
+                expected_version=2,
+                embedding_adapter=StaticEmbeddingAdapter(),
+            )
+
+        assert record.status is RecordStatus.DRAFT
 
 
 @pytest.mark.asyncio

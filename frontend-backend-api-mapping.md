@@ -7,10 +7,19 @@
 
 ## 物品类型映射
 
-| 前端物品类别 | 后端 `item_type` |
-|---|---|
-| 证件卡片 | `IDENTITY_DOCUMENT` |
-| 电子产品、服饰配饰、学习用品、其他 | `OTHER` |
+后端 `item_records` 表必须同时存储 `item_type` 和 `public_category` 两个字段，独立使用：
+
+| 前端物品类别（`public_category`） | 后端 `public_category` | 后端 `item_type` | 用途 |
+|---|---|---|---|
+| 电子产品 | `ELECTRONICS` | `OTHER` | 候选匹配 + 核验分支 |
+| 证件卡片 | `IDENTITY_CARD` | `IDENTITY_DOCUMENT` | 候选匹配 + 核验分支 |
+| 服饰配饰 | `CLOTHING` | `OTHER` | 候选匹配 + 核验分支 |
+| 学习用品 | `STATIONERY` | `OTHER` | 候选匹配 + 核验分支 |
+| 其他 | `OTHER_CATEGORY` | `OTHER` | 候选匹配 + 核验分支 |
+
+- **候选匹配硬过滤**：使用 `public_category`（5 种精确匹配），电子产品只匹配电子产品，学习用品只匹配学习用品
+- **认领核验分支**：使用 `item_type`（2 种），`IDENTITY_DOCUMENT` 走 HMAC 核验，`OTHER` 走隐藏问题核验
+- 两个字段独立存储，不能只存 `item_type` 然后推断 `public_category`（因为 `OTHER` 对应 4 种不同类别）
 
 ---
 

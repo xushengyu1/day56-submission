@@ -1,8 +1,9 @@
 # AI 失物招领系统 — 前端测试策略
 
-> **当前范围：** T13-T16 前端应用壳、认证、三角色页面  
-> **文档状态：** 前端 6 个测试文件、46 个用例全部通过  
-> **测试锚点：** `prd.md` V0.9、`task-frontend.md`、`prototype/ui/` 设计图；不得以未来实现的当前输出反推 expected
+> **当前范围：** T13-T16 前端应用壳、认证、三角色页面 + 联调对齐后的接口契约更新  
+> **文档状态：** 前端 6 个测试文件、46 个用例全部通过；字段命名、状态枚举、评分逻辑已对齐后端  
+> **测试锚点：** `prd.md` V0.9、`task-frontend.md`、`docs/design/end-to-end-system-design.md`、`docs/decision/decision-location-itemcategory-enums.md`；不得以未来实现的当前输出反推 expected  
+> **负责人：** 宋姿毅（前端）、徐胜宇（后端）
 
 ## 1. Test Objective
 
@@ -25,11 +26,27 @@
 
 ### 2.2 Out of Scope
 
-- 真实后端 API 联调（当前使用 Mock API）。
+- 真实后端 API 联调（当前使用 Mock API；联调时需更新为真实 API 调用）。
 - Playwright E2E 测试（计划 T17）。
 - 浏览器 localStorage/sessionStorage 扫描（计划 T18）。
 - 视觉回归测试（像素级 UI 对比）。
 - 组件内部实现细节（state、effect 调用次数等）。
+- SSE 实时进度推送的端到端验证（需后端 SSE 接口完成后测试）。
+
+### 2.3 联调对齐变更（2026-07-17）
+
+以下前端变更已完成，测试用例需同步更新：
+
+| 变更项 | 旧值 | 新值 | 影响范围 |
+|---|---|---|---|
+| 字段命名 | `record_type`、`public_item_name` 等 | `kind`、`name_public` 等 | 所有 mock 数据和组件 |
+| RecordStatus | `PENDING_MATCH`、`HAS_CANDIDATES` | `PUBLISHED`、`PROCESSING` | 状态标签、筛选逻辑 |
+| ClaimStatus | `PENDING_ANSWER`、`AI_VERIFYING` | `SUBMITTED`、`VERIFYING` | 认领进度页 |
+| 候选评分 | `match_score` + 四维明细 | `total_score` + `reason_texts` | 候选列表、详情页 |
+| 登录方式 | username | email + password | 登录页、auth API |
+| 匹配过滤 | `item_type`（2 种） | `public_category`（5 种） | 候选匹配逻辑 |
+| 地点枚举 | 自由输入 | 5 个固定枚举 | 下拉框、匹配评分 |
+| 隐藏信息 | 无 | 招领表单新增隐藏信息文本框 | 拾得者发布流程 |
 
 ## 3. Requirements-to-Tests Mapping
 

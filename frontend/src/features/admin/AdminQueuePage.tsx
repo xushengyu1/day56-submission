@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { mockApi } from '@/api/mock'
+import { useState } from 'react'
 import type { ReviewRecord } from '@/api/types'
 
 const REVIEW_TYPE_CONFIG: Record<string, { label: string; color: string; bg: string; icon: string }> = {
@@ -45,6 +46,7 @@ function ReviewRow({ review }: { review: ReviewRecord }) {
 }
 
 export function AdminQueuePage() {
+  const [filter, setFilter] = useState<string>('all')
   const { data: reviews = [], isLoading } = useQuery({
     queryKey: ['admin', 'reviews'],
     queryFn: () => mockApi.getReviewQueue(),
@@ -59,12 +61,14 @@ export function AdminQueuePage() {
   }
 
   const statCards = [
-    { label: '待处理', count: stats.total, icon: 'fa-inbox', color: '#8b7bb0', bg: 'rgba(139,123,176,0.1)' },
-    { label: '多人认领', count: stats.multiClaim, icon: 'fa-users', color: '#b85c5c', bg: 'rgba(184,92,92,0.1)' },
-    { label: '核验未通过', count: stats.verifyFailed, icon: 'fa-xmark-circle', color: '#c4a35a', bg: 'rgba(196,163,90,0.1)' },
-    { label: '未匹配复核', count: stats.unmatched, icon: 'fa-flag', color: '#6b8ba4', bg: 'rgba(107,139,164,0.1)' },
-    { label: '认领复核', count: stats.claimReview, icon: 'fa-clipboard-check', color: '#6b9e7a', bg: 'rgba(107,158,122,0.1)' },
+    { key: 'all', label: '待处理', count: stats.total, icon: 'fa-inbox', color: '#8b7bb0', bg: 'rgba(139,123,176,0.1)' },
+    { key: 'MULTI_CLAIM', label: '多人认领', count: stats.multiClaim, icon: 'fa-users', color: '#b85c5c', bg: 'rgba(184,92,92,0.1)' },
+    { key: 'VERIFICATION_FAILED', label: '核验未通过', count: stats.verifyFailed, icon: 'fa-xmark-circle', color: '#c4a35a', bg: 'rgba(196,163,90,0.1)' },
+    { key: 'UNMATCHED', label: '未匹配复核', count: stats.unmatched, icon: 'fa-flag', color: '#6b8ba4', bg: 'rgba(107,139,164,0.1)' },
+    { key: 'CLAIM_REVIEW', label: '认领复核', count: stats.claimReview, icon: 'fa-clipboard-check', color: '#6b9e7a', bg: 'rgba(107,158,122,0.1)' },
   ]
+
+  const filtered = filter === 'all' ? reviews : reviews.filter((r) => r.review_type === filter)
 
   return (
     <div>
@@ -77,7 +81,16 @@ export function AdminQueuePage() {
       {/* 统计卡片 */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '14px', marginBottom: '20px' }}>
         {statCards.map((stat) => (
-          <div key={stat.label} className="glass-card" style={{ padding: '18px', borderRadius: '20px' }}>
+          <div
+            key={stat.key}
+            onClick={() => setFilter(stat.key)}
+            className="glass-card"
+            style={{
+              padding: '18px', borderRadius: '20px', cursor: 'pointer',
+              border: filter === stat.key ? `2px solid ${stat.color}` : '2px solid transparent',
+              transition: 'all 0.2s ease',
+            }}
+          >
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
               <span style={{ fontSize: '12px', color: 'var(--muted)' }}>{stat.label}</span>
               <div style={{
@@ -87,26 +100,35 @@ export function AdminQueuePage() {
                 <i className={`fas ${stat.icon} text-xs`} style={{ color: stat.color }}></i>
               </div>
             </div>
-            <p style={{ fontSize: '28px', fontWeight: 800, color: 'var(--text)' }}>{stat.count}</p>
+            <p style={{ fontSize: '28px', fontWeight: 800, color: filter === stat.key ? stat.color : 'var(--text)' }}>{stat.count}</p>
           </div>
         ))}
       </div>
 
       {/* 筛选标签 */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px', flexWrap: 'wrap' }}>
-        <button style={{
-          padding: '8px 16px', borderRadius: '999px', fontSize: '13px', fontWeight: 700, border: 'none',
-          background: 'linear-gradient(135deg, var(--primary) 0%, var(--primary-deep) 100%)', color: '#fff'
-        }}>
+        <button
+          onClick={() => setFilter('all')}
+          style={{
+            padding: '8px 16px', borderRadius: '999px', fontSize: '13px', fontWeight: filter === 'all' ? 700 : 500, border: 'none', cursor: 'pointer',
+            background: filter === 'all' ? 'linear-gradient(135deg, var(--primary) 0%, var(--primary-deep) 100%)' : 'rgba(255,255,255,0.88)',
+            color: filter === 'all' ? '#fff' : 'var(--text)',
+          }}
+        >
           全部 ({stats.total})
         </button>
         {Object.entries(REVIEW_TYPE_CONFIG).map(([key, config]) => {
           const count = reviews.filter((r) => r.review_type === key).length
           return count > 0 ? (
-            <button key={key} style={{
-              padding: '8px 16px', borderRadius: '999px', fontSize: '13px', fontWeight: 500, border: 'none',
-              background: 'rgba(255,255,255,0.88)', color: 'var(--text)', cursor: 'pointer'
-            }}>
+            <button
+              key={key}
+              onClick={() => setFilter(key)}
+              style={{
+                padding: '8px 16px', borderRadius: '999px', fontSize: '13px', fontWeight: filter === key ? 700 : 500, border: 'none', cursor: 'pointer',
+                background: filter === key ? config.bg : 'rgba(255,255,255,0.88)',
+                color: filter === key ? config.color : 'var(--text)',
+              }}
+            >
               {config.label} ({count})
             </button>
           ) : null
@@ -120,13 +142,15 @@ export function AdminQueuePage() {
             <div style={{ textAlign: 'center', padding: '60px 0' }}>
               <i className="fas fa-spinner fa-spin text-xl" style={{ color: 'var(--primary)' }}></i>
             </div>
-          ) : reviews.length === 0 ? (
+          ) : filtered.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '60px 0' }}>
               <i className="fas fa-check-circle" style={{ fontSize: '32px', color: 'var(--success)', marginBottom: '12px', display: 'block' }}></i>
-              <p style={{ fontSize: '14px', color: 'var(--muted)' }}>暂无待处理复核</p>
+              <p style={{ fontSize: '14px', color: 'var(--muted)' }}>
+                {filter === 'all' ? '暂无待处理复核' : `暂无${REVIEW_TYPE_CONFIG[filter]?.label || ''}类型的复核`}
+              </p>
             </div>
           ) : (
-            reviews.map((review) => <ReviewRow key={review.id} review={review} />)
+            filtered.map((review) => <ReviewRow key={review.id} review={review} />)
           )}
         </div>
       </div>

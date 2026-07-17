@@ -30,6 +30,21 @@
 
 ---
 
+## 2026-07-17 实现与联调 Review
+
+| Review 对象 | 证据 | 决定 | 状态 |
+|---|---|---|---|
+| K 静态类型 | mypy 报告的实际注解与 narrowing 问题 | 方案 A：精准补类型，不重构业务 | 84 个源文件通过 |
+| L API 错误契约 | OpenAPI 未统一声明 422 错误模型 | 方案 A：FastAPI 全局 422 response model | 契约测试通过 |
+| M seed 测试收集 | `ModuleNotFoundError: scripts` | 修订 M-A1：测试按文件路径加载，不扩大生产包 | 后端全量通过 |
+| N 前端 lint | 缺少 ESLint v9 配置 | 方案 A：补 flat config 并修复实际告警 | lint 0 warning |
+| O 候选幂等 | 相邻两次匹配产生重复数据库行 | 方案 A：唯一约束 + upsert | 集成与 E2E 通过 |
+| 全链路安全 | Playwright 真实浏览器、API、PostgreSQL | 401/403/404、号码/token 扫描、owner 访问 | 4 个 E2E 全通过 |
+
+所有独立业务缺陷均在修复前展示位置、证据和选项并由用户确认；测试导航或配置错误只修复测试基础设施，没有借机改动业务逻辑。
+
+---
+
 # Review 记录
 
 ## 人工 Review 记录

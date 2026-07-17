@@ -106,7 +106,7 @@ def test_database_enum_values_are_stable() -> None:
         ExtractionStatus: ["SUCCEEDED", "INVALID", "TIMEOUT", "FALLBACK"],
         QuestionResult: ["MATCH", "PARTIAL_MATCH", "UNDETERMINED", "CONFLICT"],
         DocumentType: ["CN_RESIDENT_ID"],
-        AdminDecision: ["APPROVE_TO_HANDOFF", "REJECT"],
+        AdminDecision: ["APPROVE_TO_HANDOFF", "REJECT", "RECOMMEND_CANDIDATE"],
         ReviewRequestType: ["UNMATCHED", "CLAIM_REVIEW"],
     }
 
@@ -165,6 +165,16 @@ async def test_migrations_create_core_schema(database_engine: AsyncEngine) -> No
                 )
             )
         )
+        admin_decisions = list(
+            await connection.scalars(
+                text(
+                    "SELECT enumlabel FROM pg_enum "
+                    "JOIN pg_type ON pg_type.oid = pg_enum.enumtypid "
+                    "WHERE pg_type.typname = 'admin_decision' "
+                    "ORDER BY enumsortorder"
+                )
+            )
+        )
 
     assert EXPECTED_TABLES <= tables
     assert extension == "vector"
@@ -182,6 +192,11 @@ async def test_migrations_create_core_schema(database_engine: AsyncEngine) -> No
         "uq_review_requests_active_claim",
     } <= index_names
     assert "ix_item_records_match_filter" not in index_names
+    assert admin_decisions == [
+        "APPROVE_TO_HANDOFF",
+        "REJECT",
+        "RECOMMEND_CANDIDATE",
+    ]
 
 
 @pytest.mark.asyncio

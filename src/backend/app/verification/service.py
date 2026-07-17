@@ -170,6 +170,7 @@ async def submit_identity_claim(
         status=claim.status,
         result_code=result_code,
         attempt_no=attempt_no,
+        attempts_remaining=max(0, 2 - attempt_no),
     )
 
 
@@ -332,4 +333,5 @@ async def submit_other_claim(
         status=claim.status,
         result_code=result_code,
         attempt_no=1,
+        attempts_remaining=0,
     )

@@ -4,15 +4,23 @@ from fastapi import APIRouter, Depends, Header
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.errors import APIError
 from app.api.deps import get_current_user
 from app.audit.models import AuditEvent
 from app.auth.models import User
 from app.auth.rbac import AuthorizationError
 from app.database import get_database_session
 from app.items.service import DomainError
-from app.reviews.schemas import AdminDecisionRequest, ReviewDecisionResult, ReviewQueueItem
-from app.reviews.service import decide_claim_review, list_admin_review_queue
+from app.reviews.schemas import (
+    AdminDecisionRequest,
+    ReviewDecisionResult,
+    ReviewDetail,
+    ReviewQueueItem,
+)
+from app.reviews.service import (
+    decide_review,
+    get_admin_review_detail,
+    list_admin_review_queue,
+)
 
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
@@ -26,33 +34,35 @@ async def review_queue(
     return await list_admin_review_queue(session, actor_role=user.role)
 
 
-@router.get("/reviews/{review_id}", response_model=ReviewQueueItem)
+@router.get("/reviews/{review_id}", response_model=ReviewDetail)
 async def review_detail(
     review_id: UUID,
     user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_database_session),
-) -> ReviewQueueItem:
-    items = await list_admin_review_queue(session, actor_role=user.role)
-    for item in items:
-        if item.id == review_id:
-            return item
-    raise APIError("NOT_FOUND")
+) -> ReviewDetail:
+    return await get_admin_review_detail(
+        session,
+        review_id=review_id,
+        actor_id=user.id,
+        actor_role=user.role,
+    )
 
 
-@router.post("/reviews/{claim_id}/decision", response_model=ReviewDecisionResult)
+@router.post("/reviews/{review_id}/decision", response_model=ReviewDecisionResult)
 async def review_decision(
-    claim_id: UUID,
+    review_id: UUID,
     payload: AdminDecisionRequest,
     idempotency_key: str = Header(alias="Idempotency-Key"),
     user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_database_session),
 ) -> ReviewDecisionResult:
     try:
-        result = await decide_claim_review(
+        result = await decide_review(
             session,
-            claim_id=claim_id,
+            review_id=review_id,
             admin_id=user.id,
             decision=payload.decision,
+            candidate_id=payload.candidate_id,
             reason=payload.reason,
             idempotency_key=idempotency_key,
         )

@@ -10,8 +10,8 @@ from app.items.service import DomainError
 from app.multimodal.factory import get_multimodal_adapter
 from app.multimodal.ports import MultimodalPort
 from app.settings import settings
-from app.reviews.schemas import ReviewRequestCreate
-from app.reviews.service import create_claim_review_request
+from app.reviews.schemas import ClaimDetail, ReviewRequestCreate
+from app.reviews.service import create_claim_review_request, get_claim_detail
 from app.verification.schemas import (
     ClaimOutcome,
     IdentityClaimRequest,
@@ -27,6 +27,20 @@ from app.verification.service import (
 
 router = APIRouter(prefix="/api/candidates", tags=["claims"])
 claim_review_router = APIRouter(prefix="/api/claims", tags=["claims"])
+
+
+@claim_review_router.get("/{claim_id}", response_model=ClaimDetail)
+async def claim_detail(
+    claim_id: UUID,
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_database_session),
+) -> ClaimDetail:
+    return await get_claim_detail(
+        session,
+        claim_id=claim_id,
+        actor_id=user.id,
+        actor_role=user.role,
+    )
 
 
 @router.post("/{candidate_id}/claims/identity", response_model=ClaimOutcome)

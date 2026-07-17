@@ -14,6 +14,7 @@ class ClaimOutcome(BaseModel):
     status: ClaimStatus
     result_code: str
     attempt_no: int
+    attempts_remaining: int
 
 
 class QuestionPublic(BaseModel):

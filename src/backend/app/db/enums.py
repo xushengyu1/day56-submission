@@ -102,6 +102,7 @@ class DocumentType(str, Enum):
 class AdminDecision(str, Enum):
     APPROVE_TO_HANDOFF = "APPROVE_TO_HANDOFF"
     REJECT = "REJECT"
+    RECOMMEND_CANDIDATE = "RECOMMEND_CANDIDATE"
 
 
 class ReviewRequestType(str, Enum):

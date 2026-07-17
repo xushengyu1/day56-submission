@@ -55,6 +55,8 @@ async def record_api_data(
     now = datetime.now(UTC).replace(microsecond=0)
     owner_id = uuid4()
     other_id = uuid4()
+    admin_id = uuid4()
+    unrelated_id = uuid4()
     records: dict[str, ItemRecord] = {
         "owner_lost": _record(
             owner_id,
@@ -136,8 +138,22 @@ async def record_api_data(
         password_hash="unused",
         role=UserRole.USER,
     )
+    admin = User(
+        id=admin_id,
+        username="record-admin",
+        email="record-admin@example.test",
+        password_hash="unused",
+        role=UserRole.ADMIN,
+    )
+    unrelated = User(
+        id=unrelated_id,
+        username="record-unrelated",
+        email="record-unrelated@example.test",
+        password_hash="unused",
+        role=UserRole.USER,
+    )
     async with session_maker() as session:
-        session.add_all([owner, other, *records.values()])
+        session.add_all([owner, other, admin, unrelated, *records.values()])
         await session.flush()
         public_asset = ImageAsset(
             record_id=records["public_found"].id,
@@ -193,14 +209,16 @@ async def record_api_data(
     return {
         "owner_headers": _headers(owner_id),
         "other_headers": _headers(other_id),
+        "admin_headers": _headers(admin_id, UserRole.ADMIN),
+        "unrelated_headers": _headers(unrelated_id),
         "records": {name: record.id for name, record in records.items()},
         "public_asset_id": public_asset.id,
         "claim_id": claim.id,
     }
 
 
-def _headers(user_id: UUID) -> dict[str, str]:
-    token = create_access_token(user_id, UserRole.USER)
+def _headers(user_id: UUID, role: UserRole = UserRole.USER) -> dict[str, str]:
+    token = create_access_token(user_id, role)
     return {"Authorization": f"Bearer {token}"}
 
 

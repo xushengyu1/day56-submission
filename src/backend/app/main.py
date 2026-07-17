@@ -12,10 +12,19 @@ from app.api.routes.admin import router as admin_router
 from app.api.routes.assets import router as assets_router
 from app.health import register_health_routes
 from app.api.routes.uploads import router as uploads_router
+from app.api.schemas import ErrorResponse
 
 
 def create_app() -> FastAPI:
-    application = FastAPI(title="AI Lost and Found API")
+    application = FastAPI(
+        title="AI Lost and Found API",
+        responses={
+            422: {
+                "model": ErrorResponse,
+                "description": "Validation Error",
+            }
+        },
+    )
     register_error_handlers(application)
     register_health_routes(application)
     application.include_router(auth_router)

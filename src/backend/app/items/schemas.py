@@ -5,6 +5,7 @@ from pydantic import BaseModel, Field
 
 from app.db.enums import (
     ClaimStatus,
+    ExtractionStatus,
     ItemType,
     LocationArea,
     PublicCategory,
@@ -26,6 +27,18 @@ class FoundConfirmation(BaseModel):
     description_public: str = Field(min_length=1, max_length=2000)
     event_time: datetime
     location_area: LocationArea
+
+
+class ExtractionRequest(BaseModel):
+    image_asset_id: UUID
+
+
+class FoundExtractionResponse(BaseModel):
+    suggested_name: str
+    suggested_description: str
+    suggested_item_type: ItemType
+    confidence: float
+    status: ExtractionStatus
 
 
 class IdentityConfirmation(BaseModel):

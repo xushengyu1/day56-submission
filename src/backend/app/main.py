@@ -9,6 +9,7 @@ from app.api.routes.claims import claim_review_router, router as claims_router
 from app.api.routes.handoffs import router as handoffs_router
 from app.api.routes.records import router as records_router
 from app.api.routes.admin import router as admin_router
+from app.api.routes.assets import router as assets_router
 from app.health import register_health_routes
 from app.api.routes.uploads import router as uploads_router
 
@@ -27,6 +28,7 @@ def create_app() -> FastAPI:
     application.include_router(records_router)
     application.include_router(admin_router)
     application.include_router(uploads_router)
+    application.include_router(assets_router)
     return application
 
 

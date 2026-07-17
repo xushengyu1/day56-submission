@@ -45,4 +45,4 @@ async def upload_image(
     except ValueError as error:
         await session.rollback()
         raise APIError(str(error)) from None
-    return {"asset_id": str(asset.id), "purpose": asset.purpose.value}
+    return {"image_asset_id": str(asset.id), "purpose": asset.purpose.value}

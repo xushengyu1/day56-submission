@@ -18,7 +18,9 @@ from app.items.query_service import get_record_detail
 from app.items.schemas import (
     FoundConfirmation,
     FoundDraftCreate,
+    FoundExtractionResponse,
     IdentityConfirmation,
+    ExtractionRequest,
     OtherQuestionConfirmation,
     PublishRequest,
     RedactionRequest,
@@ -77,15 +79,15 @@ async def create_record(
     return {"id": str(record.id), "status": record.status.value, "version": record.version}
 
 
-@router.post("/{record_id}/extract")
+@router.post("/{record_id}/extract", response_model=FoundExtractionResponse)
 async def extract_record(
     record_id: UUID,
-    image_asset_id: UUID,
+    payload: ExtractionRequest,
     user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_database_session),
     adapter: MultimodalPort = Depends(get_multimodal_adapter),
-) -> dict[str, object]:
-    asset = await session.get(ImageAsset, image_asset_id)
+) -> FoundExtractionResponse:
+    asset = await session.get(ImageAsset, payload.image_asset_id)
     if asset is None or asset.record_id != record_id or asset.uploader_user_id != user.id:
         raise APIError("NOT_FOUND")
     try:
@@ -106,7 +108,13 @@ async def extract_record(
     except DomainError:
         await session.rollback()
         raise
-    return draft.model_dump(mode="json")
+    return FoundExtractionResponse(
+        suggested_name=draft.name_public,
+        suggested_description=draft.description_public,
+        suggested_item_type=draft.item_type,
+        confidence=draft.confidence,
+        status=draft.status,
+    )
 
 
 @router.put("/{record_id}/confirmation")

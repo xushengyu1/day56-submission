@@ -15,7 +15,6 @@ const MOCK_USER: User = {
   username: 'zhangsan',
   email: 'zhangsan@campus.edu.cn',
   role: 'USER',
-  phone: '138****1234',
   created_at: '2026-07-14T08:00:00Z',
 }
 

@@ -146,23 +146,29 @@ describe('api client', () => {
 
     await authApi.getMe()
     await recordsApi.recent()
+    await recordsApi.timeline('record-1')
     await lostRecordsApi.get('lost-1')
     await foundRecordsApi.get('found-1')
     await foundRecordsApi.redact('found-1', 'asset-1', { x: 1, y: 2, width: 3, height: 4 })
     await candidatesApi.get('candidate-1')
     await claimsApi.get('claim-1')
     await adminApi.reviews()
+    await adminApi.decide('review-1', {
+      decision: 'RECOMMEND_CANDIDATE', reason: '最佳候选', candidate_id: 'candidate-1',
+    }, 'idempotency-1')
     await uploadsApi.upload('found-1', 'FINDER_ORIGINAL', new File(['image'], 'image.png', { type: 'image/png' }))
 
     expect(paths).toEqual([
       '/api/auth/me',
       '/api/records/recent',
+      '/api/records/record-1/timeline',
       '/api/lost-records/lost-1',
       '/api/found-records/found-1',
       '/api/found-records/found-1/redaction',
       '/api/candidates/candidate-1',
       '/api/claims/claim-1',
       '/api/admin/reviews',
+      '/api/admin/reviews/review-1/decision',
       '/api/uploads',
     ])
   })

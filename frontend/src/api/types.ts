@@ -62,7 +62,6 @@ export interface User {
   username: string
   email: string
   role: UserRole
-  phone?: string
   created_at: string
 }
 
@@ -330,6 +329,15 @@ export interface ClaimDetail {
 export interface AdminDecisionRequest {
   decision: AdminDecision
   reason: string
+  candidate_id?: string
+}
+
+export interface ReviewDecisionResult {
+  review_id: string
+  claim_id: string | null
+  candidate_id: string | null
+  status: string
+  decision: AdminDecision
 }
 
 // ===== 审计 =====
@@ -349,9 +357,9 @@ export interface AuditEvent {
 export interface TimelineEvent {
   event_id: string
   event_type: string
-  actor_type: string
-  detail: string
-  occurred_at: string
+  result_code: string
+  metadata: Record<string, unknown>
+  created_at: string
 }
 
 // ===== 图片 =====

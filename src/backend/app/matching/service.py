@@ -2,9 +2,10 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 import math
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from sqlalchemy import delete, select
+from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.models import User  # noqa: F401 - register FK target metadata
@@ -147,34 +148,62 @@ async def generate_candidates(
         score_to_record[score.candidate_id] = found
 
     ranked = rank_top_candidates(scores)
-    await session.execute(
-        delete(CandidateMatch).where(
-            CandidateMatch.lost_record_id == lost_record.id,
-            CandidateMatch.id.not_in(select(Claim.candidate_id)),
-        )
+    stale_candidates = delete(CandidateMatch).where(
+        CandidateMatch.lost_record_id == lost_record.id,
+        CandidateMatch.id.not_in(select(Claim.candidate_id)),
     )
-    models = []
+    ranked_found_ids = [
+        score_to_record[score.candidate_id].id for score in ranked
+    ]
+    if ranked_found_ids:
+        stale_candidates = stale_candidates.where(
+            CandidateMatch.found_record_id.not_in(ranked_found_ids)
+        )
+    await session.execute(stale_candidates)
+
+    rows: list[dict[str, object]] = []
     for score in ranked:
         found = score_to_record[score.candidate_id]
-        model = CandidateMatch(
-            lost_record_id=lost_record.id,
-            found_record_id=found.id,
-            semantic_score=score.semantic_score,
-            time_score=score.time_score,
-            location_score=score.location_score,
-            completeness_score=score.completeness_score,
-            total_score=score.total_score,
-            reason_codes=["SEMANTIC_MATCH", "TYPE_MATCH"],
-            conflict_codes=list(score.conflicts),
-            rule_version="score-v1",
-            model_version=lost_record.embedding_model or "unknown",
-            input_snapshot_hash=hash_request(
-                {"lost": str(lost_record.id), "found": str(found.id)}
-            ),
+        rows.append(
+            {
+                "id": uuid4(),
+                "lost_record_id": lost_record.id,
+                "found_record_id": found.id,
+                "semantic_score": score.semantic_score,
+                "time_score": score.time_score,
+                "location_score": score.location_score,
+                "completeness_score": score.completeness_score,
+                "total_score": score.total_score,
+                "reason_codes": ["SEMANTIC_MATCH", "TYPE_MATCH"],
+                "conflict_codes": list(score.conflicts),
+                "rule_version": "score-v1",
+                "model_version": lost_record.embedding_model or "unknown",
+                "input_snapshot_hash": hash_request(
+                    {"lost": str(lost_record.id), "found": str(found.id)}
+                ),
+            }
         )
-        session.add(model)
-        models.append(model)
-    return models
+    if not rows:
+        return []
+
+    statement = insert(CandidateMatch).values(rows)
+    excluded = statement.excluded
+    upsert = statement.on_conflict_do_update(
+        constraint="uq_candidate_matches_lost_found",
+        set_={
+            "semantic_score": excluded.semantic_score,
+            "time_score": excluded.time_score,
+            "location_score": excluded.location_score,
+            "completeness_score": excluded.completeness_score,
+            "total_score": excluded.total_score,
+            "reason_codes": excluded.reason_codes,
+            "conflict_codes": excluded.conflict_codes,
+            "rule_version": excluded.rule_version,
+            "model_version": excluded.model_version,
+            "input_snapshot_hash": excluded.input_snapshot_hash,
+        },
+    ).returning(CandidateMatch)
+    return list(await session.scalars(upsert))
 
 
 def _level(total: float) -> str:

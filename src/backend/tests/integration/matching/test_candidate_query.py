@@ -25,7 +25,14 @@ async def test_owner_receives_at_most_top_five_candidates(matching_database) -> 
         await generate_candidates(session, lost_record=lost)
         await session.commit()
 
+        first_candidates = await list_candidates(session, lost.id, owner_id)
+        assert 1 <= len(first_candidates) <= 5
+        first_ids = [candidate.id for candidate in first_candidates]
+
+        await generate_candidates(session, lost_record=lost)
+        await session.commit()
+
         candidates = await list_candidates(session, lost.id, owner_id)
-        assert 1 <= len(candidates) <= 5
+        assert [candidate.id for candidate in candidates] == first_ids
         with pytest.raises(DomainError, match="NOT_OWNER"):
             await list_candidates(session, lost.id, finder_id)

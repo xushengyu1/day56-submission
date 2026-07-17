@@ -185,6 +185,7 @@ async def test_migrations_create_core_schema(database_engine: AsyncEngine) -> No
     assert {
         "ix_item_records_match_taxonomy",
         "ix_candidate_matches_top5",
+        "uq_candidate_matches_lost_found",
         "ix_identity_document_secrets_hmac",
         "ix_claim_attempts_lookup",
         "ix_audit_events_timeline",

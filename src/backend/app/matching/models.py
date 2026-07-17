@@ -2,7 +2,16 @@ from datetime import datetime
 from decimal import Decimal
 from uuid import UUID, uuid4
 
-from sqlalchemy import DateTime, ForeignKey, Index, Numeric, String, func, text
+from sqlalchemy import (
+    DateTime,
+    ForeignKey,
+    Index,
+    Numeric,
+    String,
+    UniqueConstraint,
+    func,
+    text,
+)
 from sqlalchemy.dialects.postgresql import JSONB, UUID as PostgresUUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -12,6 +21,11 @@ from app.db.base import Base
 class CandidateMatch(Base):
     __tablename__ = "candidate_matches"
     __table_args__ = (
+        UniqueConstraint(
+            "lost_record_id",
+            "found_record_id",
+            name="uq_candidate_matches_lost_found",
+        ),
         Index(
             "ix_candidate_matches_top5",
             "lost_record_id",

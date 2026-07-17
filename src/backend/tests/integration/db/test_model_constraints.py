@@ -153,3 +153,27 @@ async def test_duplicate_active_review_for_same_target_is_rejected(
                     "reason": "synthetic duplicate request",
                 },
             )
+
+
+@pytest.mark.asyncio
+async def test_duplicate_candidate_pair_is_rejected(
+    database_engine: AsyncEngine,
+    seeded_records: dict[str, object],
+) -> None:
+    with pytest.raises(IntegrityError):
+        async with database_engine.begin() as connection:
+            await connection.execute(
+                text(
+                    "INSERT INTO candidate_matches "
+                    "(id, lost_record_id, found_record_id, semantic_score, "
+                    "time_score, location_score, completeness_score, total_score, "
+                    "reason_codes, conflict_codes, rule_version, model_version) "
+                    "VALUES (:id, :lost, :found, 40, 10, 10, 5, 65, '[]', '[]', "
+                    "'rule-v1', 'model-v1')"
+                ),
+                {
+                    "id": uuid4(),
+                    "lost": seeded_records["lost"],
+                    "found": seeded_records["other_found"],
+                },
+            )

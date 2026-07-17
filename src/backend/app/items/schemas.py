@@ -3,7 +3,14 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field
 
-from app.db.enums import ClaimStatus, LocationArea, PublicCategory
+from app.db.enums import (
+    ClaimStatus,
+    ItemType,
+    LocationArea,
+    PublicCategory,
+    RecordKind,
+    RecordStatus,
+)
 from app.images.schemas import RedactionRegion
 
 
@@ -46,3 +53,31 @@ class HandoffCompleteRequest(BaseModel):
 class HandoffResult(BaseModel):
     claim_id: UUID
     status: ClaimStatus
+
+
+class ItemRecordPublic(BaseModel):
+    id: UUID
+    owner_user_id: UUID
+    kind: RecordKind
+    item_type: ItemType
+    public_category: PublicCategory
+    location_area: LocationArea
+    status: RecordStatus
+    name_public: str | None
+    description_public: str | None
+    event_time_public: str | None
+    location_public: str | None
+    public_image_asset_id: UUID | None = None
+    number_masked: str | None = None
+    claim_id: UUID | None = None
+    version: int
+    published_at: datetime | None
+    created_at: datetime
+    updated_at: datetime
+
+
+class RecordPage(BaseModel):
+    items: list[ItemRecordPublic]
+    page: int
+    page_size: int
+    total: int

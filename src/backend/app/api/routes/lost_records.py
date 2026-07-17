@@ -6,6 +6,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.deps import get_current_user
 from app.auth.models import User
 from app.database import get_database_session
+from app.db.enums import RecordKind
+from app.items.query_service import get_record_detail
+from app.items.schemas import ItemRecordPublic
 from app.items.service import DomainError
 from app.matching.schemas import CandidatePublic, LostRecordCreate
 from app.matching.service import create_lost_record, generate_candidates, list_candidates
@@ -14,6 +17,20 @@ from app.reviews.service import create_unmatched_review_request
 
 
 router = APIRouter(prefix="/api/lost-records", tags=["lost-records"])
+
+
+@router.get("/{record_id}", response_model=ItemRecordPublic)
+async def lost_record_detail(
+    record_id: UUID,
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_database_session),
+) -> ItemRecordPublic:
+    return await get_record_detail(
+        session,
+        record_id=record_id,
+        kind=RecordKind.LOST,
+        actor_id=user.id,
+    )
 
 
 @router.post("", status_code=status.HTTP_201_CREATED)

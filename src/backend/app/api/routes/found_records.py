@@ -10,9 +10,11 @@ from app.api.errors import APIError
 from app.api.deps import get_current_user
 from app.auth.models import User
 from app.database import get_database_session
+from app.db.enums import RecordKind
 from app.images.models import ImageAsset
 from app.images.service import create_confirmed_redaction
 from app.images.storage import LocalStorage
+from app.items.query_service import get_record_detail
 from app.items.schemas import (
     FoundConfirmation,
     FoundDraftCreate,
@@ -20,6 +22,7 @@ from app.items.schemas import (
     OtherQuestionConfirmation,
     PublishRequest,
     RedactionRequest,
+    ItemRecordPublic,
 )
 from app.items.service import (
     DomainError,
@@ -38,6 +41,20 @@ from app.settings import settings
 
 router = APIRouter(prefix="/api/found-records", tags=["found-records"])
 _storage = LocalStorage(Path("storage"))
+
+
+@router.get("/{record_id}", response_model=ItemRecordPublic)
+async def found_record_detail(
+    record_id: UUID,
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_database_session),
+) -> ItemRecordPublic:
+    return await get_record_detail(
+        session,
+        record_id=record_id,
+        kind=RecordKind.FOUND,
+        actor_id=user.id,
+    )
 
 
 @router.post("", status_code=status.HTTP_201_CREATED)

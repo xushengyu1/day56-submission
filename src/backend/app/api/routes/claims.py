@@ -7,10 +7,11 @@ from app.api.deps import get_current_user
 from app.auth.models import User
 from app.database import get_database_session
 from app.items.service import DomainError
+from app.multimodal.factory import get_multimodal_adapter
+from app.multimodal.ports import MultimodalPort
 from app.settings import settings
 from app.reviews.schemas import ReviewRequestCreate
 from app.reviews.service import create_claim_review_request
-from app.multimodal.mock import MockMultimodalAdapter
 from app.verification.schemas import (
     ClaimOutcome,
     IdentityClaimRequest,
@@ -26,7 +27,6 @@ from app.verification.service import (
 
 router = APIRouter(prefix="/api/candidates", tags=["claims"])
 claim_review_router = APIRouter(prefix="/api/claims", tags=["claims"])
-_adapter = MockMultimodalAdapter()
 
 
 @router.post("/{candidate_id}/claims/identity", response_model=ClaimOutcome)
@@ -72,6 +72,7 @@ async def other_claim(
     payload: OtherClaimRequest,
     user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_database_session),
+    adapter: MultimodalPort = Depends(get_multimodal_adapter),
 ) -> ClaimOutcome:
     try:
         result = await submit_other_claim(
@@ -79,7 +80,7 @@ async def other_claim(
             candidate_id=candidate_id,
             requester_id=user.id,
             answers={answer.question_id: answer.answer for answer in payload.answers},
-            adapter=_adapter,
+            adapter=adapter,
         )
         await session.commit()
         return result

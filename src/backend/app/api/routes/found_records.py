@@ -29,12 +29,13 @@ from app.items.service import (
     extract_found_record,
     publish_found_record,
 )
-from app.multimodal.mock import MockMultimodalAdapter
+from app.multimodal.factory import get_multimodal_adapter
+from app.multimodal.image_data import encode_image_data_url
+from app.multimodal.ports import MultimodalPort
 from app.settings import settings
 
 
 router = APIRouter(prefix="/api/found-records", tags=["found-records"])
-_adapter = MockMultimodalAdapter()
 _storage = LocalStorage(Path("storage"))
 
 
@@ -74,17 +75,24 @@ async def extract_record(
     image_asset_id: UUID,
     user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_database_session),
+    adapter: MultimodalPort = Depends(get_multimodal_adapter),
 ) -> dict[str, object]:
     asset = await session.get(ImageAsset, image_asset_id)
     if asset is None or asset.record_id != record_id or asset.uploader_user_id != user.id:
         raise HTTPException(404, "NOT_FOUND")
     try:
+        image_data_url = encode_image_data_url(
+            _storage.read(asset.object_key), Path(asset.object_key).suffix
+        )
+    except (OSError, ValueError):
+        raise HTTPException(400, "IMAGE_UNAVAILABLE") from None
+    try:
         draft = await extract_found_record(
             session,
             record_id=record_id,
             actor_id=user.id,
-            image_ref=asset.object_key,
-            adapter=_adapter,
+            image_ref=image_data_url,
+            adapter=adapter,
         )
         await session.commit()
     except DomainError as error:
@@ -164,6 +172,7 @@ async def confirm_questions(
     payload: OtherQuestionConfirmation,
     user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_database_session),
+    adapter: MultimodalPort = Depends(get_multimodal_adapter),
 ) -> dict[str, str]:
     try:
         question_set = await confirm_other_questions(
@@ -171,7 +180,7 @@ async def confirm_questions(
             record_id=record_id,
             actor_id=user.id,
             hidden_description=payload.hidden_description,
-            adapter=_adapter,
+            adapter=adapter,
         )
         await session.commit()
     except DomainError as error:

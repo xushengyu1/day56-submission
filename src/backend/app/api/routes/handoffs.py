@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Header, HTTPException
+from fastapi import APIRouter, Depends, Header
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user
@@ -19,12 +19,9 @@ async def claim_contact(
     user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_database_session),
 ) -> dict[str, str]:
-    try:
-        return await get_claim_contact(
-            session, claim_id=claim_id, requester_id=user.id
-        )
-    except DomainError as error:
-        raise HTTPException(404, error.code) from None
+    return await get_claim_contact(
+        session, claim_id=claim_id, requester_id=user.id
+    )
 
 
 @router.post("/{claim_id}/handoff-complete", response_model=HandoffResult)
@@ -45,7 +42,6 @@ async def handoff_complete(
         )
         await session.commit()
         return result
-    except DomainError as error:
+    except DomainError:
         await session.rollback()
-        status_code = 404 if error.code == "NOT_FOUND" else 403 if error.code == "NOT_FINDER" else 400
-        raise HTTPException(status_code, error.code) from None
+        raise

@@ -11,7 +11,7 @@ from app.database import get_database_session
 
 def extract_bearer_token(authorization: str | None) -> str:
     if not authorization:
-        raise AuthenticationError()
+        raise AuthenticationError("UNAUTHENTICATED")
     scheme, separator, token = authorization.partition(" ")
     if scheme.casefold() != "bearer" or not separator or not token.strip():
         raise AuthenticationError()

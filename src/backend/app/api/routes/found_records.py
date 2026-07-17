@@ -3,9 +3,10 @@ from __future__ import annotations
 from pathlib import Path
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.errors import APIError
 from app.api.deps import get_current_user
 from app.auth.models import User
 from app.database import get_database_session
@@ -39,16 +40,6 @@ router = APIRouter(prefix="/api/found-records", tags=["found-records"])
 _storage = LocalStorage(Path("storage"))
 
 
-def _http_error(error: DomainError) -> HTTPException:
-    if error.code == "NOT_FOUND":
-        return HTTPException(404, error.code)
-    if error.code == "NOT_OWNER":
-        return HTTPException(403, error.code)
-    if error.code == "VERSION_CONFLICT":
-        return HTTPException(409, error.code)
-    return HTTPException(400, error.code)
-
-
 @router.post("", status_code=status.HTTP_201_CREATED)
 async def create_record(
     payload: FoundDraftCreate,
@@ -63,9 +54,9 @@ async def create_record(
             location_area=payload.location_area,
         )
         await session.commit()
-    except DomainError as error:
+    except DomainError:
         await session.rollback()
-        raise _http_error(error) from None
+        raise
     return {"id": str(record.id), "status": record.status.value, "version": record.version}
 
 
@@ -79,13 +70,13 @@ async def extract_record(
 ) -> dict[str, object]:
     asset = await session.get(ImageAsset, image_asset_id)
     if asset is None or asset.record_id != record_id or asset.uploader_user_id != user.id:
-        raise HTTPException(404, "NOT_FOUND")
+        raise APIError("NOT_FOUND")
     try:
         image_data_url = encode_image_data_url(
             _storage.read(asset.object_key), Path(asset.object_key).suffix
         )
     except (OSError, ValueError):
-        raise HTTPException(400, "IMAGE_UNAVAILABLE") from None
+        raise APIError("IMAGE_UNAVAILABLE") from None
     try:
         draft = await extract_found_record(
             session,
@@ -95,9 +86,9 @@ async def extract_record(
             adapter=adapter,
         )
         await session.commit()
-    except DomainError as error:
+    except DomainError:
         await session.rollback()
-        raise _http_error(error) from None
+        raise
     return draft.model_dump(mode="json")
 
 
@@ -116,9 +107,9 @@ async def confirm_record(
             **payload.model_dump(),
         )
         await session.commit()
-    except DomainError as error:
+    except DomainError:
         await session.rollback()
-        raise _http_error(error) from None
+        raise
     return {"id": str(record.id), "version": record.version}
 
 
@@ -139,9 +130,9 @@ async def confirm_identity(
             hmac_key=settings.id_hmac_key_v1.encode("utf-8"),
         )
         await session.commit()
-    except DomainError as error:
+    except DomainError:
         await session.rollback()
-        raise _http_error(error) from None
+        raise
     return {"number_masked": secret.number_masked}
 
 
@@ -154,7 +145,7 @@ async def redact_record_image(
 ) -> dict[str, str]:
     original = await session.get(ImageAsset, payload.original_asset_id)
     if original is None or original.record_id != record_id or original.uploader_user_id != user.id:
-        raise HTTPException(404, "NOT_FOUND")
+        raise APIError("NOT_FOUND")
     try:
         asset = await create_confirmed_redaction(
             session, _storage, original=original, region=payload.region
@@ -162,7 +153,7 @@ async def redact_record_image(
         await session.commit()
     except ValueError as error:
         await session.rollback()
-        raise HTTPException(400, str(error)) from None
+        raise APIError(str(error)) from None
     return {"asset_id": str(asset.id), "status": asset.redaction_status.value}
 
 
@@ -183,9 +174,9 @@ async def confirm_questions(
             adapter=adapter,
         )
         await session.commit()
-    except DomainError as error:
+    except DomainError:
         await session.rollback()
-        raise _http_error(error) from None
+        raise
     return {"verification_set_id": str(question_set.id)}
 
 
@@ -204,7 +195,7 @@ async def publish_record(
             expected_version=payload.expected_version,
         )
         await session.commit()
-    except DomainError as error:
+    except DomainError:
         await session.rollback()
-        raise _http_error(error) from None
+        raise
     return {"id": str(record.id), "status": record.status.value, "version": record.version}

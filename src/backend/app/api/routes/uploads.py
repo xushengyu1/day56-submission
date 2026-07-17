@@ -3,9 +3,10 @@ from __future__ import annotations
 from pathlib import Path
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
+from fastapi import APIRouter, Depends, File, Form, UploadFile, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.errors import APIError
 from app.api.deps import get_current_user
 from app.auth.models import User
 from app.database import get_database_session
@@ -29,7 +30,7 @@ async def upload_image(
 ) -> dict[str, object]:
     record = await session.get(ItemRecord, record_id)
     if record is None or record.owner_user_id != user.id:
-        raise HTTPException(status_code=404, detail="NOT_FOUND")
+        raise APIError("NOT_FOUND")
     try:
         asset = await store_private_asset(
             session,
@@ -43,5 +44,5 @@ async def upload_image(
         await session.commit()
     except ValueError as error:
         await session.rollback()
-        raise HTTPException(status_code=400, detail=str(error)) from None
+        raise APIError(str(error)) from None
     return {"asset_id": str(asset.id), "purpose": asset.purpose.value}

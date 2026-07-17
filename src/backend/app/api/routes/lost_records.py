@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user
@@ -16,13 +16,6 @@ from app.reviews.service import create_unmatched_review_request
 router = APIRouter(prefix="/api/lost-records", tags=["lost-records"])
 
 
-def _error(error: DomainError) -> HTTPException:
-    return HTTPException(
-        status_code=403 if error.code == "NOT_OWNER" else 404 if error.code == "NOT_FOUND" else 400,
-        detail=error.code,
-    )
-
-
 @router.post("", status_code=status.HTTP_201_CREATED)
 async def create_lost(
     payload: LostRecordCreate,
@@ -36,9 +29,9 @@ async def create_lost(
         await session.flush()
         candidates = await generate_candidates(session, lost_record=record)
         await session.commit()
-    except DomainError as error:
+    except DomainError:
         await session.rollback()
-        raise _error(error) from None
+        raise
     return {
         "id": str(record.id),
         "status": record.status.value,
@@ -52,10 +45,7 @@ async def candidate_list(
     user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_database_session),
 ) -> list[CandidatePublic]:
-    try:
-        return await list_candidates(session, record_id, user.id)
-    except DomainError as error:
-        raise _error(error) from None
+    return await list_candidates(session, record_id, user.id)
 
 
 @router.post("/{record_id}/review-requests", status_code=status.HTTP_201_CREATED)
@@ -73,7 +63,7 @@ async def unmatched_review_request(
             reason=payload.reason,
         )
         await session.commit()
-    except DomainError as error:
+    except DomainError:
         await session.rollback()
-        raise _error(error) from None
+        raise
     return {"id": str(request.id), "status": request.status}

@@ -25,7 +25,10 @@ def test_register_login_and_refresh_rotate_tokens() -> None:
             json={"email": "user@example.com", "password": "password-123"},
         )
         assert duplicate.status_code == 409
-        assert duplicate.json()["detail"] == "EMAIL_EXISTS"
+        assert duplicate.json() == {
+            "error_code": "EMAIL_EXISTS",
+            "message": "该邮箱已注册",
+        }
 
         logged_in = client.post(
             "/api/auth/login",
@@ -46,7 +49,10 @@ def test_register_login_and_refresh_rotate_tokens() -> None:
             json={"refresh_token": old_refresh},
         )
         assert reused.status_code == 401
-        assert reused.json()["detail"] == "TOKEN_REVOKED"
+        assert reused.json() == {
+            "error_code": "TOKEN_REVOKED",
+            "message": "登录状态已失效，请重新登录",
+        }
 
 
 @pytest.mark.usefixtures("auth_database_engine")
@@ -58,4 +64,7 @@ def test_login_does_not_reveal_whether_email_exists() -> None:
         )
 
     assert response.status_code == 401
-    assert response.json()["detail"] == "INVALID_CREDENTIALS"
+    assert response.json() == {
+        "error_code": "INVALID_CREDENTIALS",
+        "message": "邮箱或密码错误",
+    }

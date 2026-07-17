@@ -1,9 +1,10 @@
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Header, HTTPException
+from fastapi import APIRouter, Depends, Header
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.errors import APIError
 from app.api.deps import get_current_user
 from app.audit.models import AuditEvent
 from app.auth.models import User
@@ -35,7 +36,7 @@ async def review_detail(
     for item in items:
         if item.id == review_id:
             return item
-    raise HTTPException(404, "NOT_FOUND")
+    raise APIError("NOT_FOUND")
 
 
 @router.post("/reviews/{claim_id}/decision", response_model=ReviewDecisionResult)
@@ -57,10 +58,9 @@ async def review_decision(
         )
         await session.commit()
         return result
-    except (DomainError, AuthorizationError) as error:
+    except (DomainError, AuthorizationError):
         await session.rollback()
-        code = getattr(error, "code", "FORBIDDEN")
-        raise HTTPException(403 if code == "FORBIDDEN" else 400, code) from None
+        raise
 
 
 @router.get("/audit-events")

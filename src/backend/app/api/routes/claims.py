@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user
@@ -46,10 +46,9 @@ async def identity_claim(
         )
         await session.commit()
         return result
-    except DomainError as error:
+    except DomainError:
         await session.rollback()
-        status_code = 404 if error.code == "NOT_FOUND" else 423 if error.code == "ATTEMPT_LOCKED" else 400
-        raise HTTPException(status_code, error.code) from None
+        raise
 
 
 @router.get("/{candidate_id}/questions", response_model=list[QuestionPublic])
@@ -58,12 +57,9 @@ async def other_questions(
     user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_database_session),
 ) -> list[QuestionPublic]:
-    try:
-        return await get_other_questions(
-            session, candidate_id=candidate_id, requester_id=user.id
-        )
-    except DomainError as error:
-        raise HTTPException(404 if error.code == "NOT_FOUND" else 400, error.code) from None
+    return await get_other_questions(
+        session, candidate_id=candidate_id, requester_id=user.id
+    )
 
 
 @router.post("/{candidate_id}/claims/answers", response_model=ClaimOutcome)
@@ -84,9 +80,9 @@ async def other_claim(
         )
         await session.commit()
         return result
-    except DomainError as error:
+    except DomainError:
         await session.rollback()
-        raise HTTPException(404 if error.code == "NOT_FOUND" else 400, error.code) from None
+        raise
 
 
 @claim_review_router.post("/{claim_id}/review-requests")
@@ -104,7 +100,7 @@ async def claim_review_request(
             reason=payload.reason,
         )
         await session.commit()
-    except DomainError as error:
+    except DomainError:
         await session.rollback()
-        raise HTTPException(404 if error.code == "NOT_FOUND" else 400, error.code) from None
+        raise
     return {"id": str(request.id), "status": request.status}

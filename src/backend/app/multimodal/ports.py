@@ -14,12 +14,14 @@ class ModelAdapterError(RuntimeError):
 
 
 class MultimodalPort(Protocol):
-    def extract_found_item(
-        self, image_ref: str, context: Mapping[str, object]
+    async def extract_found_item(
+        self, image_data_url: str, context: Mapping[str, object]
     ) -> ExtractionDraft: ...
 
-    def generate_questions(self, hidden_description: str) -> QuestionSetDraft: ...
+    async def generate_questions(
+        self, hidden_description: str
+    ) -> QuestionSetDraft: ...
 
-    def verify_answers(
+    async def verify_answers(
         self, question_set: QuestionSetDraft, answers: Mapping[str, str]
     ) -> VerificationResult: ...

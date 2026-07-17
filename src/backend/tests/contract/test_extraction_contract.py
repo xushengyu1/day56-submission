@@ -1,9 +1,12 @@
+import pytest
+
 from app.db.enums import ExtractionStatus, ItemType
 from app.multimodal.mock import MockMultimodalAdapter
 
 
-def test_extraction_contract_returns_valid_public_draft() -> None:
-    draft = MockMultimodalAdapter().extract_found_item(
+@pytest.mark.asyncio
+async def test_extraction_contract_returns_valid_public_draft() -> None:
+    draft = await MockMultimodalAdapter().extract_found_item(
         "fixture://umbrella.png", {"scenario": "umbrella"}
     )
 

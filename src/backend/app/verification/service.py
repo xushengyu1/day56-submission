@@ -266,7 +266,7 @@ async def submit_other_claim(
         question.dimension: answers[question.id] for question in questions
     }
     try:
-        verification = adapter.verify_answers(draft, answer_by_dimension)
+        verification = await adapter.verify_answers(draft, answer_by_dimension)
         result_code = verification.reason_code
         summary = {
             "result": verification.result.value,

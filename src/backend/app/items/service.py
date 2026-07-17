@@ -117,7 +117,9 @@ async def extract_found_record(
     if record.status is not RecordStatus.DRAFT:
         raise DomainError("RECORD_NOT_DRAFT")
     try:
-        draft = adapter.extract_found_item(image_ref, {"record_id": str(record_id)})
+        draft = await adapter.extract_found_item(
+            image_ref, {"record_id": str(record_id)}
+        )
     except (RuntimeError, ValueError):
         raise DomainError("MODEL_UNAVAILABLE") from None
     extraction = AIExtraction(
@@ -186,7 +188,7 @@ async def confirm_other_questions(
     record = await _owned_record(session, record_id, actor_id)
     if record.item_type is not ItemType.OTHER or not hidden_description.strip():
         raise DomainError("HIDDEN_INFO_INSUFFICIENT")
-    draft = adapter.generate_questions(hidden_description)
+    draft = await adapter.generate_questions(hidden_description)
     if not validate_question_set(draft).valid:
         raise DomainError("QUESTION_GENERATION_FAILED")
     verification_set = VerificationSet(

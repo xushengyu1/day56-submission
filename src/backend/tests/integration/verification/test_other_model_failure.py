@@ -8,7 +8,7 @@ from app.verification.service import submit_other_claim
 
 
 class FailingAdapter(MockMultimodalAdapter):
-    def verify_answers(self, question_set, answers):
+    async def verify_answers(self, question_set, answers):
         raise ModelAdapterError("MODEL_UNAVAILABLE")
 
 

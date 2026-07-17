@@ -1,7 +1,7 @@
 from datetime import datetime
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import AwareDatetime, BaseModel, Field
 
 from app.db.enums import (
     ClaimStatus,
@@ -16,7 +16,7 @@ from app.images.schemas import RedactionRegion
 
 
 class FoundDraftCreate(BaseModel):
-    event_time: datetime
+    event_time: AwareDatetime
     location_area: LocationArea
 
 
@@ -25,7 +25,7 @@ class FoundConfirmation(BaseModel):
     public_category: PublicCategory
     name_public: str = Field(min_length=1, max_length=160)
     description_public: str = Field(min_length=1, max_length=2000)
-    event_time: datetime
+    event_time: AwareDatetime
     location_area: LocationArea
 
 

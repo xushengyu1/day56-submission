@@ -45,6 +45,59 @@ def test_validation_and_missing_auth_use_canonical_error_shape() -> None:
 
 
 @pytest.mark.usefixtures("auth_database_engine")
+def test_naive_business_event_times_use_canonical_validation_errors() -> None:
+    with TestClient(app) as client:
+        headers = _register(client)
+        lost = client.post(
+            "/api/lost-records",
+            headers=headers,
+            json={
+                "public_category": "ELECTRONICS",
+                "location_area": "LIBRARY",
+                "event_time": "2026-07-17T10:30:00",
+                "name_public": "黑色耳机",
+                "description_public": "图书馆二楼遗失",
+            },
+        )
+        found = client.post(
+            "/api/found-records",
+            headers=headers,
+            json={
+                "event_time": "2026-07-17T10:30:00",
+                "location_area": "LIBRARY",
+            },
+        )
+        valid_draft = client.post(
+            "/api/found-records",
+            headers=headers,
+            json={
+                "event_time": "2026-07-17T10:30:00+08:00",
+                "location_area": "LIBRARY",
+            },
+        )
+        assert valid_draft.status_code == 201
+        confirmation = client.put(
+            f"/api/found-records/{valid_draft.json()['id']}/confirmation",
+            headers=headers,
+            json={
+                "expected_version": 1,
+                "public_category": "ELECTRONICS",
+                "name_public": "黑色耳机",
+                "description_public": "图书馆二楼拾得",
+                "event_time": "2026-07-17T10:30:00",
+                "location_area": "LIBRARY",
+            },
+        )
+
+    for response in (lost, found, confirmation):
+        assert response.status_code == 422
+        assert response.json()["error_code"] == "VALIDATION_ERROR"
+        assert response.json()["message"] == "请求参数不正确"
+        assert "event_time" in response.json()["field_errors"]
+        assert "detail" not in response.json()
+
+
+@pytest.mark.usefixtures("auth_database_engine")
 def test_authorization_and_not_found_use_canonical_error_shape() -> None:
     with TestClient(app) as client:
         headers = _register(client)

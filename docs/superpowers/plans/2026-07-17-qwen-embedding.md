@@ -390,7 +390,7 @@ git push origin feature/backend
 - Consumes: all prior tasks.
 - Produces: reproducible setup and verification evidence without credentials.
 
-- [ ] **Step 1: Run complete quality gates**
+- [x] **Step 1: Run complete quality gates**
 
 Run:
 
@@ -407,7 +407,7 @@ git diff --check
 
 Expected: every command exits 0.
 
-- [ ] **Step 2: Verify runtime dependencies and configuration**
+- [x] **Step 2: Verify runtime dependencies and configuration**
 
 Run:
 
@@ -421,7 +421,7 @@ EMBEDDING_MODE=mock ../../.venv/bin/python -c 'from app.matching.embedding_facto
 
 Expected: containers are healthy, `pip check` reports no broken requirements, and the final command prints `mock-hash-v1 1024`.
 
-- [ ] **Step 3: Scan tracked files and diffs for credential leakage**
+- [x] **Step 3: Scan tracked files and diffs for credential leakage**
 
 Run:
 
@@ -434,7 +434,7 @@ Expected: both commands return no matches. Do not place the full Key in the shel
 
 Also inspect `git diff --cached` before every commit and confirm `.env.example` contains only `DASHSCOPE_API_KEY=`.
 
-- [ ] **Step 4: Write evidence and usage instructions**
+- [x] **Step 4: Write evidence and usage instructions**
 
 Record Red/Green commands, test counts, static checks, migration check, batching/idempotency result, and security scan in `evidence/development-records/qwen-embedding.md`. Document these operator commands without a concrete Key:
 
@@ -450,7 +450,7 @@ cd src/backend
 
 State that the exposed Key must be revoked and replaced before use.
 
-- [ ] **Step 5: Final commit and push**
+- [x] **Step 5: Final commit and push**
 
 ```bash
 git add docs/superpowers/plans/2026-07-17-qwen-embedding.md evidence/development-records/qwen-embedding.md
@@ -458,7 +458,7 @@ git commit -m "docs(embedding): record qwen migration verification"
 git push origin feature/backend
 ```
 
-- [ ] **Step 6: Verify clean handoff**
+- [x] **Step 6: Verify clean handoff**
 
 Run:
 

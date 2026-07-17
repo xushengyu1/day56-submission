@@ -1,108 +1,110 @@
-import { describe, it, expect, vi } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/react'
-import { MemoryRouter } from 'react-router-dom'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { IdentityClaimForm } from '@/features/claims/IdentityClaimForm'
 import { OtherClaimForm } from '@/features/claims/OtherClaimForm'
+import { candidatesApi } from '@/api/candidates'
+import { claimsApi } from '@/api/claims'
+import { ApiError } from '@/api/errors'
+import type { CandidatePublic } from '@/api/types'
 
-vi.mock('@/features/auth/hooks', () => ({
-  useAuth: vi.fn(() => ({
-    user: { id: 'u1', username: 'test', email: 'test@test.com', role: 'USER', created_at: '' },
-    isLoading: false,
-    isAuthenticated: true,
-    isAdmin: false,
-  })),
-  useLogout: vi.fn(() => ({ logout: vi.fn() })),
+vi.mock('@/api/candidates', () => ({ candidatesApi: { get: vi.fn() } }))
+vi.mock('@/api/claims', () => ({
+  claimsApi: { questions: vi.fn(), verifyIdentity: vi.fn(), verifyAnswers: vi.fn() },
 }))
 
-function renderWithProviders(ui: React.ReactNode) {
-  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+const candidate: CandidatePublic = {
+  id: 'candidate-7',
+  lost_record_id: 'lost-1',
+  found_record_id: 'found-1',
+  total_score: 91,
+  level: 'HIGH',
+  reason_codes: [],
+  conflict_codes: [],
+  created_at: '2026-07-17T09:00:00Z',
+  found_record: {
+    id: 'found-1', owner_user_id: 'finder-1', kind: 'FOUND',
+    item_type: 'IDENTITY_DOCUMENT', public_category: 'IDENTITY_CARD',
+    location_area: 'CANTEEN', status: 'PUBLISHED', name_public: '居民身份证',
+    description_public: '透明卡套', event_time_public: '2026-07-17 09:00',
+    location_public: '食堂', public_image_asset_id: null,
+    number_masked: '110***********1234', claim_id: null, version: 1,
+    published_at: '2026-07-17T09:00:00Z', created_at: '2026-07-17T09:00:00Z',
+    updated_at: '2026-07-17T09:00:00Z',
+  },
+}
+
+function renderRoute(path: string, routePath: string, element: React.ReactNode) {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })
   return render(
-    <QueryClientProvider client={queryClient}>
-      <MemoryRouter>{ui}</MemoryRouter>
+    <QueryClientProvider client={client}>
+      <MemoryRouter initialEntries={[path]}>
+        <Routes><Route path={routePath} element={element} /></Routes>
+      </MemoryRouter>
     </QueryClientProvider>,
   )
 }
 
-describe('IdentityClaimForm', () => {
-  it('renders masked document number', () => {
-    renderWithProviders(<IdentityClaimForm />)
-    expect(screen.getByText('110***********1234')).toBeInTheDocument()
+describe('claim error and privacy states', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.mocked(candidatesApi.get).mockResolvedValue(candidate)
+    vi.mocked(claimsApi.questions).mockResolvedValue([
+      { id: 'question-1', question_text: '伞套有什么标记？', dimension: 'cover' },
+      { id: 'question-2', question_text: '伞柄有什么特征？', dimension: 'handle' },
+    ])
   })
 
-  it('shows remaining attempts', () => {
-    renderWithProviders(<IdentityClaimForm />)
-    expect(screen.getByText(/剩余尝试/)).toBeInTheDocument()
-    const attemptsSpan = screen.getByText(/剩余尝试/).closest('p')
-    expect(attemptsSpan?.textContent).toContain('2')
-  })
+  it('loads the masked number from the candidate API without a full-number leak', async () => {
+    renderRoute('/claims/identity/candidate-7', '/claims/identity/:candidateId', <IdentityClaimForm />)
 
-  it('submit button disabled when input is not 18 chars', () => {
-    renderWithProviders(<IdentityClaimForm />)
-    const input = screen.getByPlaceholderText('请输入 18 位身份证号码')
-    fireEvent.change(input, { target: { value: '110101' } })
-    const button = screen.getByText('提交验证')
-    expect(button).toBeDisabled()
-  })
-
-  it('submit button enabled when input is 18 chars', () => {
-    renderWithProviders(<IdentityClaimForm />)
-    const input = screen.getByPlaceholderText('请输入 18 位身份证号码')
-    fireEvent.change(input, { target: { value: '110101199901011234' } })
-    const button = screen.getByText('提交验证')
-    expect(button).not.toBeDisabled()
-  })
-
-  it('shows security notice', () => {
-    renderWithProviders(<IdentityClaimForm />)
-    expect(screen.getByText(/号码将通过加密方式比对/)).toBeInTheDocument()
-    expect(screen.getByText(/同一账号最多尝试/)).toBeInTheDocument()
-  })
-
-  it('does not display full document number from found record', () => {
-    renderWithProviders(<IdentityClaimForm />)
-    // Should only show masked version, not any full number
-    const maskedEl = screen.getByText('110***********1234')
-    expect(maskedEl).toBeInTheDocument()
-    // No 18-digit number should be visible
+    expect(await screen.findByText('110***********1234')).toBeInTheDocument()
+    expect(candidatesApi.get).toHaveBeenCalledWith('candidate-7')
     expect(screen.queryByText(/110101\d{12}/)).not.toBeInTheDocument()
   })
-})
 
-describe('OtherClaimForm', () => {
-  it('renders verification questions', () => {
-    renderWithProviders(<OtherClaimForm />)
-    expect(screen.getByText(/请描述伞套或伞袋上是否有任何特殊标记/)).toBeInTheDocument()
-    expect(screen.getByText(/伞的把手部分有什么特别之处/)).toBeInTheDocument()
-    expect(screen.getByText(/伞面上除了纯黑色外/)).toBeInTheDocument()
+  it('shows only the server remaining-attempt count after a failed identity check', async () => {
+    vi.mocked(claimsApi.verifyIdentity).mockResolvedValue({
+      claim_id: 'claim-9', status: 'VERIFYING', result_code: 'IDENTITY_NOT_VERIFIED',
+      attempt_no: 1, attempts_remaining: 1,
+    })
+    renderRoute('/claims/identity/candidate-7', '/claims/identity/:candidateId', <IdentityClaimForm />)
+
+    fireEvent.change(await screen.findByPlaceholderText('请输入 18 位身份证号码'), {
+      target: { value: '110101199901011234' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: /提交验证/ }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('剩余 1 次')
+    expect(screen.getByRole('alert')).not.toHaveTextContent('号码')
   })
 
-  it('marks critical questions', () => {
-    renderWithProviders(<OtherClaimForm />)
-    // Critical questions have "问题 1（关键）" label
-    const questionHeaders = screen.getAllByText(/问题 \d/)
-    expect(questionHeaders.length).toBe(3)
-    // First two are critical
-    expect(screen.getAllByText(/关键/).length).toBeGreaterThanOrEqual(2)
+  it('renders a safe lock message for a 423 response', async () => {
+    vi.mocked(claimsApi.verifyIdentity).mockRejectedValue(
+      new ApiError(423, 'ATTEMPT_LOCKED', 'sensitive backend detail'),
+    )
+    renderRoute('/claims/identity/candidate-7', '/claims/identity/:candidateId', <IdentityClaimForm />)
+
+    fireEvent.change(await screen.findByPlaceholderText('请输入 18 位身份证号码'), {
+      target: { value: '110101199901011234' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: /提交验证/ }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('安全核验已锁定')
+    expect(screen.getByRole('alert')).not.toHaveTextContent('sensitive')
   })
 
-  it('submit button disabled when critical questions unanswered', () => {
-    renderWithProviders(<OtherClaimForm />)
-    const button = screen.getByText('提交核验')
-    expect(button).toBeDisabled()
-  })
+  it('loads public OTHER questions and never renders an answer key', async () => {
+    vi.mocked(candidatesApi.get).mockResolvedValue({
+      ...candidate,
+      found_record: { ...candidate.found_record, item_type: 'OTHER', public_category: 'OTHER_CATEGORY', number_masked: null },
+    })
+    renderRoute('/claims/other/candidate-7', '/claims/other/:candidateId', <OtherClaimForm />)
 
-  it('does not expose answer key to claimant', () => {
-    renderWithProviders(<OtherClaimForm />)
-    // The form should show questions but not the hidden feature answer key
-    // Questions are shown as open-ended prompts
-    expect(screen.getByText('请描述伞套或伞袋上是否有任何特殊标记或文字？')).toBeInTheDocument()
-    // No "标准答案" or "answer" section visible
-    expect(screen.queryByText('标准答案')).not.toBeInTheDocument()
-  })
-
-  it('shows AI assistance notice', () => {
-    renderWithProviders(<OtherClaimForm />)
-    expect(screen.getByText('AI 辅助核验')).toBeInTheDocument()
+    expect(await screen.findByText('伞套有什么标记？')).toBeInTheDocument()
+    expect(screen.getByText('伞柄有什么特征？')).toBeInTheDocument()
+    await waitFor(() => expect(claimsApi.questions).toHaveBeenCalledWith('candidate-7'))
+    expect(screen.queryByText(/标准答案|answer_key/i)).not.toBeInTheDocument()
   })
 })

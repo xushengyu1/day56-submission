@@ -290,6 +290,7 @@ export interface ReviewDetail extends ReviewQueueItem {
   reason: string | null
   lost_record: ItemRecordPublic | null
   candidate: ReviewCandidatePublic | null
+  candidates: ReviewCandidatePublic[]
   evidence: Array<{
     attempt_no: number
     result_code: string

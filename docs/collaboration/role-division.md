@@ -2,31 +2,26 @@
 
 ## 团队信息
 
-- 团队名称：待团队确认
+- 团队名称：AI 失物招领系统项目组
 - 项目名称：AI 失物招领匹配与认领复核系统
-- 成员：待用户提供；当前不虚构成员姓名或个人贡献。
+- 成员：宋姿毅（前端/产品）、徐胜宇（后端/AI）
 
 ## 角色分工
 
-| 成员 | 角色 | 负责模块 | 今日交付物 | 证据位置 |
+| 成员 | 角色 | 负责模块 | 交付物 | 证据位置 |
 |---|---|---|---|---|
-| 待确认 | Product Owner | 问题诊断、澄清、方案取舍 | 待分配 | `docs/diagnosis/`、`docs/options/` |
-| 待确认 | UX / Client Owner | Web 前端主路径和状态 | 待分配 | `src/`、`prototype/` |
-| 待确认 | Backend / Tech Lead | 服务端、规则、数据与接口 | 待分配 | `src/`、`docs/design/` |
-| 待确认 | AI Workflow Owner | AI 输入输出边界与协作日志 | 待分配 | `docs/ai/` |
-| 待确认 | QA / Delivery Owner | TDD、E2E、边界、证据和提交 | 待分配 | `docs/validation/`、`docs/defense/` |
-
-角色可以合并，但职责不能消失。成员确认后必须把“待确认”替换为真实姓名，并由各成员复核自己的证据。
+| 宋姿毅 | Product Owner / Frontend | PRD、方案取舍、详细设计、所有文档迭代、前端独立开发、UI 设计、前后端联调；**核心设计：身份证识别与掩码、物品类型分类、地点枚举、候选评分规则、四级数据分类落地** | 前端全部页面、原型、所有 docs 文档 | `docs/`、`frontend/`、`prototype/` |
+| 徐胜宇 | Backend / AI | 后端服务、数据库、AI 集成、四级权限定义与实现、接口设计、前后端联调 | 后端 API、数据库、AI 适配器 | `backend/`、`docs/design/` |
 
 ## 端到端责任映射
 
 | 模块 | 负责人 | 备份人 | 验收证据 |
 |---|---|---|---|
-| 问题诊断、澄清、方案对比 | 待确认 | 待确认 | 对应 docs + 会议/决策记录 |
-| Web 前端与管理员角色视图 | 待确认 | 待确认 | 代码、E2E、截图 |
-| 服务端/规则/数据流 | 待确认 | 待确认 | 代码、单元/集成测试 |
-| AI 协作日志 | 待确认 | 待确认 | 至少五类真实日志、两条拒绝/修改 |
-| 测试、Review 与提交包 | 待确认 | 待确认 | 测试结果、Review、README |
+| 问题诊断、澄清、方案对比 | 宋姿毅 | 徐胜宇 | 对应 docs + 会议/决策记录 |
+| Web 前端与管理员角色视图 | 宋姿毅 | 徐胜宇 | 代码、E2E、截图 |
+| 服务端/规则/数据流 | 徐胜宇 | 宋姿毅 | 代码、单元/集成测试 |
+| AI 协作日志 | 宋姿毅 | 徐胜宇 | 至少五类真实日志、两条拒绝/修改 |
+| 测试、Review 与提交包 | 宋姿毅 / 徐胜宇 | 互为备份 | 测试结果、Review、README |
 
 ## 工作规则
 
@@ -42,11 +37,9 @@
 
 ## 追加确认：当前已知成员贡献映射
 
-> 确认日期：2026-07-16。本节只记录已经由宋子仪确认的真实贡献，不推断其他尚未说明的团队职责；上方“待确认”模板作为历史记录保留。
-
 | 成员 | 已确认贡献 | 证据位置 |
 |---|---|---|
-| 宋姿毅（SZY） | 角色功能与身份证件分流；其余产品/架构决策主导；PRD、方案、详细设计、dev 与过程文档记录；UI 设计和 React 前端独立实现 | `docs/reflection/szy-personal-contribution.md`、`szy-ai-log.md`、`prototype/ui/`、`frontend/`、`evidence/development-records/T13.md`～`T16.md` |
+| 宋姿毅（宋姿毅） | 角色功能与身份证件分流；其余产品/架构决策主导；PRD、方案、详细设计、dev 与过程文档记录；UI 设计和 React 前端独立实现 | `docs/reflection/szy-personal-contribution.md`、`szy-ai-log.md`、`prototype/ui/`、`frontend/`、`evidence/development-records/T13.md`～`T16.md` |
 | 徐胜宇 | 提出四级数据分类；与宋姿毅共同执行和决定图片识别方案 | `docs/collaboration/decision-log.md` 的 `D-ATTR-001`、`docs/reflection/szy-personal-contribution.md` |
 | 黄孝梁 | 提出图片识别/多模态提取想法 | `docs/collaboration/decision-log.md` 的 `D-ATTR-001`、`docs/reflection/szy-personal-contribution.md` |
 

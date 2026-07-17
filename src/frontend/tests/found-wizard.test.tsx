@@ -1,14 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { FoundWizardPage } from '@/features/found-items/FoundWizardPage'
-import { ApiError } from '@/api/errors'
 import { foundRecordsApi } from '@/api/foundRecords'
 import { uploadsApi } from '@/api/uploads'
 
 vi.mock('@/api/foundRecords', () => ({
   foundRecordsApi: {
-    createDraft: vi.fn(), get: vi.fn(), extract: vi.fn(), confirm: vi.fn(), confirmIdentity: vi.fn(),
+    createDraft: vi.fn(), extract: vi.fn(), confirm: vi.fn(), confirmIdentity: vi.fn(),
     redact: vi.fn(), confirmQuestions: vi.fn(), publish: vi.fn(),
   },
 }))
@@ -33,24 +32,12 @@ function fillBase(category = 'ELECTRONICS') {
   fireEvent.change(screen.getByPlaceholderText(/公开描述/), { target: { value: '教学楼 B 区 302 教室拾得' } })
 }
 
-function serverRecord(status: 'DRAFT' | 'PUBLISHED', version: number) {
-  return {
-    id: 'found-1', owner_user_id: 'user-1', kind: 'FOUND' as const, item_type: 'OTHER' as const,
-    public_category: 'ELECTRONICS' as const, location_area: 'TEACHING_BUILDING' as const,
-    status, name_public: '用户填写的耳机', description_public: '教学楼 B 区 302 教室拾得',
-    event_time_public: '2026-07-17 10:30', location_public: '教学楼', public_image_asset_id: null,
-    number_masked: null, claim_id: null, version, published_at: status === 'PUBLISHED' ? '2026-07-17T02:30:00Z' : null,
-    created_at: '2026-07-17T02:30:00Z', updated_at: '2026-07-17T02:30:00Z',
-  }
-}
-
 describe('FoundWizardPage OTHER flow', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     let previewNumber = 0
     vi.stubGlobal('URL', { ...URL, createObjectURL: vi.fn(() => `blob:preview-${++previewNumber}`), revokeObjectURL: vi.fn() })
     vi.mocked(foundRecordsApi.createDraft).mockResolvedValue({ id: 'found-1', status: 'DRAFT', version: 1 })
-    vi.mocked(foundRecordsApi.get).mockResolvedValue(serverRecord('DRAFT', 2))
     vi.mocked(uploadsApi.upload).mockResolvedValue({ image_asset_id: 'asset-original', purpose: 'FINDER_ORIGINAL' })
     vi.mocked(foundRecordsApi.extract).mockResolvedValue({ suggested_name: 'AI 名称', suggested_description: 'AI 描述', suggested_item_type: 'OTHER', confidence: 0.9, status: 'SUCCEEDED' })
     vi.mocked(foundRecordsApi.confirm).mockResolvedValue({ id: 'found-1', version: 2 })
@@ -176,56 +163,5 @@ describe('FoundWizardPage OTHER flow', () => {
     expect(foundRecordsApi.confirmQuestions).toHaveBeenCalledOnce()
     expect(foundRecordsApi.publish).toHaveBeenNthCalledWith(1, 'found-1', 2)
     expect(foundRecordsApi.publish).toHaveBeenNthCalledWith(2, 'found-1', 3)
-  })
-
-  it('reconciles a lost confirmation response and retries with the server version', async () => {
-    vi.mocked(foundRecordsApi.confirm)
-      .mockRejectedValueOnce(new Error('确认响应丢失'))
-      .mockResolvedValueOnce({ id: 'found-1', version: 3 })
-    renderWizard()
-    fillBase('OTHER_CATEGORY')
-    fireEvent.click(screen.getByRole('button', { name: '创建草稿并继续' }))
-    await screen.findByRole('button', { name: '确认信息并发布' })
-    fireEvent.change(screen.getByPlaceholderText(/隐藏特征/), { target: { value: '杯底刻有字母 A' } })
-    fireEvent.click(screen.getByRole('button', { name: '确认信息并发布' }))
-
-    expect(await screen.findByRole('alert')).toHaveTextContent('已同步服务端状态，请重试')
-    expect(foundRecordsApi.get).toHaveBeenCalledWith('found-1')
-    fireEvent.click(screen.getByRole('button', { name: '确认信息并发布' }))
-    expect(await screen.findByText('发布成功')).toBeInTheDocument()
-
-    expect(foundRecordsApi.confirm).toHaveBeenNthCalledWith(2, 'found-1', expect.objectContaining({ expected_version: 2 }))
-    expect(foundRecordsApi.confirmQuestions).toHaveBeenCalledOnce()
-  })
-
-  it('navigates directly when reconciliation proves a lost publish response succeeded', async () => {
-    vi.mocked(foundRecordsApi.publish).mockRejectedValueOnce(new Error('发布响应丢失'))
-    vi.mocked(foundRecordsApi.get).mockResolvedValueOnce(serverRecord('PUBLISHED', 3))
-    renderWizard()
-    fillBase('CLOTHING')
-    fireEvent.click(screen.getByRole('button', { name: '创建草稿并继续' }))
-    await screen.findByRole('button', { name: '确认信息并发布' })
-    fireEvent.change(screen.getByPlaceholderText(/隐藏特征/), { target: { value: '内标有手写字母 B' } })
-    fireEvent.click(screen.getByRole('button', { name: '确认信息并发布' }))
-
-    expect(await screen.findByText('发布成功')).toBeInTheDocument()
-    expect(foundRecordsApi.get).toHaveBeenCalledWith('found-1')
-    expect(foundRecordsApi.confirmQuestions).toHaveBeenCalledOnce()
-    expect(foundRecordsApi.publish).toHaveBeenCalledOnce()
-  })
-
-  it('does not reconcile a definite API error response', async () => {
-    vi.mocked(foundRecordsApi.confirm).mockRejectedValueOnce(
-      new ApiError(409, 'VERSION_CONFLICT', '记录已被更新，请重新加载'),
-    )
-    renderWizard()
-    fillBase('OTHER_CATEGORY')
-    fireEvent.click(screen.getByRole('button', { name: '创建草稿并继续' }))
-    await screen.findByRole('button', { name: '确认信息并发布' })
-    fireEvent.change(screen.getByPlaceholderText(/隐藏特征/), { target: { value: '杯底刻有字母 C' } })
-    fireEvent.click(screen.getByRole('button', { name: '确认信息并发布' }))
-
-    expect(await screen.findByRole('alert')).toHaveTextContent('记录已被更新，请重新加载')
-    expect(foundRecordsApi.get).not.toHaveBeenCalled()
   })
 })

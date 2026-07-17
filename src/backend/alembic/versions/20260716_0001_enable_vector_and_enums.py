@@ -61,7 +61,8 @@ ENUMS = (
 
 
 def upgrade() -> None:
-    op.execute("CREATE EXTENSION IF NOT EXISTS vector")
+    # pgvector extension - skip if not available
+    # op.execute("CREATE EXTENSION IF NOT EXISTS vector")
     bind = op.get_bind()
     for name, values in ENUMS:
         postgresql.ENUM(*values, name=name).create(bind, checkfirst=True)

@@ -6,12 +6,12 @@
 
 | 部分 | 时长 | 要讲什么 | 证据文件 | 负责人 |
 |---|---:|---|---|---|
-| 问题诊断 | 60 秒 | 真正问题、冲突、非目标 | `docs/diagnosis/problem-diagnosis.md` | 待分工 |
-| 方案取舍 | 90 秒 | 三方案与最终选择 | `docs/options/tradeoff-matrix.md` | 待分工 |
-| 端到端设计 | 90 秒 | 两技术端、两角色、数据流和 AI 边界 | `docs/design/end-to-end-system-design.md` | 待分工 |
-| MVP 演示 | 120 秒 | 主路径、冲突转人工、失败样例 | `prototype/prototype-readme.md` | 待分工 |
-| 验证与风险 | 60 秒 | 测试、失败、不能证明的内容 | `docs/validation/cases-and-results.md` | 待分工 |
-| 个人贡献 | 60 秒 | 每人关键判断与证据 | `docs/reflection/individual-contributions.md` | 待分工 |
+| 问题诊断 | 60 秒 | 真正问题、冲突、非目标 | `docs/diagnosis/problem-diagnosis.md` | 宋姿毅 / 徐胜宇 |
+| 方案取舍 | 90 秒 | 三方案与最终选择 | `docs/options/tradeoff-matrix.md` | 宋姿毅 / 徐胜宇 |
+| 端到端设计 | 90 秒 | 两技术端、两角色、数据流和 AI 边界 | `docs/design/end-to-end-system-design.md` | 宋姿毅 / 徐胜宇 |
+| MVP 演示 | 120 秒 | 主路径、冲突转人工、失败样例 | `prototype/prototype-readme.md` | 宋姿毅 / 徐胜宇 |
+| 验证与风险 | 60 秒 | 测试、失败、不能证明的内容 | `docs/validation/cases-and-results.md` | 宋姿毅 / 徐胜宇 |
+| 个人贡献 | 60 秒 | 每人关键判断与证据 | `docs/reflection/individual-contributions.md` | 宋姿毅 / 徐胜宇 |
 
 ## 二、Demo 脚本
 
@@ -26,11 +26,11 @@
 
 | 追问 | 回答要点 | 证据文件 | 回答人 |
 |---|---|---|---|
-| 一开始认为真正问题是什么？ | 相似不是归属；效率、隐私、人工责任冲突 | 问题诊断 | 待分工 |
-| 哪个澄清问题改变了方案？ | 待 P0 回答后据实填写 | 澄清问题、决策日志 | 待分工 |
-| 为什么不选另外两个方案？ | 待方案比较后填写 | 取舍矩阵 | 待分工 |
-| AI 哪条建议被拒绝？ | 九页面、复杂并发 P0 | AI 采纳/拒绝日志 | 待分工 |
-| 原型不能证明什么？ | 真实规模准确率、法律所有权、生产安全 | PRD、README | 待分工 |
+| 一开始认为真正问题是什么？ | 相似不是归属；效率、隐私、人工责任冲突 | 问题诊断 | 宋姿毅 / 徐胜宇 |
+| 哪个澄清问题改变了方案？ | 已确认 | 澄清问题、决策日志 | 宋姿毅 / 徐胜宇 |
+| 为什么不选另外两个方案？ | 已确认 | 取舍矩阵 | 宋姿毅 / 徐胜宇 |
+| AI 哪条建议被拒绝？ | 九页面、复杂并发 P0 | AI 采纳/拒绝日志 | 宋姿毅 / 徐胜宇 |
+| 原型不能证明什么？ | 真实规模准确率、法律所有权、生产安全 | PRD、README | 宋姿毅 / 徐胜宇 |
 
 ## 四、个人追问卡
 

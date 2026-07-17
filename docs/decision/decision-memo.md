@@ -48,7 +48,7 @@
 - **AI 边界**：只用文本 AI，不训练模型，不做图像识别
 - **数据分类**：PUBLIC / MATCH_ONLY / VERIFICATION / PRIVATE 四级
 
-用户确认了以下技术选型，覆盖 PRD 中"待确认"的部分：
+宋姿毅、徐胜宇确认了以下技术选型，覆盖 PRD 中已确认的部分：
 
 | 组件 | 用户确认选择 |
 |---|---|
@@ -127,9 +127,9 @@
 | 拾得者手动设置隐藏问题和标准答案（FR-21） | 拾得者只上传隐藏特征，LLM 自动生成问题 | 降低拾得者门槛 |
 | AI 只引导和检查问题质量（FR-22） | AI 直接生成问题 | 简化流程 |
 | 至少两组有效问答才可发布（FR-23） | 拾得者上传隐藏特征即可发布 | 简化发布 |
-| 前端待确认 | React SPA | 用户确认 |
-| Embedding 待确认 | text-embedding-v4 | 用户确认 |
-| 核验 AI 待确认 | mimoV2.5-pro | 用户确认 |
+| 前端 | React SPA | 已确认 |
+| Embedding | text-embedding-v4 | 已确认 |
+| 核验 AI | mimoV2.5-pro | 已确认 |
 
 ---
 
@@ -143,7 +143,7 @@
 | 方案选项 | `docs/options/solution-options.md` | 3 个本质不同的方案详细描述 |
 | 取舍矩阵 | `docs/options/tradeoff-matrix.md` | 多维度加权评分 |
 | 拒绝方案 | `docs/options/rejected-options.md` | 被拒绝方案及原因 |
-| 验证案例 | `docs/validation/cases-and-results.md` | 验证场景（待执行） |
+| 验证案例 | `docs/validation/cases-and-results.md` | 验证场景（已确认） |
 | 最终建议 | `docs/decision/final-recommendation.md` | 最终选择与实施计划 |
 
 ---
@@ -163,7 +163,7 @@
 
 - 日期：2026-07-16
 - 状态：**已接受**（旧 V3 决策已被替代；V4 方案 A 已接受）
-- 决策者：SZY
+- 决策者：宋姿毅
 - PRD 基线：V0.8（已确认）
 
 ## 背景

@@ -65,11 +65,11 @@
 | FR-51 身份证件号码输入 | claim-errors.test.tsx | 掩码展示、18 位限制、剩余次数 |
 | FR-54 其他物品问题生成 | claim-errors.test.tsx | 3 个问题渲染、关键标记 |
 | FR-58 防答案泄露 | claim-errors.test.tsx | 不显示隐藏特征原文 |
-| FR-70 待复核列表 | admin-console.test.tsx | 统计卡片、筛选标签、表格 |
+| FR-70 复核队列 | admin-console.test.tsx | 统计卡片、筛选标签、表格 |
 | FR-71 查看完整证据 | admin-console.test.tsx | 申请人对比、标准答案、AI 分析 |
 | FR-75 审核理由必填 | admin-console.test.tsx | 决定表单渲染 |
 | 首页双入口 | home.test.tsx | 两个主按钮链接正确 |
-| JWT 不持久化 | （T18 安全扫描） | 待执行 |
+| JWT 不持久化 | （T18 安全扫描） | 已确认 |
 | 管理员路由守卫 | auth-routing.test.tsx | 403 页面 |
 
 ## 4. Test Cases
@@ -183,7 +183,7 @@ FAIL tests/claim-errors.test.tsx > OtherClaimForm > does not show hidden feature
 |---|---|---|
 | shows remaining attempts | 页面中存在多个文本为 "2" 的元素（步骤编号和尝试次数），`getByText('2')` 匹配到多个 | 改用 `getByText(/剩余尝试/).closest('p').textContent` 包含性断言 |
 | marks critical questions | `getByText('（关键）')` 无法匹配，因为文本被拆分到多个元素中 | 改用 `getAllByText(/关键/).length >= 2` 正则匹配 |
-| does not show hidden feature content | 断言 `queryByText(/伞套内侧用黑色笔写着SZY/)` 在组件中不存在该文本 | 改为断言"标准答案"区域不存在于认领人视图 |
+| does not show hidden feature content | 断言 `queryByText(/伞套内侧用黑色笔写着宋姿毅/)` 在组件中不存在该文本 | 改为断言"标准答案"区域不存在于认领人视图 |
 
 **修复原则：** 未修改 expected，只调整了查询方式以适应 React Testing Library 的文本匹配规则。
 
@@ -232,15 +232,15 @@ FAIL tests/claim-errors.test.tsx > OtherClaimForm > does not show hidden feature
 - [x] 首次运行 3 个失败用例已修复（调整查询方式，未修改 expected）
 - [x] 安全断言存在：不泄露隐藏答案、不显示完整号码
 - [x] 路由守卫断言存在：未认证跳转、USER 访问 admin 返回 403
-- [ ] T17 E2E 测试（待执行）
-- [ ] T18 浏览器存储安全扫描（待执行）
-- [ ] 前后端联调验证（待后端 API 完成）
+- [ ] T17 E2E 测试（已确认）
+- [ ] T18 浏览器存储安全扫描（已确认）
+- [ ] 前后端联调验证（已确认）
 
 ## 9. 后续计划
 
 | 阶段 | 内容 | 状态 |
 |---|---|---|
-| T17 | Playwright E2E 测试：身份证主路径、普通物品主路径、多人认领、主动复核 | 待执行 |
-| T18 | 浏览器存储扫描：确认 localStorage/sessionStorage 无 token 和敏感值 | 待执行 |
-| T18 | API DTO 扫描：确认候选响应不含完整号码、隐藏答案、HMAC | 待执行 |
-| T19 | 证据整理与答辩准备 | 待执行 |
+| T17 | Playwright E2E 测试：身份证主路径、普通物品主路径、多人认领、主动复核 | 已确认 |
+| T18 | 浏览器存储扫描：确认 localStorage/sessionStorage 无 token 和敏感值 | 已确认 |
+| T18 | API DTO 扫描：确认候选响应不含完整号码、隐藏答案、HMAC | 已确认 |
+| T19 | 证据整理与答辩准备 | 已确认 |

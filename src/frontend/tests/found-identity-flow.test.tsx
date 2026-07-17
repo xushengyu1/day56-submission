@@ -6,7 +6,7 @@ import { foundRecordsApi } from '@/api/foundRecords'
 import { uploadsApi } from '@/api/uploads'
 
 vi.mock('@/api/foundRecords', () => ({ foundRecordsApi: {
-  createDraft: vi.fn(), get: vi.fn(), extract: vi.fn(), confirm: vi.fn(), confirmIdentity: vi.fn(), redact: vi.fn(), confirmQuestions: vi.fn(), publish: vi.fn(),
+  createDraft: vi.fn(), extract: vi.fn(), confirm: vi.fn(), confirmIdentity: vi.fn(), redact: vi.fn(), confirmQuestions: vi.fn(), publish: vi.fn(),
 } }))
 vi.mock('@/api/uploads', () => ({ uploadsApi: { upload: vi.fn() } }))
 
@@ -42,13 +42,6 @@ describe('FoundWizardPage identity flow', () => {
     vi.stubGlobal('URL', { ...URL, createObjectURL: vi.fn(() => 'blob:identity'), revokeObjectURL: vi.fn() })
     vi.stubGlobal('PointerEvent', MouseEvent)
     vi.mocked(foundRecordsApi.createDraft).mockResolvedValue({ id: 'identity-1', status: 'DRAFT', version: 1 })
-    vi.mocked(foundRecordsApi.get).mockResolvedValue({
-      id: 'identity-1', owner_user_id: 'user-1', kind: 'FOUND', item_type: 'IDENTITY_DOCUMENT',
-      public_category: 'IDENTITY_CARD', location_area: 'LIBRARY', status: 'DRAFT', name_public: '居民身份证',
-      description_public: '图书馆三楼阅览室拾得', event_time_public: '2026-07-17 11:00', location_public: '图书馆',
-      public_image_asset_id: null, number_masked: '1101********002X', claim_id: null, version: 2,
-      published_at: null, created_at: '2026-07-17T03:00:00Z', updated_at: '2026-07-17T03:00:00Z',
-    })
     vi.mocked(uploadsApi.upload).mockResolvedValue({ image_asset_id: 'identity-original', purpose: 'FINDER_ORIGINAL' })
     vi.mocked(foundRecordsApi.extract).mockResolvedValue({ suggested_name: 'AI 证件', suggested_description: 'AI 描述', suggested_item_type: 'IDENTITY_DOCUMENT', confidence: 0.98, status: 'SUCCEEDED' })
     vi.mocked(foundRecordsApi.confirm).mockResolvedValue({ id: 'identity-1', version: 2 })

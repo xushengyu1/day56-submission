@@ -4,7 +4,7 @@ from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
-from app.db.types import VectorType
+# from app.db.types import VectorType  # pgvector not available
 
 
 revision: str = "20260716_0003"
@@ -36,7 +36,7 @@ def upgrade() -> None:
         sa.Column("event_time_public", sa.String(length=160), nullable=True),
         sa.Column("location_public", sa.String(length=255), nullable=True),
         sa.Column("location_normalized", postgresql.JSONB(), nullable=True),
-        sa.Column("embedding", VectorType(), nullable=True),
+        sa.Column("embedding", postgresql.JSONB(), nullable=True),  # Using JSONB instead of vector
         sa.Column("embedding_model", sa.String(length=128), nullable=True),
         sa.Column("embedding_dimensions", sa.Integer(), nullable=True),
         sa.Column("ai_extraction_id", postgresql.UUID(as_uuid=True), nullable=True),

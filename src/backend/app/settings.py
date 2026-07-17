@@ -15,8 +15,8 @@ class Settings(BaseSettings):
     mimo_api_key: str = ""
     mimo_multimodal_model: str = "MiMo-V2.5"
     mimo_text_model: str = "mimoV2.5-pro"
-    embedding_base_url: str = "http://127.0.0.1:18080"
-    embedding_api_key: str = ""
+    embedding_mode: Literal["mock", "dashscope"] = "mock"
+    dashscope_api_key: str = ""
     embedding_model: str = "mock-hash-v1"
     embedding_dimension: int = 8
     model_timeout_seconds: float = 20

@@ -54,7 +54,7 @@
 - Produces: `DashScopeEmbeddingAdapter(model: str, dimension: int, api_key: str)`.
 - Produces: `build_embedding_adapter(config: Settings = settings) -> EmbeddingPort`.
 
-- [ ] **Step 1: Add failing adapter tests**
+- [x] **Step 1: Add failing adapter tests**
 
 Install the SDK into the current development environment without changing production code:
 
@@ -90,7 +90,7 @@ async def test_dashscope_adapter_restores_order_and_validates_dimension(monkeypa
 
 Add parameterized failures for status 500, missing embeddings, duplicate/missing indexes, non-finite values, 1023 values, empty input, and 21 texts. Assert every raised message is only a stable code and does not include `test-key`, input text, or response payload.
 
-- [ ] **Step 2: Run Red tests**
+- [x] **Step 2: Run Red tests**
 
 Run:
 
@@ -101,15 +101,15 @@ cd src/backend
 
 Expected: collection fails because the DashScope adapter and factory modules do not exist.
 
-- [ ] **Step 3: Add configuration and dependency**
+- [x] **Step 3: Add configuration and dependency**
 
 Pin `dashscope==1.26.3` in project dependencies. Replace embedding settings with:
 
 ```python
 embedding_mode: Literal["mock", "dashscope"] = "mock"
 dashscope_api_key: str = ""
-embedding_model: str = "qwen3.7-text-embedding"
-embedding_dimension: int = 1024
+embedding_model: str = "mock-hash-v1"
+embedding_dimension: int = 8
 ```
 
 Add blank values to `.env.example`:
@@ -123,7 +123,9 @@ EMBEDDING_DIMENSION=1024
 
 Remove obsolete `EMBEDDING_BASE_URL` and `EMBEDDING_API_KEY` settings because this implementation uses the DashScope SDK.
 
-- [ ] **Step 4: Implement the port and mock adapter**
+Task 1 keeps the in-process mock defaults at `mock-hash-v1`/8 so the existing pre-adapter business path remains truthful and regression-safe. Task 2 switches the defaults to Qwen/1024 at the same time that services start persisting adapter metadata. `.env.example` already describes the final real-runtime configuration.
+
+- [x] **Step 4: Implement the port and mock adapter**
 
 Keep `_hash_vector` and `embed_public_text` as the deterministic implementation used by:
 
@@ -152,13 +154,13 @@ class HashEmbeddingAdapter:
         return embed_public_text(texts, dimension=self.dimension)
 ```
 
-- [ ] **Step 5: Implement strict DashScope parsing**
+- [x] **Step 5: Implement strict DashScope parsing**
 
 `DashScopeEmbeddingAdapter.embed` must call the SDK through `asyncio.to_thread`, passing `model`, `input`, `dimension`, and `api_key`. Parse only mappings, require indexes exactly `0..len(texts)-1`, coerce numeric values to float, reject booleans/non-numbers/non-finite values, and require exactly 1024 values per vector. Convert SDK exceptions and invalid responses to `EmbeddingError("EMBEDDING_UNAVAILABLE")`; input-size failures use `EMBEDDING_INPUT_INVALID`.
 
 The adapter must never include caught exception text or response content in its raised exception.
 
-- [ ] **Step 6: Implement explicit factory validation**
+- [x] **Step 6: Implement explicit factory validation**
 
 ```python
 def build_embedding_adapter(config: Settings = settings) -> EmbeddingPort:
@@ -180,7 +182,7 @@ def build_embedding_adapter(config: Settings = settings) -> EmbeddingPort:
 
 Factory tests must verify mock mode needs no Key, real mode rejects a blank Key, and real mode rejects any model or dimension other than the approved values.
 
-- [ ] **Step 7: Install and run Green tests**
+- [x] **Step 7: Install and run Green tests**
 
 Run:
 
@@ -193,7 +195,7 @@ Run:
 
 Expected: all commands exit 0; no network request occurs.
 
-- [ ] **Step 8: Commit and push Task 1**
+- [x] **Step 8: Commit and push Task 1**
 
 ```bash
 git add src/backend/app/matching src/backend/app/settings.py src/backend/.env.example src/backend/pyproject.toml src/backend/tests/unit/matching src/backend/tests/contract/test_embedding_contract.py

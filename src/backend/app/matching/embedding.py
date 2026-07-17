@@ -1,7 +1,25 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
 import hashlib
 import math
+from typing import Protocol
+
+
+class EmbeddingError(RuntimeError):
+    def __init__(self, code: str) -> None:
+        super().__init__(code)
+        self.code = code
+
+
+class EmbeddingPort(Protocol):
+    @property
+    def model(self) -> str: ...
+
+    @property
+    def dimension(self) -> int: ...
+
+    async def embed(self, texts: list[str]) -> list[list[float]]: ...
 
 
 def _hash_vector(text: str, dimension: int) -> list[float]:
@@ -21,3 +39,14 @@ def _hash_vector(text: str, dimension: int) -> list[float]:
 
 def embed_public_text(texts: list[str], *, dimension: int) -> list[list[float]]:
     return [_hash_vector(text, dimension) for text in texts]
+
+
+@dataclass(frozen=True)
+class HashEmbeddingAdapter:
+    dimension: int
+    model: str = "mock-hash-v1"
+
+    async def embed(self, texts: list[str]) -> list[list[float]]:
+        if not texts or any(not text.strip() for text in texts):
+            raise EmbeddingError("EMBEDDING_INPUT_INVALID")
+        return embed_public_text(texts, dimension=self.dimension)

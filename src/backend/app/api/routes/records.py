@@ -9,11 +9,12 @@ from app.auth.models import User
 from app.database import get_database_session
 from app.db.enums import LocationArea, RecordKind
 from app.items.query_service import (
+    get_my_record_summary,
     list_my_records,
     list_public_records,
     list_recent_records,
 )
-from app.items.schemas import ItemRecordPublic, RecordPage
+from app.items.schemas import ItemRecordPublic, RecordPage, RecordSummary
 
 
 router = APIRouter(prefix="/api/records", tags=["records"])
@@ -60,6 +61,14 @@ async def my_records(
         page=page,
         page_size=page_size,
     )
+
+
+@router.get("/mine/summary", response_model=RecordSummary)
+async def my_record_summary(
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_database_session),
+) -> RecordSummary:
+    return await get_my_record_summary(session, actor_id=user.id)
 
 
 @router.get("/{record_id}/timeline")

@@ -94,3 +94,10 @@ class RecordPage(BaseModel):
     page: int
     page_size: int
     total: int
+
+
+class RecordSummary(BaseModel):
+    lost_count: int
+    found_count: int
+    matched_count: int
+    total_count: int

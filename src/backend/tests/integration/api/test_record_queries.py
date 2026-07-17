@@ -91,6 +91,35 @@ def test_mine_is_owner_only_and_can_filter_record_kind(
 
 
 @pytest.mark.usefixtures("auth_database_engine")
+def test_my_summary_counts_only_the_authenticated_owners_records(
+    record_api_data: dict[str, object],
+) -> None:
+    with TestClient(app) as client:
+        owner = client.get(
+            "/api/records/mine/summary",
+            headers=record_api_data["owner_headers"],
+        )
+        other = client.get(
+            "/api/records/mine/summary",
+            headers=record_api_data["other_headers"],
+        )
+
+    assert owner.status_code == other.status_code == 200
+    assert owner.json() == {
+        "lost_count": 1,
+        "found_count": 2,
+        "matched_count": 1,
+        "total_count": 3,
+    }
+    assert other.json() == {
+        "lost_count": 2,
+        "found_count": 2,
+        "matched_count": 1,
+        "total_count": 4,
+    }
+
+
+@pytest.mark.usefixtures("auth_database_engine")
 def test_published_detail_is_authenticated_and_draft_is_owner_only(
     record_api_data: dict[str, object],
 ) -> None:

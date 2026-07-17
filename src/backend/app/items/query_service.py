@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.enums import LocationArea, RecordKind, RecordStatus
 from app.items.models import ItemRecord
 from app.items.projections import project_records
-from app.items.schemas import ItemRecordPublic, RecordPage
+from app.items.schemas import ItemRecordPublic, RecordPage, RecordSummary
 from app.items.service import DomainError
 
 
@@ -94,6 +94,37 @@ async def list_my_records(
         page=page,
         page_size=page_size,
         total=total or 0,
+    )
+
+
+async def get_my_record_summary(
+    session: AsyncSession,
+    *,
+    actor_id: UUID,
+) -> RecordSummary:
+    lost_count, found_count, matched_count, total_count = (
+        await session.execute(
+            select(
+                func.count().filter(ItemRecord.kind == RecordKind.LOST),
+                func.count().filter(ItemRecord.kind == RecordKind.FOUND),
+                func.count().filter(
+                    ItemRecord.status.in_(
+                        (
+                            RecordStatus.PENDING_HANDOFF,
+                            RecordStatus.CLAIMED,
+                            RecordStatus.CLOSED,
+                        )
+                    )
+                ),
+                func.count(),
+            ).where(ItemRecord.owner_user_id == actor_id)
+        )
+    ).one()
+    return RecordSummary(
+        lost_count=lost_count,
+        found_count=found_count,
+        matched_count=matched_count,
+        total_count=total_count,
     )
 
 

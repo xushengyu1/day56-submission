@@ -1,10 +1,12 @@
 import { useState } from 'react'
-import { useParams, useNavigate, Link } from 'react-router-dom'
+import { useParams, Link } from 'react-router-dom'
+import { lostRecordsApi } from '@/api/lostRecords'
 
 export function UnmatchedReviewPage() {
   const { id: lostId } = useParams<{ id: string }>()
-  const navigate = useNavigate()
   const [submitted, setSubmitted] = useState(false)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [submitError, setSubmitError] = useState<string | null>(null)
   const [form, setForm] = useState({
     item_name: '',
     item_description: '',
@@ -15,10 +17,47 @@ export function UnmatchedReviewPage() {
 
   const handleChange = (field: string, value: string) => setForm((prev) => ({ ...prev, [field]: value }))
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    // Mock: 提交后显示成功
-    setSubmitted(true)
+    if (!lostId || isSubmitting) return
+
+    const reason = [
+      `物品名称：${form.item_name.trim()}`,
+      `物品描述：${form.item_description.trim()}`,
+      form.location.trim() && `丢失地点：${form.location.trim()}`,
+      form.time_range.trim() && `丢失时间段：${form.time_range.trim()}`,
+      form.supplement.trim() && `补充说明：${form.supplement.trim()}`,
+    ].filter(Boolean).join('\n')
+
+    if (!form.item_name.trim() || !form.item_description.trim()) {
+      setSubmitError('请填写物品名称和详细描述')
+      return
+    }
+    if (reason.length > 2000) {
+      setSubmitError('复核说明不能超过 2000 个字符，请精简后再提交')
+      return
+    }
+
+    setIsSubmitting(true)
+    setSubmitError(null)
+    try {
+      await lostRecordsApi.createUnmatchedReview(lostId, reason)
+      setSubmitted(true)
+    } catch (error) {
+      setSubmitError(error instanceof Error ? error.message : '复核申请提交失败，请重试')
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  if (!lostId) {
+    return (
+      <div className="page-shell">
+        <div role="alert" style={{ maxWidth: '640px', margin: '60px auto', textAlign: 'center', color: 'var(--danger)' }}>
+          缺少寻物记录编号，无法提交复核申请
+        </div>
+      </div>
+    )
   }
 
   if (submitted) {
@@ -139,6 +178,7 @@ export function UnmatchedReviewPage() {
             </div>
 
             {/* 按钮 */}
+            {submitError && <div role="alert" style={{ color: 'var(--danger)', fontSize: '13px' }}>{submitError}</div>}
             <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
               <Link to={`/lost/${lostId}/candidates`} style={{
                 padding: '12px 24px', borderRadius: '14px', textDecoration: 'none',
@@ -147,13 +187,13 @@ export function UnmatchedReviewPage() {
               }}>
                 取消
               </Link>
-              <button type="submit" style={{
+              <button type="submit" disabled={isSubmitting} style={{
                 padding: '12px 24px', borderRadius: '14px', border: 'none', cursor: 'pointer',
                 background: 'linear-gradient(135deg, var(--primary) 0%, var(--primary-deep) 100%)',
                 color: '#fff', fontWeight: 700, fontSize: '14px', display: 'inline-flex', alignItems: 'center', gap: '8px',
                 boxShadow: 'var(--shadow-btn)',
               }}>
-                <i className="fas fa-paper-plane text-xs"></i> 提交复核申请
+                <i className="fas fa-paper-plane text-xs"></i> {isSubmitting ? '提交中…' : submitError ? '重试提交' : '提交复核申请'}
               </button>
             </div>
           </form>

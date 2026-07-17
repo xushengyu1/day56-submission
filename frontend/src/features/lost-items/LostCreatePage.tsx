@@ -1,21 +1,23 @@
 import { useState, useRef, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-
-const ITEM_CATEGORIES = ['电子产品', '证件卡片', '服饰配饰', '学习用品', '其他']
-const LOCATIONS = ['宿舍区', '食堂', '教学楼', '科教楼', '图书馆']
+import { publicCategoryOptions, locationAreaOptions } from '@/api/catalog'
+import { lostRecordsApi } from '@/api/lostRecords'
+import { uploadsApi } from '@/api/uploads'
+import type { LocationArea, PublicCategory } from '@/api/types'
 
 export function LostCreatePage() {
   const navigate = useNavigate()
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [imagePreview, setImagePreview] = useState<string | null>(null)
+  const [imageFile, setImageFile] = useState<File | null>(null)
+  const [createdRecordId, setCreatedRecordId] = useState<string | null>(null)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [submitError, setSubmitError] = useState<string | null>(null)
   const [form, setForm] = useState({
-    item_type: 'OTHER' as 'OTHER' | 'IDENTITY_DOCUMENT',
     item_name: '',
-    category: '',
-    color: '黑色',
-    date: '2026-07-16',
-    time: '10:30',
-    location: '',
+    category: '' as PublicCategory | '',
+    location: '' as LocationArea | '',
+    event_time: '',
     description: '',
   })
 
@@ -25,11 +27,15 @@ export function LostCreatePage() {
     const file = e.target.files?.[0]
     if (!file) return
     const url = URL.createObjectURL(file)
+    setImageFile(file)
     setImagePreview(url)
+    setSubmitError(null)
   }
 
   const handleRemoveImage = () => {
+    setImageFile(null)
     setImagePreview(null)
+    setSubmitError(null)
     if (fileInputRef.current) fileInputRef.current.value = ''
   }
 
@@ -37,9 +43,50 @@ export function LostCreatePage() {
     return () => { if (imagePreview) URL.revokeObjectURL(imagePreview) }
   }, [imagePreview])
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const continueToCandidates = (recordId: string) => navigate(`/lost/${recordId}/candidates`)
+
+  const uploadAndContinue = async (recordId: string) => {
+    if (!imageFile) {
+      continueToCandidates(recordId)
+      return
+    }
+    await uploadsApi.upload(recordId, 'OWNER_SUPPORT', imageFile)
+    continueToCandidates(recordId)
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    navigate('/lost/lr-001/candidates')
+    if (!form.item_name.trim() || !form.category || !form.location || !form.event_time || !form.description.trim()) {
+      setSubmitError('请完整填写所有必填信息')
+      return
+    }
+    const eventTime = new Date(form.event_time)
+    if (Number.isNaN(eventTime.getTime())) {
+      setSubmitError('请选择有效的丢失时间')
+      return
+    }
+
+    setIsSubmitting(true)
+    setSubmitError(null)
+    try {
+      if (createdRecordId) {
+        await uploadAndContinue(createdRecordId)
+        return
+      }
+      const record = await lostRecordsApi.create({
+        public_category: form.category,
+        location_area: form.location,
+        event_time: eventTime.toISOString(),
+        name_public: form.item_name.trim(),
+        description_public: form.description.trim(),
+      })
+      setCreatedRecordId(record.id)
+      await uploadAndContinue(record.id)
+    } catch (error) {
+      setSubmitError(error instanceof Error ? error.message : '提交失败，请重试')
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   return (
@@ -110,32 +157,39 @@ export function LostCreatePage() {
         {/* 右侧表单 */}
         <form onSubmit={handleSubmit} className="form-fields">
           <input type="text" placeholder="物品名称" className="form-input" id="itemName"
-            value={form.item_name} onChange={(e) => handleChange('item_name', e.target.value)} />
+            value={form.item_name} onChange={(e) => handleChange('item_name', e.target.value)} required maxLength={160} disabled={Boolean(createdRecordId)} />
 
-          <select className="form-select" value={form.category} onChange={(e) => handleChange('category', e.target.value)}>
+          <select className="form-select" value={form.category} onChange={(e) => handleChange('category', e.target.value)} required disabled={Boolean(createdRecordId)}>
             <option value="">物品类别（下拉选择）</option>
-            {ITEM_CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
+            {publicCategoryOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
           </select>
 
-          <select className="form-select" value={form.location} onChange={(e) => handleChange('location', e.target.value)}>
+          <select className="form-select" value={form.location} onChange={(e) => handleChange('location', e.target.value)} required disabled={Boolean(createdRecordId)}>
             <option value="">丢失地点（下拉选择）</option>
-            {LOCATIONS.map((l) => <option key={l} value={l}>{l}</option>)}
+            {locationAreaOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
           </select>
 
-          <input type="datetime-local" className="form-input" value={`${form.date}T${form.time}`}
-            onChange={(e) => {
-              const [d, t] = e.target.value.split('T')
-              handleChange('date', d)
-              handleChange('time', t || '10:30')
-            }} />
+          <input type="datetime-local" className="form-input" value={form.event_time}
+            onChange={(e) => handleChange('event_time', e.target.value)} required disabled={Boolean(createdRecordId)} />
 
-          <textarea placeholder="物品描述（备注）" className="form-textarea"
-            value={form.description} onChange={(e) => handleChange('description', e.target.value)} />
+          <textarea placeholder="物品描述（请包含具体楼栋、楼层或教室等详细地点）" className="form-textarea"
+            value={form.description} onChange={(e) => handleChange('description', e.target.value)} required maxLength={2000} disabled={Boolean(createdRecordId)} />
 
-          <button type="submit" className="submit-btn">
+          {submitError && (
+            <div role="alert" style={{ color: 'var(--danger)', fontSize: '13px' }}>
+              {createdRecordId ? `记录已创建，图片上传失败：${submitError}` : submitError}
+            </div>
+          )}
+
+          <button type="submit" className="submit-btn" disabled={isSubmitting}>
             <i className="fas fa-paper-plane"></i>
-            提交
+            {isSubmitting ? '提交中…' : createdRecordId ? (imageFile ? '重试上传' : '继续匹配') : '提交'}
           </button>
+          {createdRecordId && submitError && (
+            <button type="button" className="submit-btn" disabled={isSubmitting} onClick={() => continueToCandidates(createdRecordId)}>
+              暂不上传，继续匹配
+            </button>
+          )}
         </form>
       </div>
 

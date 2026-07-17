@@ -18,7 +18,7 @@ export const lostRecordsApi = {
     return (await apiClient.get<CandidatePublic[]>(`/api/lost-records/${recordId}/candidates`)).data
   },
 
-  async createReview(recordId: string, reason: string): Promise<{ id: string; status: string }> {
+  async createUnmatchedReview(recordId: string, reason: string): Promise<{ id: string; status: string }> {
     if (isMockMode) return mockApi.unsupported('寻物复核')
     return (await apiClient.post<{ id: string; status: string }>(`/api/lost-records/${recordId}/review-requests`, { reason })).data
   },

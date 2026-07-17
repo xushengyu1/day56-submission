@@ -1,326 +1,158 @@
+import { useCallback, useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { mockApi } from '@/api/mock'
-import { simulateMatchSSE } from '@/api/sse'
-import type { MatchProgressEvent } from '@/api/sse'
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { locationAreaLabel, publicCategoryLabel } from '@/api/catalog'
+import { lostRecordsApi } from '@/api/lostRecords'
+import { streamMatch, type MatchProgressEvent } from '@/api/sse'
+import type { CandidatePublic } from '@/api/types'
+import { useAssetObjectUrl } from '@/hooks/useAssetObjectUrl'
+import { conflictCodeLabel, formatCandidateScore, reasonCodeLabel } from './display'
 
-function ScoreBadge({ score }: { score: number }) {
-  const level = score >= 80 ? 'high' : score >= 60 ? 'medium' : 'low'
-  const config = {
-    high: { bg: 'rgba(107,158,122,0.1)', text: '#4a7a5a', border: 'rgba(107,158,122,0.2)', label: '高' },
-    medium: { bg: 'rgba(107,139,164,0.1)', text: '#4a6b82', border: 'rgba(107,139,164,0.2)', label: '中' },
-    low: { bg: 'rgba(148,163,184,0.1)', text: '#7a8e9e', border: 'rgba(148,163,184,0.2)', label: '低' },
+const STEPS = [
+  { stage: 'searching', label: '检索招领记录' },
+  { stage: 'filtering', label: '筛选同类记录' },
+  { stage: 'embedding', label: '生成公开信息向量' },
+  { stage: 'matching', label: '计算语义匹配' },
+  { stage: 'scoring', label: '整理候选结果' },
+  { stage: 'finalizing', label: '完成匹配' },
+]
+
+function ScoreBadge({ score, level }: { score: number; level: string }) {
+  const label = level === 'HIGH' ? '高' : level === 'MEDIUM' ? '中' : '低'
+  return <div className="badge badge-success"><strong>{formatCandidateScore(score)}</strong> {label}</div>
+}
+
+function MatchingProgress({ lostId, attempt, onComplete }: {
+  lostId: string
+  attempt: number
+  onComplete: () => void
+}) {
+  const [event, setEvent] = useState<MatchProgressEvent | null>(null)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    const controller = new AbortController()
+    setEvent(null)
+    setError(null)
+    void streamMatch(lostId, {
+      onProgress: setEvent,
+      onDone: onComplete,
+      onError: (nextError) => setError(nextError.message),
+    }, controller.signal).catch((streamError: unknown) => {
+      if (!controller.signal.aborted) {
+        setError(streamError instanceof Error ? streamError.message : '匹配失败，请重试')
+      }
+    })
+    return () => controller.abort()
+  }, [attempt, lostId, onComplete])
+
+  if (error) {
+    return (
+      <div className="card p-8 text-center" role="alert">
+        <p className="mb-4" style={{ color: '#a44' }}>{error}</p>
+        <p className="text-xs" style={{ color: 'var(--muted)' }}>可以重新发起匹配</p>
+      </div>
+    )
   }
-  const c = config[level]
+
+  const currentIndex = STEPS.findIndex((step) => step.stage === event?.stage)
   return (
-    <div className="flex items-center gap-1.5 px-2 py-1 rounded-md"
-      style={{ background: c.bg, border: `1px solid ${c.border}` }}
-    >
-      <span className="text-sm font-bold" style={{ color: c.text }}>{score}</span>
-      <span className="text-[10px] font-medium" style={{ color: c.text }}>{c.label}</span>
+    <div className="card p-8 text-center" aria-label="AI 智能匹配中">
+      <h3 className="text-lg font-bold mb-2">AI 智能匹配中</h3>
+      <p className="text-sm mb-5" style={{ color: 'var(--muted)' }}>{event?.label ?? '准备中...'}</p>
+      <div className="h-2 rounded overflow-hidden mb-5" style={{ background: 'var(--color-neutral-100)' }}>
+        <div className="h-full" style={{ width: `${event?.progress ?? 0}%`, background: 'var(--primary)', transition: 'width .2s' }} />
+      </div>
+      <div className="flex flex-wrap justify-center gap-2">
+        {STEPS.map((step, index) => (
+          <span key={step.stage} className="badge" style={{ opacity: index <= currentIndex ? 1 : 0.45 }}>
+            {index < currentIndex ? '✓ ' : ''}{step.label}
+          </span>
+        ))}
+      </div>
     </div>
   )
 }
 
-// SSE 推送的步骤 → 图标映射
-const STEP_ICONS: Record<string, string> = {
-  searching: 'fa-search',
-  filtering: 'fa-filter',
-  embedding: 'fa-brain',
-  matching: 'fa-robot',
-  scoring: 'fa-sliders',
-  finalizing: 'fa-check-circle',
-}
-
-// 全量步骤定义（用于步骤指示器）
-const ALL_STEPS = [
-  { step: 'searching', label: '检索招领记录' },
-  { step: 'filtering', label: '筛选同类型记录' },
-  { step: 'embedding', label: '生成文本向量' },
-  { step: 'matching', label: '语义匹配计算' },
-  { step: 'scoring', label: '综合评分排序' },
-]
-
-function AIMatchingProgress({ onComplete }: { onComplete: () => void }) {
-  const [currentStep, setCurrentStep] = useState('')
-  const [currentLabel, setCurrentLabel] = useState('准备中...')
-  const [progress, setProgress] = useState(0)
-  const [completedSteps, setCompletedSteps] = useState<string[]>([])
-  const sseRef = useRef<ReturnType<typeof simulateMatchSSE> | null>(null)
-
-  const handleProgress = useCallback((event: MatchProgressEvent) => {
-    setCurrentStep(event.step)
-    setCurrentLabel(event.label)
-    setProgress(event.progress)
-    // 记录已完成的步骤
-    setCompletedSteps((prev) => {
-      const idx = ALL_STEPS.findIndex((s) => s.step === event.step)
-      const completed = ALL_STEPS.slice(0, idx).map((s) => s.step)
-      return [...new Set([...prev, ...completed])]
-    })
-  }, [])
-
-  const handleDone = useCallback(() => {
-    setProgress(100)
-    setCurrentLabel('匹配完成！')
-    setCompletedSteps(ALL_STEPS.map((s) => s.step))
-    setTimeout(onComplete, 600)
-  }, [onComplete])
-
-  const handleError = useCallback(() => {
-    setCurrentLabel('匹配出错，请重试')
-    setTimeout(onComplete, 1500)
-  }, [onComplete])
-
-  useEffect(() => {
-    // Mock 模式：使用 simulateMatchSSE
-    // 真实后端：替换为 connectMatchSSE(lostId, { onProgress, onDone, onError })
-    sseRef.current = simulateMatchSSE({
-      onProgress: handleProgress,
-      onDone: handleDone,
-      onError: handleError,
-    })
-
-    return () => { sseRef.current?.cancel() }
-  }, [handleProgress, handleDone, handleError])
-
+function CandidateCard({ candidate, rank }: { candidate: CandidatePublic; rank: number }) {
+  const image = useAssetObjectUrl(candidate.found_record.public_image_asset_id)
   return (
-    <div style={{
-      display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-      padding: '60px 40px', gap: '28px'
-    }}>
-      {/* AI 图标动画 */}
-      <div style={{
-        width: '72px', height: '72px', borderRadius: '20px',
-        background: 'linear-gradient(135deg, rgba(107,139,164,0.12) 0%, rgba(139,123,176,0.12) 100%)',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        animation: 'pulse 2s ease-in-out infinite',
-      }}>
-        <i className="fas fa-robot" style={{ fontSize: '28px', color: 'var(--primary-deep)' }}></i>
-      </div>
-
-      {/* 标题 */}
-      <div style={{ textAlign: 'center' }}>
-        <h3 style={{ fontSize: '18px', fontWeight: 800, color: 'var(--text)', marginBottom: '6px' }}>AI 智能匹配中</h3>
-        <p style={{ fontSize: '13px', color: 'var(--muted)' }}>正在为你寻找最匹配的招领信息</p>
-      </div>
-
-      {/* 总进度条 */}
-      <div style={{ width: '100%', maxWidth: '360px' }}>
-        <div style={{
-          width: '100%', height: '8px', borderRadius: '4px',
-          background: 'rgba(107,139,164,0.1)', overflow: 'hidden'
-        }}>
-          <div style={{
-            width: `${progress}%`, height: '100%', borderRadius: '4px',
-            background: 'linear-gradient(90deg, var(--primary) 0%, var(--purple) 100%)',
-            transition: 'width 0.3s ease'
-          }} />
+    <Link to={`/candidates/${candidate.id}`} className="card card-hover block p-4">
+      <div className="flex gap-4">
+        <div className="w-20 h-20 rounded-lg overflow-hidden flex-shrink-0" style={{ background: 'var(--color-neutral-100)' }}>
+          {image.url ? <img src={image.url} alt={candidate.found_record.name_public ?? '候选物品'} className="w-full h-full object-cover" /> : <span className="h-full flex items-center justify-center text-[10px] text-center" style={{ color: 'var(--muted)' }}>{image.loading ? '图片加载中' : image.error ? '图片加载失败' : '暂无图片'}</span>}
         </div>
-        <div style={{
-          display: 'flex', justifyContent: 'space-between', marginTop: '8px',
-          fontSize: '11px', color: 'var(--muted)'
-        }}>
-          <span>{currentLabel}</span>
-          <span>{Math.round(progress)}%</span>
-        </div>
-      </div>
-
-      {/* 步骤指示器 — 驱动自 SSE 推送的 step */}
-      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', justifyContent: 'center' }}>
-        {ALL_STEPS.map((step) => {
-          const isDone = completedSteps.includes(step.step)
-          const isCurrent = currentStep === step.step
-          return (
-            <div key={step.step} style={{
-              display: 'flex', alignItems: 'center', gap: '6px',
-              padding: '6px 12px', borderRadius: '999px', fontSize: '12px',
-              background: isDone ? 'rgba(107,158,122,0.1)' : isCurrent ? 'rgba(107,139,164,0.1)' : 'rgba(148,163,184,0.06)',
-              color: isDone ? '#4a7a5a' : isCurrent ? 'var(--primary-deep)' : 'var(--muted)',
-              fontWeight: isCurrent ? 700 : 500,
-              transition: 'all 0.3s ease'
-            }}>
-              {isDone ? (
-                <i className="fas fa-check text-[10px]"></i>
-              ) : isCurrent ? (
-                <i className="fas fa-spinner fa-spin text-[10px]"></i>
-              ) : (
-                <i className={`fas ${STEP_ICONS[step.step] || 'fa-circle'} text-[10px]`}></i>
-              )}
-              {step.label}
+        <div className="flex-1 min-w-0">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <div className="flex items-center gap-2"><span className="badge">#{rank}</span><h3 className="text-sm font-bold truncate">{candidate.found_record.name_public ?? '未命名物品'}</h3></div>
+              <p className="text-xs mt-1" style={{ color: 'var(--muted)' }}>{candidate.found_record.location_public ?? locationAreaLabel(candidate.found_record.location_area)} · {candidate.found_record.event_time_public ?? '时间未填写'}</p>
             </div>
-          )
-        })}
+            <ScoreBadge score={candidate.total_score} level={candidate.level} />
+          </div>
+          <div className="flex flex-wrap gap-1.5 mt-2">
+            {candidate.reason_codes.map((code) => <span key={`reason-${code}`} className="badge badge-success">{reasonCodeLabel(code)}</span>)}
+            {candidate.conflict_codes.map((code) => <span key={`conflict-${code}`} className="badge badge-warning">{conflictCodeLabel(code)}</span>)}
+          </div>
+        </div>
       </div>
-    </div>
+    </Link>
   )
 }
 
 export function CandidateListPage() {
-  const { id: lostId } = useParams<{ id: string }>()
-  const [isMatching, setIsMatching] = useState(true)
-
-  const { data: candidates = [], isLoading } = useQuery({
-    queryKey: ['candidates', lostId],
-    queryFn: () => mockApi.getCandidates(lostId || ''),
+  const { id: lostId = '' } = useParams<{ id: string }>()
+  const [matching, setMatching] = useState(true)
+  const [attempt, setAttempt] = useState(0)
+  const lostQuery = useQuery({
+    queryKey: ['records', 'lost', lostId],
+    queryFn: () => lostRecordsApi.get(lostId),
+    enabled: Boolean(lostId),
   })
+  const candidatesQuery = useQuery({
+    queryKey: ['records', 'lost', lostId, 'candidates'],
+    queryFn: () => lostRecordsApi.candidates(lostId),
+    enabled: Boolean(lostId) && !matching,
+  })
+  const lostImage = useAssetObjectUrl(lostQuery.data?.public_image_asset_id)
+  const finishMatching = useCallback(() => setMatching(false), [])
+  const retry = () => {
+    setMatching(true)
+    setAttempt((value) => value + 1)
+  }
+
+  if (!lostId) return <div className="p-8">寻物记录不存在</div>
+  if (lostQuery.isLoading) return <div className="p-8">正在加载寻物记录...</div>
+  if (lostQuery.isError || !lostQuery.data) return <div className="p-8" role="alert"><p className="mb-3">无法加载寻物记录</p><button type="button" className="btn btn-secondary" onClick={() => void lostQuery.refetch()}>重试加载</button></div>
+  const lost = lostQuery.data
+  const candidates = candidatesQuery.data ?? []
 
   return (
     <div className="h-full flex overflow-hidden" style={{ background: 'var(--color-neutral-50)' }}>
-      {/* 左侧信息面板 — 紧凑 */}
-      <div className="w-[260px] flex-shrink-0 border-r overflow-y-auto p-4"
-        style={{ background: 'white', borderColor: 'var(--color-neutral-200)' }}
-      >
-        <Link to={`/lost/${lostId}`} style={{
-          display: 'inline-flex', alignItems: 'center', gap: '4px',
-          fontSize: '12px', color: 'var(--muted)', marginBottom: '12px', textDecoration: 'none',
-        }}>
-          <i className="fas fa-arrow-left text-[10px]"></i> 返回详情
-        </Link>
-        <p className="section-title mb-3">我的失物</p>
-        <div className="w-full h-32 rounded-lg overflow-hidden mb-3"
-          style={{ background: 'var(--color-neutral-100)' }}
-        >
-          <img src="https://images.unsplash.com/photo-1556306535-0f09a537f0a3?w=260&h=128&fit=crop"
-            alt="黑色折叠伞" className="w-full h-full object-cover"
-          />
+      <aside className="w-[260px] flex-shrink-0 border-r overflow-y-auto p-4" style={{ background: 'white', borderColor: 'var(--color-neutral-200)' }}>
+        <Link to={`/lost/${lostId}`} className="text-xs">← 返回详情</Link>
+        <p className="section-title my-3">我的失物</p>
+        <div className="w-full h-32 rounded-lg overflow-hidden mb-3" style={{ background: 'var(--color-neutral-100)' }}>
+          {lostImage.url ? <img src={lostImage.url} alt={lost.name_public ?? '失物'} className="w-full h-full object-cover" /> : <span className="h-full flex items-center justify-center text-xs" style={{ color: 'var(--muted)' }}>{lostImage.loading ? '图片加载中' : lostImage.error ? '图片加载失败' : '暂无图片'}</span>}
         </div>
-        <h3 className="text-base font-bold" style={{ color: 'var(--color-neutral-900)' }}>黑色折叠伞</h3>
-        <p className="text-xs mt-0.5" style={{ color: 'var(--color-neutral-500)' }}>其他物品</p>
+        <h3 className="text-base font-bold">{lost.name_public ?? '未命名物品'}</h3>
+        <p className="text-xs mt-1" style={{ color: 'var(--muted)' }}>{publicCategoryLabel(lost.public_category)}</p>
+        <p className="text-xs mt-3">{lost.event_time_public ?? '时间未填写'}</p>
+        <p className="text-xs mt-1">{lost.location_public ?? locationAreaLabel(lost.location_area)}</p>
+        <div className="mt-3 p-2.5 rounded-md" style={{ background: 'var(--color-neutral-50)' }}><p className="text-xs">{lost.description_public ?? '暂无公开描述'}</p></div>
+      </aside>
 
-        <div className="mt-3 space-y-2">
-          {[
-            { icon: 'fa-clock', text: '7月16日 上午' },
-            { icon: 'fa-location-dot', text: '教学楼' },
-            { icon: 'fa-palette', text: '黑色' },
-          ].map((item) => (
-            <div key={item.icon} className="flex items-center gap-2">
-              <i className={`fas ${item.icon} w-4 text-center text-[11px]`}
-                style={{ color: 'var(--color-neutral-400)' }}
-              ></i>
-              <span className="text-xs" style={{ color: 'var(--color-neutral-600)' }}>{item.text}</span>
-            </div>
-          ))}
-        </div>
-
-        <div className="mt-3 p-2.5 rounded-md" style={{ background: 'var(--color-neutral-50)' }}>
-          <p className="text-[10px] font-medium mb-0.5" style={{ color: 'var(--color-neutral-400)' }}>公开描述</p>
-          <p className="text-xs" style={{ color: 'var(--color-neutral-700)' }}>黑色短柄折叠伞，普通款，无明显品牌标识</p>
-        </div>
-      </div>
-
-      {/* 右侧候选列表 */}
-      <div className="flex-1 overflow-y-auto">
-        <div className="p-5">
-          {/* 标题行 */}
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h2 className="text-base font-bold" style={{ color: 'var(--color-neutral-900)', letterSpacing: '-0.02em' }}>
-                {candidates.length} 个候选
-              </h2>
-              <p className="text-xs" style={{ color: 'var(--color-neutral-500)' }}>按匹配度排列 · 匹配分仅供参考</p>
-            </div>
-            <div style={{ display: 'flex', gap: '8px' }}>
-              <button onClick={() => setIsMatching(true)} style={{
-                padding: '8px 16px', borderRadius: '10px', border: 'none', cursor: 'pointer',
-                background: 'rgba(255,255,255,0.88)', color: 'var(--primary-deep)', fontWeight: 600, fontSize: '12px',
-                border: '1px solid rgba(107,139,164,0.15)', display: 'inline-flex', alignItems: 'center', gap: '6px',
-              }}>
-                <i className="fas fa-rotate text-[10px]"></i> 重新匹配
-              </button>
-              <Link to={`/lost/${lostId}/unmatched-review`} style={{
-                padding: '8px 16px', borderRadius: '10px', border: 'none', textDecoration: 'none',
-                background: 'linear-gradient(135deg, var(--primary) 0%, var(--primary-deep) 100%)',
-                color: '#fff', fontWeight: 600, fontSize: '12px', display: 'inline-flex', alignItems: 'center', gap: '6px',
-                boxShadow: '0 4px 12px rgba(107,139,164,0.15)',
-              }}>
-                <i className="fas fa-flag text-[10px]"></i> 提交未匹配复核
-              </Link>
-            </div>
-          </div>
-
-          {/* 信息提示 */}
-          <div className="callout callout-info mb-4 text-xs">
-            <i className="fas fa-circle-info text-[11px] mt-0.5"></i>
-            <span>匹配分仅表示信息相似程度，不代表物品归属。认领需通过身份核验。</span>
-          </div>
-
-          {/* 候选卡片列表 */}
-          {isLoading || isMatching ? (
-            <AIMatchingProgress onComplete={() => setIsMatching(false)} />
-          ) : (
-            <div className="space-y-3">
-              {candidates.map((candidate, index) => (
-                <Link
-                  key={candidate.id}
-                  to={`/candidates/${candidate.id}`}
-                  className="card card-hover block p-4 transition-all"
-                >
-                  <div className="flex gap-4">
-                    {/* 缩略图 */}
-                    <div className="w-20 h-20 rounded-lg overflow-hidden flex-shrink-0"
-                      style={{ background: 'var(--color-neutral-100)' }}
-                    >
-                      <img src="https://images.unsplash.com/photo-1556306535-0f09a537f0a3?w=80&h=80&fit=crop"
-                        alt="物品" className="w-full h-full object-cover"
-                      />
-                    </div>
-
-                    {/* 信息 */}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-2">
-                            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded"
-                              style={{ background: 'var(--color-neutral-100)', color: 'var(--color-neutral-500)' }}
-                            >
-                              #{index + 1}
-                            </span>
-                            <h3 className="text-sm font-bold truncate" style={{ color: 'var(--color-neutral-900)' }}>
-                              {candidate.found_record.name_public}
-                            </h3>
-                          </div>
-                          <p className="text-xs mt-0.5" style={{ color: 'var(--color-neutral-500)' }}>
-                            {candidate.found_record.location_public} · {candidate.found_record.event_time_public}
-                          </p>
-                        </div>
-                        <ScoreBadge score={candidate.total_score} />
-                      </div>
-
-                      {/* 匹配点 & 冲突点 — 紧凑 tag */}
-                      <div className="flex flex-wrap gap-1.5 mt-2">
-                        {candidate.reason_texts.slice(0, 2).map((point, i) => (
-                          <span key={i} className="badge badge-success">
-                            <i className="fas fa-check text-[8px]"></i>
-                            {point.split('——')[0]}
-                          </span>
-                        ))}
-                        {candidate.conflict_texts.slice(0, 1).map((point, i) => (
-                          <span key={i} className="badge badge-warning">
-                            <i className="fas fa-exclamation text-[8px]"></i>
-                            {point.split('——')[0]}
-                          </span>
-                        ))}
-                      </div>
-
-                      <p className="text-[11px] mt-2 truncate" style={{ color: 'var(--color-neutral-400)' }}>
-                        {candidate.retention_reason}
-                      </p>
-                    </div>
-                  </div>
-                </Link>
-              ))}
-            </div>
-          )}
-
-          {/* 底部提示 */}
-          <div className="mt-5 card p-4 flex items-center gap-2">
-            <i className="fas fa-circle-question text-sm" style={{ color: 'var(--color-neutral-400)' }}></i>
-            <span className="text-sm" style={{ color: 'var(--color-neutral-600)' }}>没有找到合适的候选？可点击上方「提交未匹配复核」由管理员协助查找。</span>
+      <main className="flex-1 overflow-y-auto p-5">
+        <div className="flex items-center justify-between mb-4">
+          <div><h2 className="text-base font-bold">{candidates.length} 个候选</h2><p className="text-xs" style={{ color: 'var(--muted)' }}>按匹配度排列 · 匹配分仅供参考</p></div>
+          <div className="flex gap-2">
+            <button type="button" onClick={retry} className="btn btn-secondary">重新匹配</button>
+            <Link to={`/lost/${lostId}/unmatched-review`} className="btn btn-primary">提交未匹配复核</Link>
           </div>
         </div>
-      </div>
+        <div className="callout callout-info mb-4 text-xs">匹配分仅表示信息相似程度，不代表物品归属。认领需通过身份核验。</div>
+        {matching ? <MatchingProgress key={attempt} lostId={lostId} attempt={attempt} onComplete={finishMatching} /> : candidatesQuery.isLoading ? <p>正在加载候选...</p> : candidatesQuery.isError ? <div role="alert"><p className="mb-3">候选列表加载失败。</p><button type="button" className="btn btn-secondary" onClick={() => void candidatesQuery.refetch()}>重试加载候选</button></div> : candidates.length === 0 ? <div className="card p-8 text-center">暂无匹配候选</div> : <div className="space-y-3">{candidates.map((candidate, index) => <CandidateCard key={candidate.id} candidate={candidate} rank={index + 1} />)}</div>}
+      </main>
     </div>
   )
 }

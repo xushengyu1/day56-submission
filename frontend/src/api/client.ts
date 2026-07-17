@@ -1,10 +1,14 @@
 import axios from 'axios'
 import type { AuthTokens } from './types'
+import { ApiError, toApiError } from './errors'
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || ''
 
 let accessToken: string | null = null
 let refreshToken: string | null = null
+let unauthorizedHandler = () => window.location.assign('/login')
+
+export const isMockMode = import.meta.env.VITE_USE_MOCK === 'true'
 
 export const apiClient = axios.create({
   baseURL: API_BASE,
@@ -25,18 +29,18 @@ apiClient.interceptors.response.use(
     if (error.response?.status === 401 && refreshToken && !originalRequest._retry) {
       originalRequest._retry = true
       try {
-        const { data } = await axios.post(`${API_BASE}/api/auth/refresh`, {
+        const { data } = await axios.post<{ tokens: AuthTokens }>(`${API_BASE}/api/auth/refresh`, {
           refresh_token: refreshToken,
         })
-        setTokens(data)
-        originalRequest.headers.Authorization = `Bearer ${data.access_token}`
+        setTokens(data.tokens)
+        originalRequest.headers.Authorization = `Bearer ${data.tokens.access_token}`
         return apiClient(originalRequest)
       } catch {
         clearTokens()
-        window.location.href = '/login'
+        unauthorizedHandler()
       }
     }
-    return Promise.reject(error)
+    return Promise.reject(toApiError(error))
   },
 )
 
@@ -52,4 +56,35 @@ export function clearTokens() {
 
 export function getAccessToken() {
   return accessToken
+}
+
+export function setUnauthorizedHandler(handler: () => void) {
+  unauthorizedHandler = handler
+}
+
+export function apiUrl(path: string) {
+  return `${API_BASE}${path}`
+}
+
+export async function authorizedFetch(path: string, init: RequestInit = {}) {
+  const request = () => fetch(apiUrl(path), {
+    ...init,
+    headers: {
+      ...init.headers,
+      ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+    },
+  })
+  let response = await request()
+  if (response.status !== 401 || !refreshToken) return response
+
+  try {
+    const { data } = await axios.post<{ tokens: AuthTokens }>(`${API_BASE}/api/auth/refresh`, { refresh_token: refreshToken })
+    setTokens(data.tokens)
+    response = await request()
+    return response
+  } catch {
+    clearTokens()
+    unauthorizedHandler()
+    throw new ApiError(401, 'UNAUTHORIZED', '登录已过期，请重新登录')
+  }
 }

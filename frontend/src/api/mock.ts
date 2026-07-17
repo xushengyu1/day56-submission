@@ -538,4 +538,8 @@ export const mockApi = {
     item.updated_at = new Date().toISOString()
     return item
   },
+
+  unsupported(operation: string): never {
+    throw new Error(`Mock 演示模式暂不支持 ${operation}`)
+  },
 }

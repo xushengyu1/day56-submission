@@ -6,6 +6,10 @@ export type UserRole = 'USER' | 'ADMIN'
 
 export type ItemType = 'IDENTITY_DOCUMENT' | 'OTHER'
 
+export type PublicCategory = 'ELECTRONICS' | 'IDENTITY_CARD' | 'CLOTHING' | 'STATIONERY' | 'OTHER_CATEGORY'
+
+export type LocationArea = 'DORMITORY' | 'CANTEEN' | 'TEACHING_BUILDING' | 'SCIENCE_BUILDING' | 'LIBRARY'
+
 /** 记录方向：失物 or 招领 */
 export type RecordKind = 'LOST' | 'FOUND'
 
@@ -85,6 +89,42 @@ export interface RegisterRequest {
   phone?: string
 }
 
+export interface CreatedRecord {
+  id: string
+  status: RecordStatus
+  version?: number
+}
+
+export interface LostRecordCreate {
+  public_category: PublicCategory
+  location_area: LocationArea
+  event_time: string
+  name_public: string
+  description_public: string
+}
+
+export interface FoundDraftCreate {
+  event_time: string
+  location_area: LocationArea
+}
+
+export interface FoundConfirmation {
+  expected_version: number
+  public_category: PublicCategory
+  name_public: string
+  description_public: string
+  event_time: string
+  location_area: LocationArea
+}
+
+export interface FoundExtraction {
+  suggested_name: string
+  suggested_description: string
+  suggested_item_type: ItemType
+  confidence: number
+  status: ExtractionStatus
+}
+
 // ===== 物品记录 =====
 
 export interface ItemRecord {
@@ -92,6 +132,8 @@ export interface ItemRecord {
   owner_user_id: string
   kind: RecordKind
   item_type: ItemType
+  public_category?: PublicCategory
+  location_area?: LocationArea
   status: RecordStatus
 
   // PUBLIC 字段
@@ -105,8 +147,11 @@ export interface ItemRecord {
   location_normalized?: Record<string, unknown>
 
   // 图片
-  public_image_path?: string      // PUBLIC 脱敏副本路径
-  masked_document_number?: string // 掩码证件号（前3后4）
+  public_image_asset_id?: string
+  number_masked?: string
+  claim_id?: string
+  public_image_path?: string
+  masked_document_number?: string
 
   // 元数据
   published_at?: string
@@ -124,9 +169,12 @@ export interface MatchCandidate {
 
   // 总分（满分100）+ 文本解释
   total_score: number
-  reason_texts: string[]      // 匹配理由文案，如 ['物品类别一致——都是折叠伞', '时间接近']
-  conflict_texts: string[]    // 冲突点文案，如 ['楼层不一致——失主填写3楼，招领记录填写2楼']
-  retention_reason: string    // 保留该候选的综合说明
+  level?: string
+  reason_codes?: string[]
+  conflict_codes?: string[]
+  reason_texts: string[]
+  conflict_texts: string[]
+  retention_reason: string
 
   // 关联的招领记录 PUBLIC 投影
   found_record: ItemRecord
@@ -144,6 +192,20 @@ export interface ClaimApplication {
   status: ClaimStatus
   attempt_count: number       // 身份证尝试次数（最多2次）
   created_at: string
+}
+
+export interface ClaimOutcome {
+  claim_id: string
+  status: ClaimStatus
+  result_code: string
+  attempt_no: number
+  attempts_remaining: number
+}
+
+export interface QuestionPublic {
+  id: string
+  question_text: string
+  dimension: string
 }
 
 // ===== OTHER 核验问题 =====
@@ -197,6 +259,45 @@ export interface ReviewRecord {
   reviewer_id?: string
   review_reason?: string
   created_at: string
+}
+
+export interface ReviewQueueItem {
+  id: string
+  source: string
+  item_type: ItemType | null
+  status: string
+  route_source: string | null
+  result_code: string | null
+  created_at: string
+}
+
+export interface ReviewDetail extends ReviewQueueItem {
+  requester_user_id: string
+  reason: string | null
+  lost_record: ItemRecord | null
+  candidate: MatchCandidate | null
+  evidence: Array<{
+    attempt_no: number
+    result_code: string
+    answer_summary: Record<string, unknown> | null
+    risk_flag: string | null
+    created_at: string
+  }>
+}
+
+export interface ClaimDetail {
+  id: string
+  candidate_id: string
+  requester_user_id: string
+  item_type: ItemType
+  status: ClaimStatus
+  route_source: string | null
+  result_code: string | null
+  attempt_count: number
+  attempts_remaining: number
+  created_at: string
+  updated_at: string
+  timeline: Array<{ event_type: string; result_code: string; created_at: string }>
 }
 
 export interface AdminDecisionRequest {

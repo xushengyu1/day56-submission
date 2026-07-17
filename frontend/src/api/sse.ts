@@ -1,20 +1,16 @@
-/**
- * SSE 客户端 — 用于 AI 匹配等需要实时进度的场景
- *
- * 真实后端接入时：
- *   const es = new EventSource(`/api/lost-records/${lostId}/match`, { withCredentials: true })
- *
- * Mock 模式下使用 simulateMatchSSE 模拟后端推送。
- */
+import { ApiError } from './errors'
+import { authorizedFetch } from './client'
 
 export interface MatchProgressEvent {
+  stage: string
+  progress: number
   step: string
   label: string
-  progress: number
 }
 
 export interface MatchDoneEvent {
-  candidates: unknown[]
+  stage: string
+  progress: number
 }
 
 export interface MatchErrorEvent {
@@ -22,48 +18,60 @@ export interface MatchErrorEvent {
   message: string
 }
 
-/** 连接真实后端 SSE（联调时使用） */
-export function connectMatchSSE(
+export async function streamMatch(
   lostId: string,
   handlers: {
     onProgress: (event: MatchProgressEvent) => void
     onDone: (event: MatchDoneEvent) => void
     onError: (event: MatchErrorEvent) => void
   },
-): EventSource {
-  const es = new EventSource(`/api/lost-records/${lostId}/match`)
+  signal?: AbortSignal,
+): Promise<void> {
+  if (signal?.aborted) return
+  const response = await authorizedFetch(`/api/lost-records/${lostId}/match`, { signal })
+  if (!response.ok) {
+    handlers.onError({ error_code: `HTTP_${response.status}`, message: '匹配进度连接失败' })
+    throw new ApiError(response.status, `HTTP_${response.status}`, '匹配进度连接失败')
+  }
+  if (!response.body) {
+    handlers.onError({ error_code: 'EMPTY_STREAM', message: '匹配进度连接失败' })
+    return
+  }
 
-  es.addEventListener('progress', (e) => {
-    handlers.onProgress(JSON.parse(e.data))
-  })
-
-  es.addEventListener('done', (e) => {
-    handlers.onDone(JSON.parse(e.data))
-    es.close()
-  })
-
-  es.addEventListener('error', (e) => {
-    // EventSource 的原生 error 事件没有 data
-    // 服务端自定义 error 事件通过 message 传递
-    if (e instanceof MessageEvent && e.data) {
-      handlers.onError(JSON.parse(e.data))
-    } else {
-      handlers.onError({ error_code: 'CONNECTION_ERROR', message: '连接中断' })
+  const reader = response.body.getReader()
+  const cancel = () => { void reader.cancel() }
+  signal?.addEventListener('abort', cancel, { once: true })
+  const decoder = new TextDecoder()
+  let buffer = ''
+  try {
+    while (!signal?.aborted) {
+      const { done, value } = await reader.read()
+      if (done) break
+      buffer += decoder.decode(value, { stream: true })
+      const messages = buffer.split('\n\n')
+      buffer = messages.pop() ?? ''
+      for (const message of messages) {
+        const event = message.match(/^event:\s*(.+)$/m)?.[1]
+        const data = message.match(/^data:\s*(.+)$/m)?.[1]
+        if (!event || !data) continue
+        const payload = JSON.parse(data)
+        if (event === 'progress') handlers.onProgress(payload)
+        if (event === 'done') handlers.onDone(payload)
+        if (event === 'error') handlers.onError(payload)
+      }
     }
-    es.close()
-  })
-
-  return es
+  } finally {
+    signal?.removeEventListener('abort', cancel)
+  }
 }
 
-/** Mock SSE 模拟 — 模拟后端逐阶段推送进度 */
-const MOCK_STEPS: MatchProgressEvent[] = [
-  { step: 'searching', label: '正在检索招领记录...', progress: 15 },
-  { step: 'filtering', label: '筛选同类型已发布记录...', progress: 30 },
-  { step: 'embedding', label: '生成文本向量...', progress: 50 },
-  { step: 'matching', label: '语义匹配计算中...', progress: 70 },
-  { step: 'scoring', label: '综合评分排序...', progress: 85 },
-  { step: 'finalizing', label: '生成匹配结果...', progress: 100 },
+const mockSteps: MatchProgressEvent[] = [
+  { stage: 'searching', step: 'searching', label: '正在检索招领记录...', progress: 15 },
+  { stage: 'filtering', step: 'filtering', label: '筛选同类型已发布记录...', progress: 30 },
+  { stage: 'embedding', step: 'embedding', label: '生成文本向量...', progress: 50 },
+  { stage: 'matching', step: 'matching', label: '语义匹配计算中...', progress: 70 },
+  { stage: 'scoring', step: 'scoring', label: '综合评分排序...', progress: 85 },
+  { stage: 'finalizing', step: 'finalizing', label: '生成匹配结果...', progress: 100 },
 ]
 
 export function simulateMatchSSE(
@@ -74,29 +82,17 @@ export function simulateMatchSSE(
   },
 ): { cancel: () => void } {
   let cancelled = false
-  let stepIndex = 0
-
-  const nextStep = () => {
+  let index = 0
+  const next = () => {
     if (cancelled) return
-    if (stepIndex >= MOCK_STEPS.length) {
-      // 所有步骤完成，推送 done 事件
-      handlers.onDone({ candidates: [] })
+    const event = mockSteps[index++]
+    if (!event) {
+      handlers.onDone({ stage: 'done', progress: 100 })
       return
     }
-
-    const step = MOCK_STEPS[stepIndex]
-    handlers.onProgress(step)
-    stepIndex++
-
-    // 每步间隔 400-800ms，模拟真实延迟
-    const delay = 400 + Math.random() * 400
-    setTimeout(nextStep, delay)
+    handlers.onProgress(event)
+    setTimeout(next, 400)
   }
-
-  // 首步延迟 300ms
-  setTimeout(nextStep, 300)
-
-  return {
-    cancel: () => { cancelled = true },
-  }
+  setTimeout(next, 300)
+  return { cancel: () => { cancelled = true } }
 }

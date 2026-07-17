@@ -11,6 +11,22 @@ class ItemType(str, Enum):
     OTHER = "OTHER"
 
 
+class PublicCategory(str, Enum):
+    ELECTRONICS = "ELECTRONICS"
+    IDENTITY_CARD = "IDENTITY_CARD"
+    CLOTHING = "CLOTHING"
+    STATIONERY = "STATIONERY"
+    OTHER_CATEGORY = "OTHER_CATEGORY"
+
+
+class LocationArea(str, Enum):
+    DORMITORY = "DORMITORY"
+    CANTEEN = "CANTEEN"
+    TEACHING_BUILDING = "TEACHING_BUILDING"
+    SCIENCE_BUILDING = "SCIENCE_BUILDING"
+    LIBRARY = "LIBRARY"
+
+
 class RecordKind(str, Enum):
     LOST = "LOST"
     FOUND = "FOUND"

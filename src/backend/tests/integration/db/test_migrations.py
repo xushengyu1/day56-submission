@@ -16,6 +16,8 @@ from app.db.enums import (
     ExtractionStatus,
     ImagePurpose,
     ItemType,
+    LocationArea,
+    PublicCategory,
     QuestionResult,
     RecordKind,
     RecordStatus,
@@ -50,6 +52,20 @@ def test_database_enum_values_are_stable() -> None:
     expected = {
         UserRole: ["USER", "ADMIN"],
         ItemType: ["IDENTITY_DOCUMENT", "OTHER"],
+        PublicCategory: [
+            "ELECTRONICS",
+            "IDENTITY_CARD",
+            "CLOTHING",
+            "STATIONERY",
+            "OTHER_CATEGORY",
+        ],
+        LocationArea: [
+            "DORMITORY",
+            "CANTEEN",
+            "TEACHING_BUILDING",
+            "SCIENCE_BUILDING",
+            "LIBRARY",
+        ],
         RecordKind: ["LOST", "FOUND"],
         RecordStatus: [
             "DRAFT",

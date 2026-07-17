@@ -21,4 +21,5 @@ def build_embedding_adapter(config: Settings = settings) -> EmbeddingPort:
         model=config.embedding_model,
         dimension=config.embedding_dimension,
         api_key=config.dashscope_api_key,
+        base_url=config.dashscope_base_url,
     )

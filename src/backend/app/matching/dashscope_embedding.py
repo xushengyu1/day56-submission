@@ -11,10 +11,18 @@ from app.matching.embedding import EmbeddingError
 
 
 class DashScopeEmbeddingAdapter:
-    def __init__(self, *, model: str, dimension: int, api_key: str) -> None:
+    def __init__(
+        self,
+        *,
+        model: str,
+        dimension: int,
+        api_key: str,
+        base_url: str | None = None,
+    ) -> None:
         self.model = model
         self.dimension = dimension
         self._api_key = api_key
+        self._base_url = base_url
 
     async def embed(self, texts: list[str]) -> list[list[float]]:
         if (
@@ -24,6 +32,8 @@ class DashScopeEmbeddingAdapter:
         ):
             raise EmbeddingError("EMBEDDING_INPUT_INVALID")
         try:
+            if self._base_url:
+                dashscope.base_http_api_url = self._base_url.rstrip("/")
             response = await asyncio.to_thread(
                 dashscope.TextEmbedding.call,
                 model=self.model,

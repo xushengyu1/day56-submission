@@ -11,3 +11,6 @@ src/backend/.coverage
 src/backend/htmlcov/
 node_modules/
 szy/
+frontend/e2e/assets/
+frontend/playwright-report/
+frontend/test-results/

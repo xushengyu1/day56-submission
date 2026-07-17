@@ -9,3 +9,5 @@
 src/backend/.env
 src/backend/.coverage
 src/backend/htmlcov/
+node_modules/
+szy/

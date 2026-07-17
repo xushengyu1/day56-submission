@@ -40,3 +40,14 @@
 
 每个人至少留下三类证据：文件/模块负责人记录、会议行动项或决策、AI/测试/Review/提交记录中的至少一类。
 
+## 追加确认：当前已知成员贡献映射
+
+> 确认日期：2026-07-16。本节只记录已经由宋子仪确认的真实贡献，不推断其他尚未说明的团队职责；上方“待确认”模板作为历史记录保留。
+
+| 成员 | 已确认贡献 | 证据位置 |
+|---|---|---|
+| 宋姿毅（SZY） | 角色功能与身份证件分流；其余产品/架构决策主导；PRD、方案、详细设计、dev 与过程文档记录；UI 设计和 React 前端独立实现 | `docs/reflection/szy-personal-contribution.md`、`szy-ai-log.md`、`prototype/ui/`、`frontend/`、`evidence/development-records/T13.md`～`T16.md` |
+| 徐胜宇 | 提出四级数据分类；与宋姿毅共同执行和决定图片识别方案 | `docs/collaboration/decision-log.md` 的 `D-ATTR-001`、`docs/reflection/szy-personal-contribution.md` |
+| 黄孝梁 | 提出图片识别/多模态提取想法 | `docs/collaboration/decision-log.md` 的 `D-ATTR-001`、`docs/reflection/szy-personal-contribution.md` |
+
+该表仅用于贡献归属，不等同于完整任务分工表；其他成员的代码、测试和交付职责仍需各成员以真实证据补充。
